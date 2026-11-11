@@ -19,6 +19,30 @@ class AuthService:
         return password == expected
 
     @staticmethod
+    def exchange_code_for_id_token(code: str, redirect_uri: str) -> str:
+        """Exchanges OAuth authorization code with Google for verified ID token."""
+        import requests
+        client_id = _get_cfg("GOOGLE_CLIENT_ID", Config.GOOGLE_CLIENT_ID)
+        client_secret = _get_cfg("GOOGLE_CLIENT_SECRET", Config.GOOGLE_CLIENT_SECRET)
+
+        if not client_id or not client_secret:
+            raise ValueError("יש להגדיר GOOGLE_CLIENT_ID ו-GOOGLE_CLIENT_SECRET בקובץ .env לצורך אימות Google")
+
+        token_url = "https://oauth2.googleapis.com/token"
+        payload = {
+            "code": code,
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "redirect_uri": redirect_uri,
+            "grant_type": "authorization_code"
+        }
+        resp = requests.post(token_url, data=payload, timeout=10)
+        data = resp.json()
+        if "error" in data:
+            raise ValueError(data.get("error_description") or data.get("error"))
+        return data["id_token"]
+
+    @staticmethod
     def verify_google_id_token(token_str: str) -> dict:
         """
         Verifies Google ID token locally using google-auth library.

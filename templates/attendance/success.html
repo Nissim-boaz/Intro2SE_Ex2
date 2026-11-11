@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}נוכחות נקלטה בהצלחה{% endblock %}
+{% block header_title %}רישום נוכחות סטודנט{% endblock %}
+
+{% block content %}
+<div class="card mobile-card" style="border-top: 4px solid {{ 'var(--warning)' if result.is_suspicious else 'var(--success)' }};">
+  <div style="font-size: 3.5rem; margin-bottom: 0.5rem;">
+    {{ '⚠️' if result.is_suspicious else '✅' }}
+  </div>
+  
+  <h2 style="font-size: 1.4rem; margin-bottom: 0.5rem; color: {{ 'var(--warning)' if result.is_suspicious else 'var(--success)' }};">
+    {{ 'שלום, ' ~ result.attendance.student_name }}
+  </h2>
+
+  <p style="font-size: 1.05rem; margin-bottom: 1.5rem; font-weight: 500;">
+    {{ result.message }}
+  </p>
+
+  <div style="background: var(--bg-light); border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem; text-align: right; font-size: 0.92rem; line-height: 1.8; margin-bottom: 1.5rem;">
+    <div><strong>אימייל מאומת:</strong> {{ result.attendance.email }}</div>
+    <div><strong>שעת רישום:</strong> {{ result.attendance.timestamp[:19].replace('T', ' ') }}</div>
+    <div><strong>כתובת IP:</strong> <code>{{ result.attendance.ip_address }}</code></div>
+    <div>
+      <strong>סטטוס בדיקת קמפוס:</strong>
+      {% if result.status == 'present' %}
+        <span class="badge badge-success">נוכח בקמפוס</span>
+      {% else %}
+        <span class="badge badge-danger">מחוץ לקמפוס (מסומן לבדיקת מרצה)</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <p style="color: var(--text-muted); font-size: 0.85rem;">
+    הנוכחות שלך נקלטה ונשמרה במערכת ומוצגת כעת בלוח הבקרה של המרצה.
+  </p>
+</div>
+{% endblock %}
