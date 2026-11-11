@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}לוח בקרת מרצה - נוכחות בזמן אמת{% endblock %}
+{% block header_title %}לוח בקרת מרצה{% endblock %}
+
+{% block content %}
+<div id="flash-message-container"></div>
+
+{% if active_session %}
+  <!-- Active Session View -->
+  <div class="card" style="border-top: 4px solid var(--primary);">
+    <div class="card-title">
+      <div>
+        <span class="badge badge-success" style="font-size: 0.95rem; margin-left: 0.5rem;">סשן פעיל</span>
+        <strong id="session-title">{{ active_session.title }}</strong>
+      </div>
+      <div>
+        <button id="btn-close-session" class="btn btn-danger btn-sm" onclick="closeSession('{{ active_session.id }}')">
+          סיים סשן
+        </button>
+      </div>
+    </div>
+    
+    <div style="display: flex; gap: 2rem; flex-wrap: wrap; color: var(--text-muted); font-size: 0.95rem;">
+      <div>שעת התחלה: <strong>{{ active_session.start_time[:19].replace('T', ' ') }}</strong></div>
+      <div>זמן שנותר: <strong id="time-remaining-text" style="color: var(--primary);">--:--</strong></div>
+      <div>מזהה סשן: <code>{{ active_session.id }}</code></div>
+    </div>
+  </div>
+
+  <!-- Live Stats Counter (updates every 2s) -->
+  <div class="stats-grid">
+    <div class="stat-box">
+      <div id="stat-total" class="stat-value">0</div>
+      <div class="stat-label">סה״כ נרשמו</div>
+    </div>
+    <div class="stat-box">
+      <div id="stat-present" class="stat-value success">0</div>
+      <div class="stat-label">נוכחים מאומתים</div>
+    </div>
+    <div class="stat-box">
+      <div id="stat-suspicious" class="stat-value danger">0</div>
+      <div class="stat-label">חשודים (מחוץ לקמפוס)</div>
+    </div>
+    <div class="stat-box">
+      <div id="stat-rejected" class="stat-value warning">0</div>
+      <div class="stat-label">ניסיונות שנדחו</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <!-- QR Code Display Card -->
+    <div class="card">
+      <div class="card-title">
+        <span>קוד QR לסריקה (מתחלף כל 6 שניות)</span>
+        <button type="button" class="btn btn-outline btn-sm" onclick="toggleQrFullscreen()">
+          ⛶ מסך מלא למקרן
+        </button>
+      </div>
+      <div class="qr-container" id="qr-main-container">
+        <div class="qr-box">
+          <img id="qr-image" src="{{ url_for('sessions.get_active_qr_png') }}" alt="QR Code">
+        </div>
+        <div class="qr-timer">
+          <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-muted);">
+            <span>החלפה בעוד:</span>
+            <span id="qr-seconds">6 שניות</span>
+          </div>
+          <div class="progress-bar-container">
+            <div id="qr-progress" class="progress-bar-fill" style="width: 100%;"></div>
+          </div>
+        </div>
+        <div style="margin-top: 1rem; text-align: center;">
+          <a id="qr-direct-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="font-size: 0.85rem; text-decoration: none;">
+            🔗 פתח קישור סטודנט בחלון חדש (לבדיקה)
+          </a>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.8rem; text-align: center;">
+          הסטודנטים סורקים את הברקוד מהטלפון הנייד.<br>
+          טוקן של חלון קודם נדחה אוטומטית.
+        </p>
+      </div>
+    </div>
+
+    <!-- Attendance Real-Time Chart -->
+    <div class="card">
+      <div class="card-title">
+        <span>קצב הצטרפות סטודנטים (לאורך זמן)</span>
+      </div>
+      <div style="position: relative; height: 280px; width: 100%;">
+        <canvas id="attendanceChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Attendees List -->
+  <div class="card">
+    <div class="card-title">
+      <span>רשימת נוכחות בזמן אמת (<span id="attendees-table-count">0</span>)</span>
+    </div>
+    <div class="table-responsive">
+      <table id="attendees-table">
+        <thead>
+          <tr>
+            <th>שם הסטודנט</th>
+            <th>כתובת אימייל</th>
+            <th>שעת רישום</th>
+            <th>כתובת IP</th>
+            <th>סטטוס</th>
+            <th>פעולה</th>
+          </tr>
+        </thead>
+        <tbody id="attendees-tbody">
+          <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">טוען נתונים...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Rejected Attempts List (F11) -->
+  <div class="card">
+    <div class="card-title">
+      <span>ניסיונות שנדחו (<span id="rejected-table-count">0</span>)</span>
+    </div>
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th>שם (אם זוהה ב-Google)</th>
+            <th>אימייל שניסה להירשם</th>
+            <th>שעה</th>
+            <th>כתובת IP</th>
+            <th>סיבת דחייה</th>
+          </tr>
+        </thead>
+        <tbody id="rejected-tbody">
+          <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">אין ניסיונות שנדחו</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+{% else %}
+  <!-- No Active Session: Start Session Form -->
+  <div class="card" style="max-width: 600px; margin: 0 auto 2rem auto;">
+    <h2 style="font-size: 1.3rem; margin-bottom: 1rem; color: var(--primary);">פתיחת סשן נוכחות חדש</h2>
+    <form id="start-session-form" onsubmit="handleStartSession(event)">
+      <div class="form-group">
+        <label for="session-title-input">שם השיעור / תיאור:</label>
+        <input type="text" id="session-title-input" class="form-control" value="שיעור נוכחות" required>
+      </div>
+      <div class="form-group">
+        <label for="session-duration-input">משך הסשן בדקות (ברירת מחדל 90):</label>
+        <input type="number" id="session-duration-input" class="form-control" value="{{ default_duration }}" min="5" max="300" required>
+      </div>
+      <button type="submit" id="btn-start" class="btn btn-primary" style="width: 100%;">
+        התחל נוכחות
+      </button>
+    </form>
+  </div>
+
+  {% if latest_closed %}
+    <!-- Summary of Latest Closed Session -->
+    <div class="card">
+      <div class="card-title">
+        <div>
+          <span>סיכום שיעור אחרון: <strong>{{ latest_closed.title }}</strong></span>
+          <span style="font-size: 0.85rem; color: var(--text-muted); margin-right: 0.5rem;">
+            (נסגר ב-{{ latest_closed.closed_at[:19].replace('T', ' ') if latest_closed.closed_at else '' }})
+          </span>
+        </div>
+        <div>
+          <a href="{{ url_for('dashboard.export_csv', session_id=latest_closed.id) }}" class="btn btn-success btn-sm">
+            📥 ייצוא ל-CSV
+          </a>
+          <a href="{{ url_for('dashboard.session_summary_view', session_id=latest_closed.id) }}" class="btn btn-outline btn-sm">
+            צפה בסיכום מלא
+          </a>
+        </div>
+      </div>
+
+      {% if summary_data %}
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-value">{{ summary_data.total_class }}</div>
+            <div class="stat-label">רשומים בקורס</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value success">{{ summary_data.present_count }}</div>
+            <div class="stat-label">נכחו</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value danger">{{ summary_data.suspicious_count }}</div>
+            <div class="stat-label">חשודים (לא אושרו)</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value warning">{{ summary_data.absent_count }}</div>
+            <div class="stat-label">לא הגיעו</div>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/lecturer.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}התחברות מרצה{% endblock %}
+{% block header_title %}כניסת מרצה למערכת{% endblock %}
+
+{% block content %}
+<div class="card mobile-card">
+  <h2 style="margin-bottom: 1.5rem; font-size: 1.4rem;">הזדהות מרצה</h2>
+  
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('auth.lecturer_login') }}">
+    <div class="form-group">
+      <label for="password">סיסמת מרצה:</label>
+      <input type="password" id="password" name="password" class="form-control" placeholder="הזן סיסמה" required autofocus>
+    </div>
+    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">התחבר</button>
+  </form>
+</div>
+{% endblock %}

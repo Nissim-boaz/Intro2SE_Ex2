@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>{% block title %}מערכת נוכחות חכמה{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header>
+    <h1>{% block header_title %}מערכת רישום נוכחות{% endblock %}</h1>
+    <nav class="nav-links">
+      {% if session.get('lecturer_authenticated') %}
+        <a href="{{ url_for('dashboard.lecturer_dashboard') }}">לוח בקרה</a>
+        <a href="{{ url_for('auth.lecturer_logout') }}">התנתק</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

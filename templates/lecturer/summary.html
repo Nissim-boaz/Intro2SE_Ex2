@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}סיכום נוכחות - {{ session_obj.title }}{% endblock %}
+{% block header_title %}סיכום סשן נוכחות{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-title">
+    <div>
+      <h2 style="font-size: 1.3rem;">{{ session_obj.title }}</h2>
+      <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">
+        נפתח: {{ session_obj.start_time[:19].replace('T', ' ') }} | נסגר: {{ session_obj.closed_at[:19].replace('T', ' ') if session_obj.closed_at else '' }}
+      </div>
+    </div>
+    <div>
+      <a href="{{ url_for('dashboard.export_csv', session_id=session_obj.id) }}" class="btn btn-success">
+        📥 ייצוא קובץ CSV
+      </a>
+      <a href="{{ url_for('dashboard.lecturer_dashboard') }}" class="btn btn-outline">
+        חזרה לדאשבורד
+      </a>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-box">
+      <div class="stat-value">{{ summary.total_class }}</div>
+      <div class="stat-label">סה״כ בכיתה (CSV)</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value success">{{ summary.present_count }}</div>
+      <div class="stat-label">נוכחים מאומתים</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value danger">{{ summary.suspicious_count }}</div>
+      <div class="stat-label">חשודים שלא אושרו</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value warning">{{ summary.absent_count }}</div>
+      <div class="stat-label">לא הגיעו</div>
+    </div>
+  </div>
+</div>
+
+<!-- Attendees Table -->
+<div class="card">
+  <div class="card-title">
+    <span>נוכחים בסשן ({{ summary.attendees|length }})</span>
+  </div>
+  <div class="table-responsive">
+    <table>
+      <thead>
+        <tr>
+          <th>שם סטודנט</th>
+          <th>אימייל</th>
+          <th>שעת רישום</th>
+          <th>כתובת IP</th>
+          <th>סטטוס</th>
+          <th>אישור מרצה</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in summary.attendees %}
+        <tr class="{{ 'suspicious' if a.status == 'suspicious' else '' }}">
+          <td><strong>{{ a.student_name }}</strong></td>
+          <td>{{ a.email }}</td>
+          <td>{{ a.timestamp[:19].replace('T', ' ') }}</td>
+          <td><code>{{ a.ip_address }}</code></td>
+          <td>
+            {% if a.status == 'present' %}
+              <span class="badge badge-success">נוכח</span>
+            {% else %}
+              <span class="badge badge-danger">חשוד</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if a.approved_at %}
+              <span class="badge badge-success">אושר ידנית ב-{{ a.approved_at[:19].replace('T', ' ') }}</span>
+            {% elif a.status == 'suspicious' %}
+              <span class="badge badge-warning">טרם אושר</span>
+            {% else %}
+              <span style="color: var(--text-muted);">-</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">לא נרשמו נוכחים</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Absent Students Table -->
+<div class="card">
+  <div class="card-title">
+    <span>סטודנטים שלא הגיעו ({{ summary.absent_students|length }})</span>
+  </div>
+  <div class="table-responsive">
+    <table>
+      <thead>
+        <tr>
+          <th>שם סטודנט</th>
+          <th>אימייל</th>
+          <th>סטטוס</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in summary.absent_students %}
+        <tr>
+          <td>{{ s.name }}</td>
+          <td>{{ s.email }}</td>
+          <td><span class="badge badge-secondary">לא הגיע</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" style="text-align: center; color: var(--success);">כל הסטודנטים מהרשימה נכחו!</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Rejected Attempts Table -->
+{% if summary.rejected_attempts %}
+<div class="card">
+  <div class="card-title">
+    <span>ניסיונות שנדחו ({{ summary.rejected_attempts|length }})</span>
+  </div>
+  <div class="table-responsive">
+    <table>
+      <thead>
+        <tr>
+          <th>שם (אם זוהה)</th>
+          <th>אימייל</th>
+          <th>שעה</th>
+          <th>IP</th>
+          <th>סיבה</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in summary.rejected_attempts %}
+        <tr>
+          <td>{{ r.student_name or '-' }}</td>
+          <td>{{ r.email }}</td>
+          <td>{{ r.timestamp[:19].replace('T', ' ') }}</td>
+          <td><code>{{ r.ip_address }}</code></td>
+          <td><span class="badge badge-danger">{{ r.reason }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}שגיאת סריקה{% endblock %}
+{% block header_title %}רישום נוכחות סטודנט{% endblock %}
+
+{% block content %}
+<div class="card mobile-card" style="border-top: 4px solid var(--danger);">
+  <div style="font-size: 3rem; margin-bottom: 0.5rem; color: var(--danger);">⚠️</div>
+  <h2 style="font-size: 1.35rem; margin-bottom: 0.75rem; color: var(--danger);">{{ error_title }}</h2>
+  <p style="color: var(--text-dark); margin-bottom: 1.5rem; line-height: 1.6;">
+    {{ error_message }}
+  </p>
+
+  <div style="background: var(--bg-light); border: 1px dashed var(--border); border-radius: 8px; padding: 1rem; font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+    💡 <strong>שים לב:</strong> קוד ה-QR המוצג על גבי מסך המרצה מתחלף כל 6 שניות. אם חלף הזמן, יש לכוון שוב את מצלמת הטלפון אל הברקוד המעודכן.
+  </div>
+
+  <button onclick="window.location.reload()" class="btn btn-primary" style="width: 100%;">
+    נסה שוב
+  </button>
+</div>
+{% endblock %}
