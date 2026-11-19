@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}התחברות · Model+{% endblock %}
+{% block topbar %}{% endblock %}
+{% block main_class %}login{% endblock %}
+{% block content %}
+<div class="login-card">
+  <div>
+    <div class="login-mark" dir="ltr">Model<span>+</span></div>
+    <p class="muted" style="margin-top:12px">הקורסים, הנוכחות והצ׳אט של הכיתה במקום אחד</p>
+  </div>
+
+  <div class="panel stack">
+    {% if google_client_id %}
+      <script src="https://accounts.google.com/gsi/client" async></script>
+      <div id="g_id_onload"
+           data-client_id="{{ google_client_id }}"
+           data-login_uri="{{ url_for('auth.google', _external=True) }}"
+           data-ux_mode="redirect"
+           data-auto_prompt="false"></div>
+      <div class="g_id_signin" data-type="standard" data-size="large" data-shape="pill"
+           data-text="signin_with" data-locale="he" data-width="320" style="display:flex;justify-content:center"></div>
+      <p class="xsmall muted" style="text-align:center">רק חשבונות שמנהל המערכת הוסיף יכולים להיכנס</p>
+    {% elif not mock_auth %}
+      <p class="muted">ההתחברות עם Google עוד לא הוגדרה. צריך להגדיר GOOGLE_CLIENT_ID בקובץ ההגדרות.</p>
+    {% endif %}
+
+    {% if mock_auth %}
+      {% if google_client_id %}<div class="divider">מצב דמו</div>{% endif %}
+      <form method="post" action="{{ url_for('auth.mock') }}" class="form-grid">
+        <label>תפקיד
+          <select id="mock-role">
+            <option value="admin">מנהל מערכת</option>
+            <option value="lecturer">מרצה</option>
+            <option value="student" selected>סטודנט</option>
+          </select>
+        </label>
+        <label>משתמש
+          <select name="user_id" id="mock-user" required>
+            {% for u in mock_users %}
+            <option value="{{ u.id }}" data-role="{{ u.role }}">{{ u.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button class="btn btn-lg btn-block">היכנס</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{% if mock_auth %}
+<script>
+  (function () {
+    const role = document.getElementById("mock-role");
+    const userSel = document.getElementById("mock-user");
+    const all = [...userSel.options];
+    function filter() {
+      userSel.innerHTML = "";
+      all.filter((o) => o.dataset.role === role.value).forEach((o) => userSel.appendChild(o));
+    }
+    role.addEventListener("change", filter);
+    filter();
+  })();
+</script>
+{% endif %}
+{% endblock %}

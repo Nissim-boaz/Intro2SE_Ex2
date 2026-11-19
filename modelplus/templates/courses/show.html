@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ course.name }} · Model+{% endblock %}
+{% block content %}
+<header class="course-hero">
+  {% if course.code %}<span class="pill" dir="ltr">{{ course.code }}</span>{% endif %}
+  <h1>{{ course.name }}</h1>
+  <p class="lecturers">
+    {% if lecturers %}{{ 'מרצה: ' if lecturers|length == 1 else 'מרצים: ' }}{{ lecturers|map(attribute='name')|join(', ') }}{% else %}עוד לא שויך מרצה{% endif %}
+  </p>
+  {% if course.description %}<p class="muted" style="max-width:62ch">{{ course.description }}</p>{% endif %}
+</header>
+
+<nav class="course-nav" aria-label="חלקי הקורס">
+  <a href="#content">תכנים</a>
+  {% block nav_extra %}{% endblock %}
+</nav>
+
+<div class="stack-lg">
+  {% block sections %}{% endblock %}
+</div>
+{% endblock %}

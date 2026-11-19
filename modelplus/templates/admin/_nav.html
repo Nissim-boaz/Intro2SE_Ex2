@@ -1,0 +1,4 @@
+<nav class="course-nav" aria-label="ניהול" style="position:static;margin-top:0">
+  <a href="{{ url_for('admin.users') }}" {% if active == 'users' %}style="background:var(--ink);color:#fff;box-shadow:none"{% endif %}>משתמשים</a>
+  <a href="{{ url_for('admin.courses') }}" {% if active == 'courses' %}style="background:var(--ink);color:#fff;box-shadow:none"{% endif %}>קורסים</a>
+</nav>

@@ -1,48 +1,52 @@
-import os
-import tempfile
 import pytest
-from app import create_app
-from database.db import init_db
+
+from modelplus import create_app
+from modelplus.config import TestConfig
+from modelplus.db import connect, init_schema
+from modelplus.services.courses import CourseService, EnrollmentService
+from modelplus.services.users import UserService
+
 
 @pytest.fixture
-def temp_csv(tmp_path):
-    csv_file = tmp_path / "test_students.csv"
-    csv_file.write_text(
-        "name,email\n"
-        "ישראל ישראלי,israel@campus.edu\n"
-        "שרה כהן,sarah@campus.edu\n"
-        "דוד לוי,david@campus.edu\n",
-        encoding="utf-8"
+def db(tmp_path):
+    conn = connect(str(tmp_path / "test.db"))
+    init_schema(conn)
+    yield conn
+    conn.close()
+
+
+@pytest.fixture
+def people(db):
+    """אדמין, מרצה, שני סטודנטים וקורס שבו כולם משויכים."""
+    users = UserService(db)
+    admin = users.create("admin@test.ac.il", "אדמין", "admin")
+    lecturer = users.create("lect@test.ac.il", "ד״ר מרצה", "lecturer")
+    s1 = users.create("s1@test.ac.il", "סטודנט אחד", "student")
+    s2 = users.create("s2@test.ac.il", "סטודנט שתיים", "student")
+    outsider = users.create("out@test.ac.il", "לא בקורס", "student")
+    course = CourseService(db).create("מבוא להנדסת תוכנה", "7036")
+    EnrollmentService(db).enroll_many(course.id, [lecturer, s1, s2])
+    return dict(admin=admin, lecturer=lecturer, s1=s1, s2=s2, outsider=outsider, course=course)
+
+
+@pytest.fixture
+def app(tmp_path):
+    app = create_app(
+        TestConfig,
+        DATABASE=str(tmp_path / "app.db"),
+        UPLOAD_DIR=str(tmp_path / "uploads"),
+        ADMIN_EMAIL="admin@test.ac.il",
+        CAMPUS_CIDRS_FILE=str(tmp_path / "cidrs.txt"),
     )
-    return str(csv_file)
-
-@pytest.fixture
-def app(temp_csv, tmp_path):
-    db_file = tmp_path / "test_attendance.db"
-    test_config = {
-        "TESTING": True,
-        "SECRET_KEY": "test-secret-key",
-        "HMAC_SECRET": "test-hmac-secret",
-        "LECTURER_PASSWORD": "testpassword",
-        "DATABASE_PATH": str(db_file),
-        "CLASS_CSV_PATH": temp_csv,
-        "CAMPUS_IP_RANGES": ["127.0.0.1/32", "192.168.1.0/24", "10.0.0.0/8"],
-        "CAMPUS_IP_FILE": str(tmp_path / "empty_ips.txt"),
-        "QR_WINDOW_SECONDS": 6,
-        "COOKIE_MAX_AGE_SECONDS": 300,
-        "MOCK_AUTH": True
-    }
-    app = create_app(test_config)
-    with app.app_context():
-        init_db(str(db_file))
+    (tmp_path / "cidrs.txt").write_text("127.0.0.0/8\n10.0.0.0/8\n", encoding="utf-8")
     return app
+
 
 @pytest.fixture
 def client(app):
     return app.test_client()
 
-@pytest.fixture
-def authenticated_lecturer_client(client):
-    with client.session_transaction() as sess:
-        sess["lecturer_authenticated"] = True
-    return client
+
+def login(client, user_id: int):
+    with client.session_transaction() as s:
+        s["user_id"] = user_id

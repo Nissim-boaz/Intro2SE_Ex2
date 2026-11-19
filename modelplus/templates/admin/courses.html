@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}קורסים · Model+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>ניהול</h1></div>
+</div>
+{% set active = 'courses' %}{% include "admin/_nav.html" %}
+
+<section class="panel" style="margin-bottom:16px">
+  <h2 style="margin-bottom:14px">קורס חדש</h2>
+  <form method="post" action="{{ url_for('admin.create_course') }}" class="form-grid cols">
+    <label>שם הקורס<input type="text" name="name" required></label>
+    <label>מספר קורס<input type="text" name="code" dir="ltr"></label>
+    <button class="btn">צור קורס</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2 style="margin-bottom:8px">{{ rows|length }} קורסים</h2>
+  {% if rows %}
+  <ul class="list">
+    {% for course, lecturers, n_students in rows %}
+    <li>
+      <div class="grow">
+        <a class="title" href="{{ url_for('admin.course', course_id=course.id) }}">{{ course.name }}</a>
+        <div class="xsmall muted">
+          {% if lecturers %}{{ lecturers|map(attribute='name')|join(', ') }}{% else %}אין מרצה משויך{% endif %},
+          {{ n_students }} סטודנטים
+        </div>
+      </div>
+      <a class="btn btn-sm btn-quiet" href="{{ url_for('admin.course', course_id=course.id) }}">שיוכים</a>
+      <form method="post" action="{{ url_for('admin.delete_course', course_id=course.id) }}" data-confirm="למחוק את הקורס {{ course.name }} עם כל התכנים, הנוכחות והצ׳אט שלו?">
+        <button class="icon-btn" aria-label="מחק את הקורס {{ course.name }}" title="מחק">✕</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="empty"><strong>עוד אין קורסים</strong>צור את הקורס הראשון בטופס שלמעלה.</div>
+  {% endif %}
+</section>
+{% endblock %}

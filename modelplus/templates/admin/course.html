@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}{{ course.name }} · ניהול{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a class="small" href="{{ url_for('admin.courses') }}">כל הקורסים</a>
+    <h1 style="margin-top:6px">{{ course.name }}</h1>
+  </div>
+  <a class="btn btn-quiet" href="{{ url_for('courses.show', course_id=course.id) }}">לעמוד הקורס</a>
+</div>
+
+<div class="grid-2" style="margin-bottom:16px">
+  <section class="panel">
+    <h2 style="margin-bottom:14px">פרטי הקורס</h2>
+    <form method="post" action="{{ url_for('admin.update_course', course_id=course.id) }}" class="form-grid">
+      <label>שם<input type="text" name="name" value="{{ course.name }}" required></label>
+      <label>מספר קורס<input type="text" name="code" value="{{ course.code }}" dir="ltr"></label>
+      <label>תיאור קצר<textarea name="description" rows="3">{{ course.description }}</textarea></label>
+      <button class="btn btn-quiet">שמור</button>
+    </form>
+  </section>
+
+  <section class="panel stack">
+    <div>
+      <h2 style="margin-bottom:14px">שיוך משתמשים</h2>
+      {% if candidates %}
+      <form method="post" action="{{ url_for('admin.add_members', course_id=course.id) }}" class="form-grid">
+        <label>בחר מרצים או סטודנטים
+          <span class="field-hint">אפשר לבחור כמה בעזרת Ctrl או Shift</span>
+          <select name="user_id" multiple size="7">
+            {% for group, label in [('lecturer', 'מרצים'), ('student', 'סטודנטים')] %}
+            <optgroup label="{{ label }}">
+              {% for u in candidates if u.role == group %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+            </optgroup>
+            {% endfor %}
+          </select>
+        </label>
+        <button class="btn">שייך לקורס</button>
+      </form>
+      {% else %}
+      <p class="muted small">כל המשתמשים במערכת כבר משויכים לקורס הזה.</p>
+      {% endif %}
+    </div>
+    <div>
+      <h3 style="margin-bottom:8px">ייבוא סטודנטים לקורס</h3>
+      <form method="post" action="{{ url_for('admin.import_to_course', course_id=course.id) }}" enctype="multipart/form-data" class="form-grid">
+        <input type="file" name="file" accept=".csv,.xlsx" required>
+        <button class="btn btn-quiet">ייבא ושייך</button>
+      </form>
+    </div>
+  </section>
+</div>
+
+<div class="grid-2">
+  {% for title, people, empty in [('מרצים', lecturers, 'עוד לא שויך מרצה'), ('סטודנטים', students, 'עוד לא שויכו סטודנטים')] %}
+  <section class="panel">
+    <h2 style="margin-bottom:8px">{{ title }} <span class="muted" style="font-weight:500">{{ people|length }}</span></h2>
+    {% if people %}
+    <ul class="list">
+      {% for p in people %}
+      <li>
+        <div class="grow"><div class="title">{{ p.name }}</div><div class="xsmall muted" dir="ltr" style="text-align:right">{{ p.email }}</div></div>
+        <form method="post" action="{{ url_for('admin.remove_member', course_id=course.id, user_id=p.id) }}">
+          <button class="btn btn-sm btn-ghost">הסר</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted small">{{ empty }}.</p>{% endif %}
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,10 +1,10 @@
 venv/
-.env
-*.pyc
+.venv/
 __pycache__/
+*.pyc
 .pytest_cache/
+instance/
+.env
 *.db
-*.db-journal
 *.db-wal
 *.db-shm
-.DS_Store

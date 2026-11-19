@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}משתמשים · Model+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>ניהול</h1>
+    <p class="muted">מי שלא מופיע כאן לא יכול להתחבר לאתר.</p>
+  </div>
+</div>
+{% set active = 'users' %}{% include "admin/_nav.html" %}
+
+<div class="grid-2" style="margin-bottom:16px">
+  <section class="panel">
+    <h2 style="margin-bottom:14px">משתמש חדש</h2>
+    <form method="post" action="{{ url_for('admin.create_user') }}" class="form-grid">
+      <label>שם מלא<input type="text" name="name" required></label>
+      <label>מייל<input type="email" name="email" required dir="ltr"></label>
+      <label>תפקיד
+        <select name="role">
+          <option value="student">סטודנט</option>
+          <option value="lecturer">מרצה</option>
+          <option value="admin">מנהל מערכת</option>
+        </select>
+      </label>
+      <button class="btn">הוסף משתמש</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2 style="margin-bottom:6px">ייבוא סטודנטים</h2>
+    <p class="muted small" style="margin-bottom:14px">קובץ CSV או XLSX עם עמודות שם ומייל. אפשר להעלות גם ייצוא משתתפים מ-Moodle כמו שהוא.</p>
+    <form method="post" action="{{ url_for('admin.import_users') }}" enctype="multipart/form-data" class="form-grid">
+      <input type="file" name="file" accept=".csv,.xlsx" required>
+      <button class="btn btn-quiet">ייבא</button>
+    </form>
+    <p class="xsmall muted" style="margin-top:12px">כדי לשייך את הסטודנטים לקורס כבר בייבוא, עשה את זה מתוך עמוד הקורס.</p>
+  </section>
+</div>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>{{ users|length }} משתמשים</h2>
+    <div class="row">
+      {% for key, label in [('', 'כולם'), ('student', 'סטודנטים'), ('lecturer', 'מרצים'), ('admin', 'מנהלים')] %}
+      <a class="btn btn-sm {{ '' if (role_filter or '') == key else 'btn-quiet' }}" href="{{ url_for('admin.users', role=key or None) }}">{{ label }}</a>
+      {% endfor %}
+    </div>
+  </div>
+  {% if users %}
+  <ul class="list">
+    {% for u in users %}
+    <li>
+      <span class="avatar" aria-hidden="true">{{ u.name[:1] }}</span>
+      <div class="grow">
+        <div class="title">{{ u.name }}</div>
+        <div class="xsmall muted" dir="ltr" style="text-align:right">{{ u.email }}</div>
+      </div>
+      <form method="post" action="{{ url_for('admin.update_user', user_id=u.id) }}" class="row">
+        <input type="hidden" name="name" value="{{ u.name }}">
+        <select name="role" onchange="this.form.submit()" aria-label="תפקיד של {{ u.name }}" style="width:auto;padding:6px 10px;font-size:14px">
+          {% for key, label in role_labels.items() %}
+          <option value="{{ key }}" {% if key == u.role %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </form>
+      {% if u.id != user.id %}
+      <form method="post" action="{{ url_for('admin.delete_user', user_id=u.id) }}" data-confirm="למחוק את {{ u.name }}? הפעולה תמחק גם את הנוכחות וההודעות שלו.">
+        <button class="icon-btn" aria-label="מחק את {{ u.name }}" title="מחק">✕</button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="empty"><strong>אין משתמשים כאן</strong>הוסף משתמש או ייבא קובץ סטודנטים.</div>
+  {% endif %}
+</section>
+{% endblock %}

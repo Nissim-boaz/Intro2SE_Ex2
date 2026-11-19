@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}הקורסים שלי · Model+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>שלום, {{ user.name.split(' ')[0] }}</h1>
+    <p class="muted">{% if user.is_admin %}כל הקורסים במערכת{% else %}הקורסים שלך הסמסטר{% endif %}</p>
+  </div>
+  {% if user.is_admin %}<a class="btn" href="{{ url_for('admin.courses') }}">ניהול קורסים</a>{% endif %}
+</div>
+
+{% if courses %}
+<div class="course-grid">
+  {% for c in courses %}
+  <a class="course-tile" href="{{ url_for('courses.show', course_id=c.id) }}">
+    <div>
+      {% if c.code %}<div class="code" dir="ltr" style="text-align:right">{{ c.code }}</div>{% endif %}
+      <h2>{{ c.name }}</h2>
+    </div>
+    <div class="small muted">
+      {% set ls = lecturers[c.id] %}
+      {% if ls %}{{ ls|map(attribute='name')|join(', ') }}{% else %}עוד לא שויך מרצה{% endif %}
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="panel empty">
+  <strong>עוד אין לך קורסים</strong>
+  {% if user.is_admin %}צור קורס חדש במסך הניהול.{% else %}כשמנהל המערכת ישייך אותך לקורס, הוא יופיע כאן.{% endif %}
+</div>
+{% endif %}
+{% endblock %}
