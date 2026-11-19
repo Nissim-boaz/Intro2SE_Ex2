@@ -130,5 +130,26 @@
     sync();
   });
 
+  // ---------- theme: auto (follow the device) / light / dark, remembered per browser ----------
+  const THEME_KEY = "modelplus.theme";
+  function savedTheme() {
+    try { return localStorage.getItem(THEME_KEY) || "auto"; } catch (_) { return "auto"; }
+  }
+  function applyTheme(choice) {
+    const html = document.documentElement;
+    html.classList.add("theme-anim");
+    setTimeout(() => html.classList.remove("theme-anim"), 350);
+    if (choice === "light" || choice === "dark") document.documentElement.setAttribute("data-theme", choice);
+    else document.documentElement.removeAttribute("data-theme");
+    try {
+      if (choice === "auto") localStorage.removeItem(THEME_KEY);
+      else localStorage.setItem(THEME_KEY, choice);
+    } catch (_) {}
+  }
+  document.querySelectorAll("[data-theme-choice]").forEach((radio) => {
+    radio.checked = radio.value === savedTheme();
+    radio.addEventListener("change", () => applyTheme(radio.value));
+  });
+
   setTimeout(() => document.querySelectorAll(".toasts .toast").forEach((t) => t.classList.add("hide")), 4200);
 })();

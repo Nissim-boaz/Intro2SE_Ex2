@@ -3,7 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#F5F5F7">
+  <meta name="theme-color" content="#F5F5F7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0E0E10" media="(prefers-color-scheme: dark)">
+  <script>
+    // apply the saved theme before the first paint, so dark mode never flashes white
+    try {
+      var t = localStorage.getItem("modelplus.theme");
+      if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  </script>
   <title>{% block title %}Model+{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,6 +37,14 @@
           <strong>{{ user.name }}</strong>
           <span class="muted" dir="ltr">{{ user.email }}</span>
           <span class="pill">{{ user.role_label }}</span>
+          <div class="theme-pick">
+            <span class="xsmall muted">מצב תצוגה</span>
+            <div class="segmented" role="radiogroup" aria-label="מצב תצוגה">
+              <label><input type="radio" name="theme" value="auto" data-theme-choice><span>אוטומטי</span></label>
+              <label><input type="radio" name="theme" value="light" data-theme-choice><span>בהיר</span></label>
+              <label><input type="radio" name="theme" value="dark" data-theme-choice><span>כהה</span></label>
+            </div>
+          </div>
           <form method="post" action="{{ url_for('auth.logout') }}"><button class="btn btn-quiet btn-block">התנתק</button></form>
         </div>
       </details>

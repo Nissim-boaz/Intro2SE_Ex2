@@ -16,7 +16,7 @@
 {% if lessons|length > 1 %}
 <nav class="course-nav" aria-label="שיעורים" style="position:static;margin-top:0">
   {% for l in lessons %}
-  <a href="{{ url_for('attendance.lesson_report', lesson_id=l.id) }}" {% if l.id == lesson.id %}style="background:var(--ink);color:#fff;box-shadow:none"{% endif %}>שיעור {{ l.number }}</a>
+  <a href="{{ url_for('attendance.lesson_report', lesson_id=l.id) }}" {% if l.id == lesson.id %}class="chip-on"{% endif %}>שיעור {{ l.number }}</a>
   {% endfor %}
 </nav>
 {% endif %}
