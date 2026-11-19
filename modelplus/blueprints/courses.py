@@ -28,6 +28,7 @@ def show(course_id: int):
     role = enrollments.require_member(course_id, current_user())
     context = {}
     context["attendance"] = _attendance_context(course_id, role)
+    context["chat_enabled"] = True
     return render_template(
         "courses/show.html",
         **context,

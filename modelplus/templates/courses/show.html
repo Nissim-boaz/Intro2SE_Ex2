@@ -26,5 +26,6 @@
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/content.js') }}"></script>
-{% block course_scripts %}{% endblock %}
+{% if chat_enabled is defined %}<script src="{{ url_for('static', filename='js/chat.js') }}"></script>{% endif %}
+{% if recordings is defined %}<script src="{{ url_for('static', filename='js/recordings.js') }}"></script>{% endif %}
 {% endblock %}
