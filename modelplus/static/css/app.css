@@ -259,3 +259,17 @@ dialog[open] { animation: pop .2s var(--ease); }
 .block-edit { display: none; }
 .block.editing .block-view { display: none; }
 .block.editing .block-edit { display: grid; }
+.block-view { display: flex; gap: 10px; align-items: flex-start; }
+.block-main { flex: 1; min-width: 0; display: grid; gap: 6px; }
+.block-tools { opacity: .55; transition: opacity .15s; }
+.block:hover .block-tools, .block-tools:focus-within { opacity: 1; }
+@media (max-width: 640px) { .block-view { flex-direction: column; } .block-tools { opacity: 1; align-self: flex-end; } }
+.block-tools .icon-btn:disabled { opacity: .3; cursor: default; }
+
+/* segmented control */
+.segmented { display: flex; background: rgba(0,0,0,.05); border-radius: 12px; padding: 3px; gap: 2px; }
+.segmented label { flex: 1; display: block; cursor: pointer; font-weight: 500; }
+.segmented input { position: absolute; opacity: 0; pointer-events: none; }
+.segmented span { display: block; text-align: center; padding: 7px 0; border-radius: 9px; font-size: var(--fs-sm); color: var(--ink-2); transition: background .15s, color .15s; }
+.segmented input:checked + span { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.segmented input:focus-visible + span { outline: 3px solid var(--brand-soft); }

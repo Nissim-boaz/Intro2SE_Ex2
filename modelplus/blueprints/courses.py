@@ -1,8 +1,9 @@
 """רשימת הקורסים ועמוד הקורס."""
-from flask import Blueprint, render_template
+from flask import Blueprint, current_app, render_template
 
 from ..db import get_db
 from ..security import current_user, login_required
+from ..services.content import ContentService, FileStore
 from ..services.courses import CourseService, EnrollmentService
 
 bp = Blueprint("courses", __name__)
@@ -31,4 +32,5 @@ def show(course_id: int):
         role=role,
         can_manage=role in ("admin", "lecturer"),
         lecturers=enrollments.members(course_id, "lecturer"),
+        blocks=ContentService(db, FileStore(current_app.config["UPLOAD_DIR"])).list(course_id),
     )

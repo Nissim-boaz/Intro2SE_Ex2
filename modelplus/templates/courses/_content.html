@@ -1,0 +1,88 @@
+<section class="panel section" id="content">
+  <div class="panel-head">
+    <h2>תכנים</h2>
+    {% if can_manage %}<button class="btn btn-sm" type="button" data-open-dialog="add-block">הוסף תוכן</button>{% endif %}
+  </div>
+
+  {% if blocks %}
+  <div class="blocks">
+    {% for b in blocks %}
+    <article class="block" id="block-{{ b.id }}">
+      <div class="block-view">
+        <div class="block-main">
+        {% if b.kind == 'text' %}
+          {% if b.title %}<h3 class="block-title">{{ b.title }}</h3>{% endif %}
+          {% if b.body %}<p class="block-body">{{ b.body }}</p>{% endif %}
+        {% elif b.kind == 'link' %}
+          <a class="block-link" href="{{ b.url }}" target="_blank" rel="noopener">
+            <span class="block-icon" aria-hidden="true">↗</span>
+            <span class="grow" style="min-width:0">
+              <span class="block-title" style="display:block">{{ b.title or b.url }}</span>
+              {% if b.body %}<span class="small muted" style="display:block">{{ b.body }}</span>{% endif %}
+              <span class="xsmall muted" dir="ltr" style="display:block;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ b.url }}</span>
+            </span>
+          </a>
+        {% else %}
+          <a class="block-file" href="{{ url_for('content.download', block_id=b.id) }}">
+            <span class="block-icon" aria-hidden="true">⇣</span>
+            <span>
+              <span class="block-title" style="display:block">{{ b.title }}</span>
+              {% if b.body %}<span class="small muted" style="display:block">{{ b.body }}</span>{% endif %}
+              <span class="xsmall muted" dir="ltr" style="display:block;text-align:right">{{ b.file_name }}</span>
+            </span>
+          </a>
+        {% endif %}
+        </div>
+
+        {% if can_manage %}
+        <div class="block-tools">
+          <form method="post" action="{{ url_for('content.move', block_id=b.id) }}"><input type="hidden" name="dir" value="up"><button class="icon-btn" aria-label="הזז למעלה" {% if loop.first %}disabled{% endif %}>↑</button></form>
+          <form method="post" action="{{ url_for('content.move', block_id=b.id) }}"><input type="hidden" name="dir" value="down"><button class="icon-btn" aria-label="הזז למטה" {% if loop.last %}disabled{% endif %}>↓</button></form>
+          <button class="icon-btn" type="button" data-edit-block="{{ b.id }}" aria-label="ערוך">✎</button>
+          <form method="post" action="{{ url_for('content.delete', block_id=b.id) }}" data-confirm="למחוק את התוכן הזה?"><button class="icon-btn" aria-label="מחק">✕</button></form>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if can_manage %}
+      <form class="block-edit form-grid" method="post" action="{{ url_for('content.edit', block_id=b.id) }}">
+        <label>כותרת<input type="text" name="title" value="{{ b.title }}"></label>
+        {% if b.kind == 'link' %}<label>קישור<input type="url" name="url" value="{{ b.url }}" dir="ltr" required></label>{% endif %}
+        <label>{{ 'טקסט' if b.kind == 'text' else 'תיאור' }}<textarea name="body" rows="{{ 6 if b.kind == 'text' else 2 }}">{{ b.body }}</textarea></label>
+        <div class="row row-end">
+          <button class="btn btn-quiet" type="button" data-cancel-edit>ביטול</button>
+          <button class="btn">שמור</button>
+        </div>
+      </form>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">
+    <strong>עוד אין תכנים</strong>
+    {% if can_manage %}הוסף טקסט, קישור או קובץ, והם יופיעו כאן לפי הסדר.{% else %}המרצה עוד לא העלה תכנים לקורס.{% endif %}
+  </div>
+  {% endif %}
+</section>
+
+{% if can_manage %}
+<dialog id="add-block">
+  <form method="post" action="{{ url_for('content.add', course_id=course.id) }}" enctype="multipart/form-data" class="dialog-body" id="add-block-form">
+    <h2>תוכן חדש</h2>
+    <div class="segmented" role="radiogroup" aria-label="סוג התוכן">
+      <label><input type="radio" name="kind" value="text" checked><span>טקסט</span></label>
+      <label><input type="radio" name="kind" value="link"><span>קישור</span></label>
+      <label><input type="radio" name="kind" value="file"><span>קובץ</span></label>
+    </div>
+    <label>כותרת<input type="text" name="title"></label>
+    <label data-kind="link">קישור<input type="url" name="url" dir="ltr" placeholder="https://"></label>
+    <label data-kind="file">קובץ<input type="file" name="file"></label>
+    <label><span data-label-text>טקסט</span><textarea name="body" rows="5"></textarea></label>
+    <div class="dialog-actions">
+      <button class="btn btn-quiet" type="button" data-close-dialog>ביטול</button>
+      <button class="btn">הוסף</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}

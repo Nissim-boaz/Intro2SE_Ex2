@@ -12,10 +12,19 @@
 
 <nav class="course-nav" aria-label="חלקי הקורס">
   <a href="#content">תכנים</a>
-  {% block nav_extra %}{% endblock %}
+  {% if attendance is defined %}<a href="#attendance">נוכחות</a>{% endif %}
+  {% if recordings is defined %}<a href="#recordings">הקלטות</a>{% endif %}
+  {% if chat_enabled is defined %}<a href="#chat">צ׳אט</a>{% endif %}
 </nav>
 
 <div class="stack-lg">
-  {% block sections %}{% endblock %}
+  {% include "courses/_content.html" %}
+  {% if attendance is defined %}{% include "attendance/_section.html" %}{% endif %}
+  {% if recordings is defined %}{% include "recordings/_section.html" %}{% endif %}
+  {% if chat_enabled is defined %}{% include "chat/_section.html" %}{% endif %}
 </div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/content.js') }}"></script>
+{% block course_scripts %}{% endblock %}
 {% endblock %}
