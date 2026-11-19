@@ -623,3 +623,12 @@ button.chapter-time { all: unset; cursor: pointer; color: var(--brand); font-wei
 .confirm-text { font-size: 17px; font-weight: 500; line-height: 1.5; }
 .btn-danger-solid { background: var(--danger); color: #fff; }
 .btn-danger-solid:hover { background: color-mix(in srgb, var(--danger) 85%, black); }
+
+/* poll: anonymous toggle in the create dialog, and "who voted" for open polls */
+.poll-anon { display: grid; gap: 4px; padding: 10px 12px; border-radius: 12px; background: var(--bg); }
+.poll-voters { all: unset; cursor: pointer; font-size: 12px; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; opacity: .85; }
+.poll-voters:hover { opacity: 1; }
+.poll-voters:focus-visible { outline: 2px solid currentColor; border-radius: 4px; }
+.voters { display: grid; gap: 12px; max-height: 340px; overflow: auto; }
+.voters h3 { display: flex; justify-content: space-between; gap: 10px; font-size: 15px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+.voters ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }

@@ -88,6 +88,14 @@
   </div>
 </dialog>
 
+<dialog id="voters-dialog" class="dialog-compact" data-light-dismiss>
+  <div class="dialog-body">
+    <h2 id="voters-title">מי הצביע</h2>
+    <div class="voters" id="voters-list"></div>
+    <div class="dialog-actions"><button class="btn btn-quiet" type="button" data-close-dialog>סגור</button></div>
+  </div>
+</dialog>
+
 <dialog id="who-dialog" class="dialog-compact" data-light-dismiss>
   <div class="dialog-body">
     <h2>מי הגיב</h2>
@@ -110,7 +118,14 @@
     <div class="poll-options-edit" id="poll-options">
       <span class="field-hint">תשובות (עד 6). שורה חדשה מופיעה כשממלאים את האחרונה.</span>
     </div>
-    <p class="xsmall muted">ההצבעה אנונימית. כולם רואים רק כמה הצביעו לכל תשובה.</p>
+    <div class="poll-anon">
+      <label class="switch">
+        <input type="checkbox" id="poll-anonymous" checked>
+        <span class="switch-track" aria-hidden="true"></span>
+        <span>הצבעה אנונימית</span>
+      </label>
+      <p class="xsmall muted" id="poll-anon-hint">כולם יראו רק כמה הצביעו לכל תשובה, בלי שמות.</p>
+    </div>
     <div class="dialog-actions">
       <button class="btn btn-quiet" type="button" data-close-dialog>ביטול</button>
       <button class="btn">שלח סקר</button>

@@ -25,7 +25,10 @@ def init_schema(conn: sqlite3.Connection) -> None:
 
 def _migrate(conn: sqlite3.Connection) -> None:
     """עמודות שנוספו אחרי שכבר נוצרו DBs. CREATE TABLE IF NOT EXISTS לא מוסיף עמודות לטבלה קיימת."""
-    added = {("messages", "deleted"): "INTEGER NOT NULL DEFAULT 0"}
+    added = {
+        ("messages", "deleted"): "INTEGER NOT NULL DEFAULT 0",
+        ("polls", "anonymous"): "INTEGER NOT NULL DEFAULT 1",
+    }
     for (table, column), ddl in added.items():
         cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
         if cols and column not in cols:

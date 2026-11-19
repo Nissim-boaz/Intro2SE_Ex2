@@ -77,12 +77,17 @@
           <span class="poll-bar"><span style="transform:scaleX(${pct / 100})"></span></span>
         </${tag}>`;
     }).join("");
-    const hint = canVote ? (p.my_vote ? "אפשר לשנות את הבחירה" : "בחר תשובה אחת") : "ההצבעה אנונימית";
+    const choose = canVote ? (p.my_vote ? "אפשר לשנות את הבחירה. " : "בחר תשובה אחת. ") : "";
+    const privacy = p.anonymous ? "ההצבעה אנונימית" : "ההצבעה גלויה: כולם רואים מי בחר מה";
+    const totalText = total === 1 ? "הצבעה אחת" : total + " הצבעות";
+    const footer = !p.anonymous && total
+      ? `<button type="button" class="poll-voters" data-voters="${p.id}">${totalText}. הצג מי הצביע</button>`
+      : `<div class="poll-total">${totalText}</div>`;
     return `<div class="poll">
         <div class="poll-q">${esc(p.question)}</div>
-        <div class="poll-hint">${hint}</div>
+        <div class="poll-hint">${choose}${privacy}</div>
         <div class="poll-opts">${rows}</div>
-        <div class="poll-total">${total === 1 ? "הצבעה אחת" : total + " הצבעות"}</div>
+        ${footer}
       </div>`;
   }
 
@@ -463,6 +468,22 @@
       return;
     }
 
+    const votersBtn = e.target.closest("[data-voters]");
+    if (votersBtn) {
+      const m = [...messages.values()].find((x) => x.poll && x.poll.id === Number(votersBtn.dataset.voters));
+      if (!m) return;
+      document.getElementById("voters-title").textContent = m.poll.question;
+      document.getElementById("voters-list").innerHTML = m.poll.options.map((o) => `
+        <section>
+          <h3><span>${esc(o.text)}</span><span class="muted">${o.votes}</span></h3>
+          ${o.voters && o.voters.length
+            ? `<ul>${o.voters.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>`
+            : `<p class="muted small">אף אחד</p>`}
+        </section>`).join("");
+      document.getElementById("voters-dialog").showModal();
+      return;
+    }
+
     const vote = e.target.closest("[data-vote]");
     if (vote) {
       try {
@@ -513,10 +534,20 @@
       inp.setAttribute("aria-label", `תשובה ${n + 1}`);
       box.appendChild(inp);
     }
+    const anonToggle = document.getElementById("poll-anonymous");
+    const anonHint = document.getElementById("poll-anon-hint");
+    function syncAnonHint() {
+      anonHint.textContent = anonToggle.checked
+        ? "כולם יראו רק כמה הצביעו לכל תשובה, בלי שמות."
+        : "כולם יוכלו לראות מי הצביע לכל תשובה.";
+    }
+    anonToggle.addEventListener("change", syncAnonHint);
     function reset() {
       box.querySelectorAll("input").forEach((i) => i.remove());
       addRow(); addRow();
       document.getElementById("poll-question").value = "";
+      anonToggle.checked = true;
+      syncAnonHint();
     }
     box.addEventListener("input", () => {
       const inputs = [...box.querySelectorAll("input")];
@@ -526,7 +557,9 @@
       e.preventDefault();
       const options = [...box.querySelectorAll("input")].map((i) => i.value.trim()).filter(Boolean);
       try {
-        await Model.api(pollUrl, { json: { question: document.getElementById("poll-question").value, options } });
+        await Model.api(pollUrl, {
+          json: { question: document.getElementById("poll-question").value, options, anonymous: anonToggle.checked },
+        });
         document.getElementById("poll-dialog").close();
         reset();
         await refresh();

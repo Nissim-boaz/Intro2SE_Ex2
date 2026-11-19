@@ -118,3 +118,30 @@ def test_only_students_vote(app, client):
     login(client, stud.id)
     res = client.post("/api/polls/1/vote", json={"option_id": 1})
     assert res.status_code == 200 and res.get_json()["poll"]["total"] == 1
+
+
+def test_open_poll_shows_who_voted(db, polls, people):
+    pid = _poll_id(db, polls.create(people["course"].id, people["lecturer"], "ש", ["א", "ב"], anonymous=False))
+    a, b = [o["id"] for o in polls.results(pid, people["s1"])["options"]]
+    polls.vote(pid, people["s1"], a)
+    polls.vote(pid, people["s2"], b)
+    res = polls.results(pid, people["s2"])
+    assert res["anonymous"] is False
+    assert [o["voters"] for o in res["options"]] == [["סטודנט אחד"], ["סטודנט שתיים"]]
+
+
+def test_polls_are_anonymous_by_default(db, polls, people):
+    pid = _poll_id(db, polls.create(people["course"].id, people["lecturer"], "ש", ["א", "ב"]))
+    polls.vote(pid, people["s1"], polls.results(pid, people["s1"])["options"][0]["id"])
+    res = polls.results(pid, people["lecturer"])
+    assert res["anonymous"] is True
+    assert all("voters" not in o for o in res["options"])
+
+
+def test_api_creates_open_poll_only_when_asked(app, client):
+    lect, stud, course = _setup(app)
+    login(client, lect.id)
+    client.post(f"/api/courses/{course.id}/polls", json={"question": "1", "options": ["א", "ב"]})
+    client.post(f"/api/courses/{course.id}/polls", json={"question": "2", "options": ["א", "ב"], "anonymous": False})
+    conn = connect(app.config["DATABASE"])
+    assert [r[0] for r in conn.execute("SELECT anonymous FROM polls ORDER BY id")] == [1, 0]

@@ -18,7 +18,10 @@ def create(course_id: int):
     options = body.get("options") or []
     if not isinstance(options, list):
         raise ValidationError("רשימת התשובות לא תקינה")
-    message_id = PollService(get_db()).create(course_id, current_user(), body.get("question", ""), [str(o) for o in options])
+    message_id = PollService(get_db()).create(
+        course_id, current_user(), body.get("question", ""), [str(o) for o in options],
+        anonymous=body.get("anonymous", True) is not False,
+    )
     return jsonify(ok=True, message_id=message_id)
 
 

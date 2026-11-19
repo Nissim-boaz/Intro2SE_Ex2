@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS polls (
     id          INTEGER PRIMARY KEY,
     course_id   INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     question    TEXT NOT NULL,
+    anonymous   INTEGER NOT NULL DEFAULT 1,  -- 0: כולם רואים מי הצביע למה
     created_by  INTEGER NOT NULL REFERENCES users(id),
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
