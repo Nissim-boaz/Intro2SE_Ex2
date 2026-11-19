@@ -124,6 +124,54 @@ def test_gemini_requires_key():
         GeminiProvider("", "gemini-3.8-flash")
 
 
+class _ApiError(Exception):
+    def __init__(self, code):
+        super().__init__(f"{code} error")
+        self.code = code
+
+
+def _scripted_provider(script):
+    """GeminiProvider שבמקום רשת מחזיר תשובות לפי תסריט: {model: [תשובה או שגיאה, ...]}."""
+    from modelplus.services.llm import GeminiProvider
+
+    class Scripted(GeminiProvider):
+        calls = []
+
+        def _call(self, model, prompt):
+            self.calls.append(model)
+            result = script[model].pop(0)
+            if isinstance(result, Exception):
+                raise result
+            return result
+
+    return Scripted("key", "main", fallbacks=["backup"], attempts=2, backoff_seconds=0)
+
+
+def test_gemini_retries_busy_model_then_succeeds():
+    p = _scripted_provider({"main": [_ApiError(503), '{"ok": 1}']})
+    assert p.generate_json("x") == {"ok": 1}
+    assert p.calls == ["main", "main"]
+
+
+def test_gemini_falls_back_when_main_keeps_failing():
+    p = _scripted_provider({"main": [_ApiError(503), _ApiError(504)], "backup": ['{"ok": 2}']})
+    assert p.generate_json("x") == {"ok": 2}
+    assert p.calls == ["main", "main", "backup"]
+
+
+def test_gemini_skips_retry_on_non_retryable_error():
+    p = _scripted_provider({"main": [_ApiError(404)], "backup": ['{"ok": 3}']})
+    assert p.generate_json("x") == {"ok": 3}
+    assert p.calls == ["main", "backup"]
+
+
+def test_gemini_gives_clear_error_when_all_fail():
+    p = _scripted_provider({"main": [_ApiError(503)] * 2, "backup": [_ApiError(503)] * 2})
+    with pytest.raises(LLMError) as err:
+        p.generate_json("x")
+    assert "נסה שוב" in str(err.value)
+
+
 def test_media_only_for_members_and_upload_only_for_lecturer(app, client):
     conn = connect(app.config["DATABASE"])
     users = UserService(conn)

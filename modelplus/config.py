@@ -32,6 +32,10 @@ class Config:
 
     GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
     GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
+    # מודלים לגיבוי כשהראשי עמוס, מופרדים בפסיק
+    GEMINI_FALLBACK_MODELS = [
+        m.strip() for m in os.environ.get("GEMINI_FALLBACK_MODELS", "gemini-3.5-flash-lite").split(",") if m.strip()
+    ]
     WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "small")
     START_JOB_RUNNER = True
 

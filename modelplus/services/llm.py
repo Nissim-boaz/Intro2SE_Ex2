@@ -18,28 +18,59 @@ class LLMProvider(ABC):
 
 
 class GeminiProvider(LLMProvider):
-    """Google Gemini דרך google-genai. ה-key נקרא מ-.env (GEMINI_API_KEY)."""
+    """Google Gemini דרך google-genai. ה-key נקרא מ-.env (GEMINI_API_KEY).
 
-    def __init__(self, api_key: str, model: str):
+    ב-free tier המודלים לפעמים עמוסים (503) או לא עונים בזמן (504).
+    לכן כל מודל מקבל כמה ניסיונות, ואם הוא לא עונה עוברים למודל הבא ברשימה.
+    """
+
+    RETRYABLE = (429, 500, 503, 504)
+
+    def __init__(self, api_key: str, model: str, fallbacks: list[str] | None = None,
+                 attempts: int = 2, timeout_seconds: int = 180, backoff_seconds: float = 4):
         if not api_key:
             raise LLMError("לא הוגדר GEMINI_API_KEY בקובץ .env, ולכן אין סיכום")
         self.api_key = api_key
-        self.model = model
+        self.models = [model] + [m for m in (fallbacks or []) if m and m != model]
+        self.attempts = attempts
+        self.timeout_seconds = timeout_seconds
+        self.backoff_seconds = backoff_seconds
 
     def generate_json(self, prompt: str) -> dict:
+        import time
+
+        last_error = None
+        for model in self.models:
+            for attempt in range(self.attempts):
+                try:
+                    return parse_json(self._call(model, prompt))
+                except Exception as err:
+                    last_error = err
+                    if not self._retryable(err):
+                        break  # למשל מודל שלא קיים: אין טעם לנסות שוב, עוברים לבא
+                    if attempt + 1 < self.attempts:
+                        time.sleep(self.backoff_seconds * (attempt + 1))
+        raise LLMError(f"Gemini לא הצליח לסכם כרגע. נסה שוב בעוד כמה דקות ({last_error})")
+
+    def _call(self, model: str, prompt: str) -> str:
         from google import genai
         from google.genai import types
 
-        client = genai.Client(api_key=self.api_key)
-        try:
-            resp = client.models.generate_content(
-                model=self.model,
-                contents=prompt,
-                config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.3),
-            )
-        except Exception as err:  # רשת, מכסה, מודל לא קיים
-            raise LLMError(f"Gemini החזיר שגיאה: {err}") from err
-        return parse_json(resp.text or "")
+        client = genai.Client(api_key=self.api_key,
+                              http_options=types.HttpOptions(timeout=self.timeout_seconds * 1000))
+        resp = client.models.generate_content(
+            model=model,
+            contents=prompt,
+            config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.3),
+        )
+        return resp.text or ""
+
+    @classmethod
+    def _retryable(cls, err: Exception) -> bool:
+        if isinstance(err, LLMError):  # JSON לא תקין: אולי בניסיון הבא יצליח
+            return True
+        code = getattr(err, "code", None)
+        return code in cls.RETRYABLE or "timeout" in type(err).__name__.lower() or "timed out" in str(err).lower()
 
 
 def parse_json(text: str) -> dict:

@@ -210,7 +210,9 @@ def start_runner(app) -> None:
         cfg["DATABASE"],
         FileStore(cfg["UPLOAD_DIR"]),
         WhisperTranscriber(cfg["WHISPER_MODEL"]),
-        lambda: LessonSummarizer(GeminiProvider(cfg["GEMINI_API_KEY"], cfg["GEMINI_MODEL"])),
+        lambda: LessonSummarizer(
+            GeminiProvider(cfg["GEMINI_API_KEY"], cfg["GEMINI_MODEL"], cfg["GEMINI_FALLBACK_MODELS"])
+        ),
     )
     runner.start()
     app.extensions["recording_runner"] = runner
