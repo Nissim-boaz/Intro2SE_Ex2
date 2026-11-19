@@ -153,3 +153,130 @@ def test_outsider_cannot_read_chat(app, client):
     login(client, outsider.id)
     assert client.get(f"/api/courses/{course.id}/chat").status_code == 403
     assert client.post("/api/messages/1/reactions", json={"emoji": "👍"}).status_code == 403
+
+
+# ---------- delete ----------
+def test_sender_deletes_own_message(db, chat, people):
+    c = people["course"].id
+    mid = chat.send(c, people["s1"], "טעיתי")
+    ReactionService(db).toggle(mid, people["s2"], "👍")
+    chat.delete(mid, people["s1"])
+    view = _only(chat.list_messages(c, people["s2"]), mid)
+    assert view["deleted"] and view["body"] == "" and view["reactions"]["summary"] == []
+    assert not view["can_delete"]
+
+
+def test_cannot_delete_others_message_but_admin_can(chat, people):
+    from modelplus.errors import Forbidden
+
+    c = people["course"].id
+    mid = chat.send(c, people["s1"], "הודעה")
+    with pytest.raises(Forbidden):
+        chat.delete(mid, people["s2"])
+    with pytest.raises(Forbidden):
+        chat.delete(mid, people["lecturer"])
+    chat.delete(mid, people["admin"])
+    assert _only(chat.list_messages(c, people["s1"]), mid)["deleted"]
+
+
+def test_can_delete_flag(chat, people):
+    c = people["course"].id
+    mid = chat.send(c, people["s1"], "הודעה")
+    assert _only(chat.list_messages(c, people["s1"]), mid)["can_delete"]
+    assert not _only(chat.list_messages(c, people["s2"]), mid)["can_delete"]
+    assert _only(chat.list_messages(c, people["admin"]), mid)["can_delete"]
+
+
+def test_reply_to_deleted_message_shows_placeholder(chat, people):
+    c = people["course"].id
+    q = chat.send(c, people["s1"], "שאלה")
+    a = chat.send(c, people["s2"], "תשובה", reply_to_id=q)
+    chat.delete(q, people["s1"])
+    assert _only(chat.list_messages(c, people["s2"]), a)["reply_to"]["body"] == "ההודעה נמחקה"
+
+
+def test_no_reactions_on_deleted_message(db, chat, people):
+    mid = chat.send(people["course"].id, people["s1"], "x")
+    chat.delete(mid, people["s1"])
+    with pytest.raises(ValidationError):
+        ReactionService(db).toggle(mid, people["s2"], "👍")
+
+
+def test_deleted_poll_hides_results(db, people):
+    polls = PollService(db)
+    chat = ChatService(db, poll_reader=polls)
+    mid = polls.create(people["course"].id, people["lecturer"], "ש", ["א", "ב"])
+    chat.delete(mid, people["lecturer"])
+    assert _only(chat.list_messages(people["course"].id, people["s1"]), mid)["poll"] is None
+
+
+# ---------- read receipts ----------
+def test_read_receipts_counts_and_blue_ticks(db, chat, people):
+    from modelplus.services.chat import ReadReceiptService
+
+    c = people["course"].id
+    reads = ReadReceiptService(db)
+    mid = chat.send(c, people["lecturer"], "שלום")
+    r = reads.receipts_for(c, people["lecturer"])
+    assert r["audience"] == 2 and r["read"][mid] == 0  # s1 ו-s2
+    reads.mark_read(c, people["s1"], mid)
+    assert reads.receipts_for(c, people["lecturer"])["read"][mid] == 1
+    reads.mark_read(c, people["s2"], mid)
+    reads.mark_read(c, people["s2"], mid)  # פעמיים לא נספר פעמיים
+    assert reads.receipts_for(c, people["lecturer"])["read"][mid] == 2  # כולם קראו: וי כחול
+
+
+def test_mark_read_skips_own_and_future_messages(db, chat, people):
+    from modelplus.services.chat import ReadReceiptService
+
+    c = people["course"].id
+    reads = ReadReceiptService(db)
+    own = chat.send(c, people["s1"], "שלי")
+    first = chat.send(c, people["s2"], "1")
+    later = chat.send(c, people["s2"], "2")
+    reads.mark_read(c, people["s1"], first)
+    rows = {r[0] for r in db.execute("SELECT message_id FROM message_reads WHERE user_id = ?", (people["s1"].id,))}
+    assert rows == {first}
+    assert own not in rows and later not in rows
+
+
+def test_non_member_reads_are_not_counted(db, chat, people):
+    from modelplus.services.chat import ReadReceiptService
+
+    c = people["course"].id
+    reads = ReadReceiptService(db)
+    mid = chat.send(c, people["s1"], "x")
+    reads.mark_read(c, people["admin"], mid)  # אדמין לא חבר בקורס
+    assert reads.receipts_for(c, people["s1"])["read"][mid] == 0
+
+
+def test_message_info_only_for_sender(db, chat, people):
+    from modelplus.errors import Forbidden
+    from modelplus.services.chat import ReadReceiptService
+
+    c = people["course"].id
+    reads = ReadReceiptService(db)
+    mid = chat.send(c, people["s1"], "שאלה", anonymous=True)
+    reads.mark_read(c, people["s2"], mid)
+    info = reads.info(mid, people["s1"])
+    assert [r["name"] for r in info["read_by"]] == ["סטודנט שתיים"]
+    assert info["unread"] == 1 and info["audience"] == 2
+    for other in (people["s2"], people["lecturer"]):
+        with pytest.raises(Forbidden):
+            reads.info(mid, other)
+
+
+def test_migration_adds_deleted_column(tmp_path):
+    import sqlite3
+
+    from modelplus.db import connect, init_schema
+
+    path = str(tmp_path / "old.db")
+    old = sqlite3.connect(path)
+    old.execute("CREATE TABLE messages (id INTEGER PRIMARY KEY, course_id INT, sender_id INT, body TEXT, "
+                "reply_to_id INT, is_anonymous INT, poll_id INT, created_at REAL, updated_at REAL)")
+    old.commit()
+    old.close()
+    conn = connect(path)
+    init_schema(conn)
+    assert "deleted" in {r[1] for r in conn.execute("PRAGMA table_info(messages)")}

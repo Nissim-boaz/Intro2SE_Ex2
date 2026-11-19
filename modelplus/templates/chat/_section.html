@@ -8,6 +8,7 @@
        id="chat-root"
        data-list-url="{{ url_for('chat.messages', course_id=course.id) }}"
        data-send-url="{{ url_for('chat.send', course_id=course.id) }}"
+       data-read-url="{{ url_for('chat.mark_read', course_id=course.id) }}"
        data-poll-url="{{ url_for('polls.create', course_id=course.id) }}"
        data-can-vote="{{ 1 if role == 'student' else 0 }}"
        data-is-admin="{{ 1 if role == 'admin' else 0 }}">
@@ -19,9 +20,15 @@
       <div class="chat-list" id="chat-list"></div>
     </div>
 
-    <div class="reaction-bar" id="reaction-bar" role="toolbar" aria-label="תגובה להודעה" hidden>
-      {% for e in ['👍', '❤️', '😂', '👎', '😢', '🙏'] %}<button type="button" data-emoji="{{ e }}" aria-label="הגב {{ e }}">{{ e }}</button>{% endfor %}
-      <button type="button" class="reaction-reply" data-action="reply" aria-label="השב להודעה">השב</button>
+    <div class="msg-pop" id="msg-pop" hidden>
+      <div class="reaction-bar" id="reaction-bar" role="toolbar" aria-label="תגובה להודעה">
+        {% for e in ['👍', '❤️', '😂', '👎', '😢', '🙏'] %}<button type="button" data-emoji="{{ e }}" aria-label="הגב {{ e }}">{{ e }}</button>{% endfor %}
+      </div>
+      <div class="msg-menu" id="msg-menu" role="menu" aria-label="פעולות על ההודעה">
+        <button type="button" role="menuitem" data-action="reply">השב</button>
+        <button type="button" role="menuitem" data-action="info">פרטי ההודעה</button>
+        <button type="button" role="menuitem" data-action="delete" class="danger">מחק</button>
+      </div>
     </div>
 
     <form class="composer" id="composer" autocomplete="off">
@@ -49,6 +56,19 @@
     </form>
   </div>
 </section>
+
+<dialog id="info-dialog">
+  <div class="dialog-body">
+    <h2>פרטי ההודעה</h2>
+    <div class="info-preview" id="info-preview"></div>
+    <div>
+      <h3 class="info-head"><span class="ticks read-all" aria-hidden="true"></span>נקרא על ידי <span id="info-count" class="muted"></span></h3>
+      <ul class="list info-list" id="info-list"></ul>
+    </div>
+    <p class="muted small" id="info-unread"></p>
+    <div class="dialog-actions"><button class="btn btn-quiet" type="button" data-close-dialog>סגור</button></div>
+  </div>
+</dialog>
 
 <dialog id="who-dialog">
   <div class="dialog-body">

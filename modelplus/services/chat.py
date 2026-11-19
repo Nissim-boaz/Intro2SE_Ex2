@@ -2,10 +2,11 @@
 import sqlite3
 import time
 
-from ..errors import NotFound, ValidationError
+from ..errors import Forbidden, NotFound, ValidationError
 from ..models import User
 
 ANONYMOUS_NAME = "אנונימי"
+DELETED_TEXT = "ההודעה נמחקה"
 REACTIONS = ("👍", "❤️", "😂", "👎", "😢", "🙏")
 MAX_LENGTH = 2000
 
@@ -82,25 +83,43 @@ class ChatService:
         replies = self._reply_previews([r["reply_to_id"] for r in rows if r["reply_to_id"]], viewer)
         return [self._view(r, viewer, reactions.get(r["id"]), replies.get(r["reply_to_id"])) for r in rows]
 
+    def delete(self, message_id: int, user: User) -> None:
+        """השולח מוחק הודעה שלו. מנהל המערכת יכול למחוק כל הודעה (טיפול בהטרדות).
+
+        ההודעה לא נעלמת אלא מוחלפת ב״ההודעה נמחקה״, כמו בוואטסאפ, כדי שתגובות שציטטו אותה יישארו מובנות.
+        """
+        row = self.get_row(message_id)
+        if row["sender_id"] != user.id and not user.is_admin:
+            raise Forbidden("אפשר למחוק רק הודעות שלך")
+        if row["deleted"]:
+            return
+        self.db.execute("UPDATE messages SET deleted = 1, body = '' WHERE id = ?", (message_id,))
+        self.db.execute("DELETE FROM message_reactions WHERE message_id = ?", (message_id,))
+        touch_message(self.db, message_id)
+        self.db.commit()
+
     # ---------- helpers ----------
     def _view(self, r, viewer: User, reactions, reply) -> dict:
         anonymous = bool(r["is_anonymous"])
         reveal = SenderMask.reveals_identity(viewer, anonymous)
+        deleted = bool(r["deleted"])
         view = {
             "id": r["id"],
-            "body": r["body"],
+            "body": "" if deleted else r["body"],
+            "deleted": deleted,
             "created_at": r["created_at"],
             "mine": r["sender_id"] == viewer.id,
             "anonymous": anonymous,
             "sender_name": SenderMask.name_for(viewer, r["sender_id"], r["sender_name"], anonymous),
             "sender_is_lecturer": reveal and r["sender_role"] == "lecturer",
-            "reply_to": reply,
-            "reactions": reactions or {"summary": [], "mine": None},
+            "reply_to": None if deleted else reply,
+            "reactions": {"summary": [], "mine": None} if deleted else (reactions or {"summary": [], "mine": None}),
             "poll": None,
+            "can_delete": not deleted and (r["sender_id"] == viewer.id or viewer.is_admin),
         }
         if reveal:
             view["sender_id"] = r["sender_id"]
-        if r["poll_id"] and self.poll_reader:
+        if r["poll_id"] and self.poll_reader and not deleted:
             view["poll"] = self.poll_reader.results(r["poll_id"], viewer)
         return view
 
@@ -109,13 +128,16 @@ class ChatService:
             return {}
         marks = ",".join("?" * len(ids))
         rows = self.db.execute(
-            f"SELECT m.id, m.body, m.sender_id, m.is_anonymous, m.poll_id, u.name AS sender_name "
+            f"SELECT m.id, m.body, m.sender_id, m.is_anonymous, m.poll_id, m.deleted, u.name AS sender_name "
             f"FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id IN ({marks})",
             ids,
         )
         out = {}
         for r in rows:
-            body = r["body"] or ("סקר" if r["poll_id"] else "")
+            if r["deleted"]:
+                body = DELETED_TEXT
+            else:
+                body = r["body"] or ("סקר" if r["poll_id"] else "")
             out[r["id"]] = {
                 "id": r["id"],
                 "sender_name": SenderMask.name_for(viewer, r["sender_id"], r["sender_name"], bool(r["is_anonymous"])),
@@ -149,6 +171,9 @@ class ReactionService:
     def toggle(self, message_id: int, user: User, emoji: str) -> str | None:
         if emoji not in REACTIONS:
             raise ValidationError("אפשר להגיב רק עם אחד מששת האימוג׳ים")
+        msg = self.db.execute("SELECT deleted FROM messages WHERE id = ?", (message_id,)).fetchone()
+        if msg is None or msg["deleted"]:
+            raise ValidationError("ההודעה נמחקה")
         current = self.db.execute(
             "SELECT emoji FROM message_reactions WHERE message_id = ? AND user_id = ?", (message_id, user.id)
         ).fetchone()
@@ -173,3 +198,65 @@ class ReactionService:
             (message_id,),
         )
         return [{"name": r["name"], "emoji": r["emoji"]} for r in rows]
+
+
+class ReadReceiptService:
+    """וי כחול: מי קרא איזו הודעה.
+
+    ״קרא״ פירושו שהצ׳אט היה פתוח על המסך של המשתמש אחרי שההודעה הגיעה.
+    השולח רואה כמה קראו, ובפרטי ההודעה גם מי ומתי. בקבוצה, וי כחול מופיע רק כשכל חברי הקורס קראו.
+    """
+
+    def __init__(self, db: sqlite3.Connection):
+        self.db = db
+
+    def mark_read(self, course_id: int, user: User, up_to_id: int) -> int:
+        """מסמן כנקראו את כל ההודעות בקורס עד up_to_id, חוץ מאלה של המשתמש עצמו."""
+        cur = self.db.execute(
+            "INSERT OR IGNORE INTO message_reads (message_id, user_id, read_at) "
+            "SELECT id, ?, ? FROM messages WHERE course_id = ? AND id <= ? AND sender_id != ? AND deleted = 0",
+            (user.id, time.time(), course_id, up_to_id, user.id),
+        )
+        self.db.commit()
+        return cur.rowcount
+
+    def audience(self, course_id: int, sender_id: int) -> int:
+        """כמה חברי קורס יכולים לקרוא את ההודעה (כולם חוץ מהשולח)."""
+        return self.db.execute(
+            "SELECT COUNT(*) FROM enrollments WHERE course_id = ? AND user_id != ?", (course_id, sender_id)
+        ).fetchone()[0]
+
+    def receipts_for(self, course_id: int, viewer: User, limit: int = 100) -> dict:
+        """לכל אחת מההודעות האחרונות של הצופה: כמה חברי קורס קראו אותה."""
+        rows = self.db.execute(
+            "SELECT m.id, COUNT(e.user_id) AS readers FROM messages m "
+            "LEFT JOIN message_reads r ON r.message_id = m.id "
+            "LEFT JOIN enrollments e ON e.user_id = r.user_id AND e.course_id = m.course_id "
+            "WHERE m.course_id = ? AND m.sender_id = ? AND m.deleted = 0 "
+            "GROUP BY m.id ORDER BY m.id DESC LIMIT ?",
+            (course_id, viewer.id, limit),
+        )
+        return {
+            "audience": self.audience(course_id, viewer.id),
+            "read": {r["id"]: r["readers"] for r in rows},
+        }
+
+    def info(self, message_id: int, viewer: User) -> dict:
+        """פרטי ההודעה: רק השולח רואה מי קרא."""
+        row = self.db.execute("SELECT course_id, sender_id, deleted FROM messages WHERE id = ?", (message_id,)).fetchone()
+        if row is None or row["deleted"]:
+            raise NotFound("ההודעה לא נמצאה")
+        if row["sender_id"] != viewer.id:
+            raise Forbidden("רק מי ששלח את ההודעה רואה מי קרא אותה")
+        readers = self.db.execute(
+            "SELECT u.name, r.read_at FROM message_reads r JOIN users u ON u.id = r.user_id "
+            "JOIN enrollments e ON e.user_id = r.user_id AND e.course_id = ? "
+            "WHERE r.message_id = ? ORDER BY r.read_at DESC",
+            (row["course_id"], message_id),
+        ).fetchall()
+        audience = self.audience(row["course_id"], viewer.id)
+        return {
+            "read_by": [{"name": r["name"], "read_at": r["read_at"]} for r in readers],
+            "unread": max(0, audience - len(readers)),
+            "audience": audience,
+        }

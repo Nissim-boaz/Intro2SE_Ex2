@@ -1,9 +1,15 @@
-// Course chat: polling every 2.5s, bubbles, reply-with-quote, reactions and polls.
+// Course chat: polling every 2.5s, bubbles, reply-with-quote, reactions, polls,
+// delete-own-message and read receipts (WhatsApp-style ticks).
+//
+// Desktop: hovering a message shows two small buttons beside it: ☺ opens the emoji row,
+//          ⌄ opens the menu (reply / message info / delete). Nothing opens by hover alone.
+// Phone:   long-press opens both together.
 (function () {
   const root = document.getElementById("chat-root");
   if (!root) return;
   const listUrl = root.dataset.listUrl;
   const sendUrl = root.dataset.sendUrl;
+  const readUrl = root.dataset.readUrl;
   const pollUrl = root.dataset.pollUrl;
   const canVote = root.dataset.canVote === "1";
   const POLL_MS = 2500;
@@ -11,21 +17,48 @@
   const scroller = document.getElementById("chat-scroll");
   const list = document.getElementById("chat-list");
   const empty = document.getElementById("chat-empty");
+  const pop = document.getElementById("msg-pop");
   const bar = document.getElementById("reaction-bar");
+  const menu = document.getElementById("msg-menu");
   const input = document.getElementById("chat-input");
   const status = document.getElementById("chat-status");
   const esc = Model.escape;
 
   const messages = new Map(); // id -> message
+  let receipts = { audience: 0, read: {} };
   let since = 0;
   let replyTo = null;
-  let barFor = null;
+  let popFor = null;
   let timer = null;
+  let lastMarked = 0;
+  let chatVisible = false;
 
   // ---------- rendering ----------
   const fmtTime = (ts) => new Date(ts * 1000).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
 
-  function renderPoll(p, mine) {
+  function fmtWhen(ts) {
+    const d = new Date(ts * 1000);
+    const today = new Date();
+    const day = d.toDateString() === today.toDateString()
+      ? "היום"
+      : d.toLocaleDateString("he-IL", { day: "numeric", month: "numeric" });
+    return day + " " + fmtTime(ts);
+  }
+
+  // one tick = sent, two grey = someone read, two blue = everyone in the course read
+  function tickState(m) {
+    const read = receipts.read[m.id] || 0;
+    if (receipts.audience && read >= receipts.audience) return "read-all";
+    return read > 0 ? "read-some" : "sent";
+  }
+  function ticksHtml(m) {
+    if (!m.mine || m.deleted) return "";
+    const state = tickState(m);
+    const label = { sent: "נשלחה", "read-some": "חלק מהקורס קרא", "read-all": "כולם קראו" }[state];
+    return `<span class="ticks ${state}" data-ticks="${m.id}" role="img" aria-label="${label}"></span>`;
+  }
+
+  function renderPoll(p) {
     const total = p.total || 0;
     const rows = p.options.map((o) => {
       const pct = total ? Math.round((o.votes / total) * 100) : 0;
@@ -48,22 +81,34 @@
   }
 
   function renderMessage(m) {
+    const who = m.mine
+      ? (m.anonymous && !m.deleted ? `<div class="who who-anon">נשלח כאנונימי</div>` : "")
+      : `<div class="who${m.anonymous ? " who-anon" : ""}">${esc(m.sender_name)}${m.sender_is_lecturer ? ' <span class="who-badge">מרצה</span>' : ""}</div>`;
+    const meta = `<span class="meta"><span class="time">${fmtTime(m.created_at)}</span>${ticksHtml(m)}</span>`;
+
+    if (m.deleted) {
+      return `<div class="msg ${m.mine ? "mine" : "theirs"} deleted" id="msg-${m.id}" data-id="${m.id}">
+          <div class="bubble">${who}<div class="text deleted-text">⊘ ${m.mine ? "מחקת את ההודעה" : "ההודעה נמחקה"}</div>${meta}</div>
+        </div>`;
+    }
+
     const quote = m.reply_to
       ? `<button type="button" class="quote" data-jump="${m.reply_to.id}"><strong>${esc(m.reply_to.sender_name)}</strong><span>${esc(m.reply_to.body)}</span></button>`
       : "";
-    const who = m.mine
-      ? (m.anonymous ? `<div class="who who-anon">נשלח כאנונימי</div>` : "")
-      : `<div class="who${m.anonymous ? " who-anon" : ""}">${esc(m.sender_name)}${m.sender_is_lecturer ? ' <span class="who-badge">מרצה</span>' : ""}</div>`;
-    const body = m.poll ? renderPoll(m.poll, m.mine) : `<div class="text" dir="auto">${esc(m.body)}</div>`;
+    const body = m.poll ? renderPoll(m.poll) : `<div class="text" dir="auto">${esc(m.body)}</div>`;
     const r = m.reactions;
     const summary = r.summary.length
       ? `<button type="button" class="reactions" data-who="${m.id}" aria-label="מי הגיב">${r.summary.map(([e, n]) => `<span>${e}${n > 1 ? ` ${n}` : ""}</span>`).join("")}</button>`
       : "";
     return `<div class="msg ${m.mine ? "mine" : "theirs"}${m.poll ? " has-poll" : ""}" id="msg-${m.id}" data-id="${m.id}">
         <div class="bubble" tabindex="0">
-          ${who}${quote}${body}
-          <span class="time">${fmtTime(m.created_at)}</span>
-          <button type="button" class="msg-more" data-more="${m.id}" aria-label="תגובה או השב">☺</button>
+          ${who}${quote}${body}${meta}
+          <span class="msg-tools">
+            <button type="button" class="msg-tool" data-open="react" aria-label="הוסף תגובה">☺</button>
+            <button type="button" class="msg-tool" data-open="menu" aria-label="אפשרויות">
+              <svg viewBox="0 0 12 8" width="11" height="8" aria-hidden="true"><path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </span>
         </div>
         ${summary}
       </div>`;
@@ -73,19 +118,34 @@
     messages.set(m.id, m);
     const html = renderMessage(m);
     const existing = document.getElementById("msg-" + m.id);
-    if (existing) {
-      existing.outerHTML = html;
-    } else {
-      list.insertAdjacentHTML("beforeend", html);
-    }
+    if (existing) existing.outerHTML = html;
+    else list.insertAdjacentHTML("beforeend", html);
   }
 
-  function nearBottom() {
-    return scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 120;
+  function updateTicks() {
+    list.querySelectorAll("[data-ticks]").forEach((el) => {
+      const m = messages.get(Number(el.dataset.ticks));
+      if (!m) return;
+      const fresh = ticksHtml(m);
+      if (fresh && !el.classList.contains(tickState(m))) el.outerHTML = fresh;
+    });
   }
 
-  function scrollToBottom(smooth) {
-    scroller.scrollTo({ top: scroller.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+  const nearBottom = () => scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 120;
+  const scrollToBottom = (smooth) => scroller.scrollTo({ top: scroller.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+
+  // ---------- read receipts: the chat counts as read while it is on screen ----------
+  new IntersectionObserver((entries) => {
+    chatVisible = entries.some((e) => e.isIntersecting);
+    markRead();
+  }, { threshold: 0.3 }).observe(scroller);
+
+  async function markRead() {
+    if (!chatVisible || document.hidden || !messages.size) return;
+    const maxId = Math.max(...messages.keys());
+    if (maxId <= lastMarked) return;
+    lastMarked = maxId;
+    try { await Model.api(readUrl, { json: { up_to: maxId } }); } catch (_) { lastMarked = 0; }
   }
 
   // ---------- polling ----------
@@ -95,14 +155,17 @@
       const stick = first || nearBottom();
       const d = await Model.api(listUrl + (since ? `?since=${since}` : ""));
       since = d.now;
+      receipts = d.receipts || receipts;
       let added = false;
       d.messages.forEach((m) => {
         if (!messages.has(m.id)) added = true;
         upsert(m);
       });
+      updateTicks();
       empty.hidden = messages.size > 0;
       if (added && stick) scrollToBottom(!first);
       status.textContent = "";
+      markRead();
     } catch (err) {
       status.textContent = err.status === 401 ? "צריך להתחבר מחדש" : "אין חיבור. מנסה שוב";
     }
@@ -168,83 +231,113 @@
     }
   });
 
-  // ---------- reaction bar: long-press on touch, hover/button on desktop ----------
-  function openBar(msgEl) {
-    barFor = Number(msgEl.dataset.id);
-    const m = messages.get(barFor);
-    bar.querySelectorAll("[data-emoji]").forEach((b) => b.classList.toggle("active", m && m.reactions.mine === b.dataset.emoji));
-    bar.hidden = false;
+  // ---------- popover: emoji row and/or menu ----------
+  function openPop(msgEl, { react, menuOpen }) {
+    const m = messages.get(Number(msgEl.dataset.id));
+    if (!m || m.deleted) return;
+    popFor = m.id;
+    bar.hidden = !react;
+    menu.hidden = !menuOpen;
+    bar.querySelectorAll("[data-emoji]").forEach((b) => b.classList.toggle("active", m.reactions.mine === b.dataset.emoji));
+    menu.querySelector('[data-action="info"]').hidden = !m.mine;
+    menu.querySelector('[data-action="delete"]').hidden = !m.can_delete;
+    pop.hidden = false;
+    msgEl.classList.add("active");
+
     const bubble = msgEl.querySelector(".bubble").getBoundingClientRect();
     const host = root.getBoundingClientRect();
-    const top = Math.max(4, bubble.top - host.top - bar.offsetHeight - 8);
-    bar.style.top = top + "px";
+    const h = pop.offsetHeight;
+    let top = bubble.top - host.top - h - 6;
+    if (top < 4) top = bubble.bottom - host.top + 6; // not enough room above: open below
+    pop.style.top = Math.max(4, top) + "px";
     const isMine = msgEl.classList.contains("mine");
-    bar.style.left = isMine ? "12px" : "auto";
-    bar.style.right = isMine ? "auto" : "12px";
-    navigator.vibrate?.(10);
+    pop.style.left = isMine ? "12px" : "auto";
+    pop.style.right = isMine ? "auto" : "12px";
+    pop.classList.toggle("align-left", isMine);
   }
-  function closeBar() { bar.hidden = true; barFor = null; }
+  function closePop() {
+    pop.hidden = true;
+    list.querySelectorAll(".msg.active").forEach((el) => el.classList.remove("active"));
+    popFor = null;
+  }
 
+  // phone: long-press opens emoji row + menu together
   let pressTimer = null;
   let pressed = false;
   list.addEventListener("touchstart", (e) => {
     const msgEl = e.target.closest(".msg");
     if (!msgEl || e.target.closest("button")) return;
     pressed = false;
-    pressTimer = setTimeout(() => { pressed = true; openBar(msgEl); }, 450);
+    pressTimer = setTimeout(() => {
+      pressed = true;
+      openPop(msgEl, { react: true, menuOpen: true });
+      navigator.vibrate?.(10);
+    }, 450);
   }, { passive: true });
   ["touchend", "touchmove", "touchcancel"].forEach((ev) =>
     list.addEventListener(ev, () => clearTimeout(pressTimer), { passive: true }));
   list.addEventListener("contextmenu", (e) => {
     const msgEl = e.target.closest(".msg");
-    if (msgEl) { e.preventDefault(); openBar(msgEl); }
+    if (msgEl && !msgEl.classList.contains("deleted")) { e.preventDefault(); openPop(msgEl, { react: true, menuOpen: true }); }
   });
 
-  // desktop: hovering a bubble opens the bar after a short pause, leaving closes it
-  if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
-    let hoverTimer = null;
-    let leaveTimer = null;
-    list.addEventListener("mouseover", (e) => {
-      const msgEl = e.target.closest(".msg");
-      if (!msgEl) return;
-      clearTimeout(leaveTimer);
-      if (barFor === Number(msgEl.dataset.id)) return;
-      clearTimeout(hoverTimer);
-      hoverTimer = setTimeout(() => openBar(msgEl), 350);
-    });
-    const leave = () => {
-      clearTimeout(hoverTimer);
-      leaveTimer = setTimeout(closeBar, 350);
-    };
-    list.addEventListener("mouseleave", leave);
-    list.addEventListener("mouseout", (e) => {
-      if (!e.relatedTarget || !e.relatedTarget.closest(".msg")) leave();
-    });
-    bar.addEventListener("mouseenter", () => clearTimeout(leaveTimer));
-    bar.addEventListener("mouseleave", leave);
-  }
-
-  bar.addEventListener("click", async (e) => {
+  pop.addEventListener("click", async (e) => {
     const btn = e.target.closest("button");
-    if (!btn || barFor === null) return;
-    const id = barFor;
-    closeBar();
-    if (btn.dataset.action === "reply") return setReply(messages.get(id));
-    try {
-      await Model.api(`/api/messages/${id}/reactions`, { json: { emoji: btn.dataset.emoji } });
-      refresh();
-    } catch (err) { Model.toast(err.message, "error"); }
+    if (!btn || popFor === null) return;
+    const id = popFor;
+    const m = messages.get(id);
+    closePop();
+    if (btn.dataset.emoji) {
+      try {
+        await Model.api(`/api/messages/${id}/reactions`, { json: { emoji: btn.dataset.emoji } });
+        refresh();
+      } catch (err) { Model.toast(err.message, "error"); }
+    } else if (btn.dataset.action === "reply") {
+      setReply(m);
+    } else if (btn.dataset.action === "info") {
+      showInfo(m);
+    } else if (btn.dataset.action === "delete") {
+      if (!confirm("למחוק את ההודעה? היא תימחק אצל כולם.")) return;
+      try {
+        await Model.api(`/api/messages/${id}`, { method: "DELETE" });
+        refresh();
+      } catch (err) { Model.toast(err.message, "error"); }
+    }
   });
 
   document.addEventListener("click", (e) => {
-    if (!bar.hidden && !bar.contains(e.target) && !e.target.closest("[data-more]") && !pressed) closeBar();
+    if (!pop.hidden && !pop.contains(e.target) && !e.target.closest("[data-open]") && !pressed) closePop();
     pressed = false;
   });
-  scroller.addEventListener("scroll", closeBar, { passive: true });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePop(); });
+  scroller.addEventListener("scroll", closePop, { passive: true });
+
+  async function showInfo(m) {
+    try {
+      const d = await Model.api(`/api/messages/${m.id}/info`);
+      document.getElementById("info-preview").innerHTML = m.poll
+        ? `<strong>סקר:</strong> ${esc(m.poll.question)}`
+        : esc(m.body);
+      document.getElementById("info-count").textContent = d.read_by.length ? `(${d.read_by.length})` : "";
+      document.getElementById("info-list").innerHTML = d.read_by.length
+        ? d.read_by.map((r) => `<li><span class="grow">${esc(r.name)}</span><span class="xsmall muted">${fmtWhen(r.read_at)}</span></li>`).join("")
+        : `<li class="muted small">עוד אף אחד לא קרא</li>`;
+      document.getElementById("info-unread").textContent = d.unread
+        ? `עוד לא קראו: ${d.unread} מתוך ${d.audience}`
+        : "כל חברי הקורס קראו את ההודעה";
+      document.getElementById("info-dialog").showModal();
+    } catch (err) { Model.toast(err.message, "error"); }
+  }
 
   list.addEventListener("click", async (e) => {
-    const more = e.target.closest("[data-more]");
-    if (more) return openBar(more.closest(".msg"));
+    const opener = e.target.closest("[data-open]");
+    if (opener) {
+      const msgEl = opener.closest(".msg");
+      const wantMenu = opener.dataset.open === "menu";
+      const alreadyOpen = popFor === Number(msgEl.dataset.id) && (wantMenu ? !menu.hidden : !bar.hidden);
+      if (alreadyOpen) return closePop();
+      return openPop(msgEl, { react: !wantMenu, menuOpen: wantMenu });
+    }
 
     const jump = e.target.closest("[data-jump]");
     if (jump) {

@@ -6,7 +6,7 @@ from flask import Blueprint, jsonify, request
 from ..db import get_db
 from ..errors import ValidationError
 from ..security import current_user, login_required
-from ..services.chat import ChatService, ReactionService
+from ..services.chat import ChatService, ReactionService, ReadReceiptService
 from ..services.courses import EnrollmentService
 from ..services.polls import PollService
 
@@ -34,7 +34,36 @@ def messages(course_id: int):
     since = request.args.get("since", type=float)
     now = time.time()
     items = _chat().list_messages(course_id, current_user(), since=since)
-    return jsonify(ok=True, now=now - OVERLAP_SECONDS, messages=items)
+    # הווים משתנים גם בלי שההודעה עצמה השתנתה, לכן הם נשלחים בכל בקשה
+    receipts = ReadReceiptService(get_db()).receipts_for(course_id, current_user())
+    return jsonify(ok=True, now=now - OVERLAP_SECONDS, messages=items, receipts=receipts)
+
+
+@bp.post("/courses/<int:course_id>/chat/read")
+@login_required
+def mark_read(course_id: int):
+    EnrollmentService(get_db()).require_member(course_id, current_user())
+    try:
+        up_to = int((request.get_json(silent=True) or {}).get("up_to", 0))
+    except (TypeError, ValueError):
+        raise ValidationError("מזהה הודעה לא תקין")
+    ReadReceiptService(get_db()).mark_read(course_id, current_user(), up_to)
+    return jsonify(ok=True)
+
+
+@bp.delete("/messages/<int:message_id>")
+@login_required
+def delete(message_id: int):
+    _require_member_of_message(message_id)
+    _chat().delete(message_id, current_user())
+    return jsonify(ok=True)
+
+
+@bp.get("/messages/<int:message_id>/info")
+@login_required
+def info(message_id: int):
+    _require_member_of_message(message_id)
+    return jsonify(ok=True, **ReadReceiptService(get_db()).info(message_id, current_user()))
 
 
 @bp.post("/courses/<int:course_id>/chat")

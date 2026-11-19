@@ -96,10 +96,19 @@ CREATE TABLE IF NOT EXISTS messages (
     reply_to_id  INTEGER REFERENCES messages(id) ON DELETE SET NULL,
     is_anonymous INTEGER NOT NULL DEFAULT 0,
     poll_id      INTEGER REFERENCES polls(id) ON DELETE CASCADE,
+    deleted      INTEGER NOT NULL DEFAULT 0,
     created_at   REAL NOT NULL,
     updated_at   REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_messages_course_updated ON messages (course_id, updated_at);
+
+-- מי קרא איזו הודעה ומתי (וי כחול)
+CREATE TABLE IF NOT EXISTS message_reads (
+    message_id  INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    read_at     REAL NOT NULL,
+    PRIMARY KEY (message_id, user_id)
+);
 
 CREATE TABLE IF NOT EXISTS message_reactions (
     message_id  INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
