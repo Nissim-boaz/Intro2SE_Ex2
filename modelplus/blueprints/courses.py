@@ -26,11 +26,32 @@ def show(course_id: int):
     course = CourseService(db).get(course_id)
     enrollments = EnrollmentService(db)
     role = enrollments.require_member(course_id, current_user())
+    context = {}
+    context["attendance"] = _attendance_context(course_id, role)
     return render_template(
         "courses/show.html",
+        **context,
         course=course,
         role=role,
         can_manage=role in ("admin", "lecturer"),
         lecturers=enrollments.members(course_id, "lecturer"),
         blocks=ContentService(db, FileStore(current_app.config["UPLOAD_DIR"])).list(course_id),
     )
+
+
+def _attendance_context(course_id: int, role: str) -> dict:
+    from .attendance import build_service
+
+    service = build_service()
+    sample = service.open_sample_for(course_id)
+    lessons = service.lessons(course_id)
+    ctx = {
+        "open_sample": sample,
+        "next_lesson": lessons[0].number if lessons else 1,
+        "has_lessons": bool(lessons),
+    }
+    if sample:
+        ctx["seconds_left"] = sample.seconds_left(service.clock.now())
+        if role == "student":
+            ctx["my_record"] = service.record_for(sample.id, current_user().id)
+    return ctx

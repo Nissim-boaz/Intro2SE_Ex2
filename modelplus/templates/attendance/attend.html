@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}סימון נוכחות · Model+{% endblock %}
+{% block main_class %}page-narrow attend-page{% endblock %}
+{% block content %}
+<div class="attend-card" id="attend"
+     data-submit-url="{{ url_for('attendance.check_in', sample_id=sample_id) }}">
+
+  {% if error %}
+    <div class="attend-state">
+      <div class="attend-icon attend-icon-warn" aria-hidden="true">!</div>
+      <h1>{{ error }}</h1>
+      {% if course is defined %}<a class="btn btn-quiet" href="{{ url_for('courses.show', course_id=course.id) }}">לעמוד הקורס</a>{% endif %}
+    </div>
+
+  {% elif existing %}
+    <div class="attend-state">
+      <div class="attend-icon attend-icon-ok" aria-hidden="true">✓</div>
+      <h1>כבר נרשמת לדגימה הזו</h1>
+      <p class="muted">{{ course.name }}, שיעור {{ sample.lesson_number }}</p>
+      <a class="btn btn-quiet" href="{{ url_for('courses.show', course_id=course.id) }}">לעמוד הקורס</a>
+    </div>
+
+  {% else %}
+    <div class="attend-state" data-step="ready">
+      <p class="muted">{{ course.name }}, שיעור {{ sample.lesson_number }}</p>
+      <h1>עוד צעד אחד</h1>
+      <p class="muted">הטלפון יקשיב כמה שניות לאות שמגיע מהרמקול בכיתה. האות לא נשמע לאוזן, וההקלטה לא נשמרת.</p>
+      <button class="btn btn-lg btn-block" type="button" id="listen-btn">סמן נוכחות</button>
+    </div>
+
+    <div class="attend-state" data-step="listening" hidden>
+      <div class="listen-rings" aria-hidden="true"><span></span><span></span><span></span></div>
+      <h1>מקשיב לאות מהכיתה</h1>
+      <div class="level"><span id="level-bar"></span></div>
+      <p class="muted small">השאר את הדף פתוח. <span id="listen-left">10</span> שניות לכל היותר</p>
+      <button class="btn btn-ghost btn-sm" type="button" id="skip-btn">המיקרופון לא עובד? שלח בלי אות</button>
+    </div>
+
+    <div class="attend-state" data-step="sending" hidden>
+      <div class="listen-rings" aria-hidden="true"><span></span></div>
+      <h1>שולח</h1>
+    </div>
+
+    <div class="attend-state" data-step="done" hidden>
+      <div class="attend-icon attend-icon-ok" aria-hidden="true">✓</div>
+      <h1>נרשמת</h1>
+      <p class="muted" id="done-note"></p>
+      <a class="btn btn-quiet" href="{{ url_for('courses.show', course_id=course.id) }}">לעמוד הקורס</a>
+    </div>
+
+    <div class="attend-state" data-step="failed" hidden>
+      <div class="attend-icon attend-icon-warn" aria-hidden="true">!</div>
+      <h1 id="fail-msg">משהו השתבש</h1>
+      <a class="btn btn-quiet" href="{{ url_for('courses.show', course_id=course.id) }}">לעמוד הקורס</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+{% if not error and not existing %}
+<script src="{{ url_for('static', filename='js/audio_protocol.js') }}"></script>
+<script src="{{ url_for('static', filename='js/audio_listener.js') }}"></script>
+<script src="{{ url_for('static', filename='js/attend.js') }}"></script>
+{% endif %}
+{% endblock %}

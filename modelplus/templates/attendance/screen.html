@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}דגימה {{ sample.seq }}, שיעור {{ sample.lesson_number }}{% endblock %}
+{% block body_class %}stage{% endblock %}
+{% block topbar %}{% endblock %}
+{% block main_class %}stage-main{% endblock %}
+{% block content %}
+<div class="stage-grid" id="stage" data-live-url="{{ url_for('attendance.live', sample_id=sample.id) }}">
+  <div class="stage-qr">
+    <div class="qr-frame" id="qr" aria-label="קוד QR לסימון נוכחות"></div>
+    <div class="qr-rotate"><span id="rotate-bar"></span></div>
+  </div>
+
+  <aside class="stage-side">
+    <div>
+      <div class="stage-course">{{ course.name }}</div>
+      <div class="stage-lesson">שיעור {{ sample.lesson_number }}, דגימה {{ sample.seq }} מתוך 5</div>
+    </div>
+
+    <div class="stage-timer" id="timer" aria-live="off">--:--</div>
+
+    <div class="stage-count">
+      <span id="count">0</span>
+      <span class="stage-count-label">נרשמו<span id="enrolled"></span></span>
+    </div>
+
+    <p class="stage-hint">סרקו את הקוד עם המצלמה, והשאירו את הדף פתוח כמה שניות עד שיופיע ״נרשמת״.</p>
+
+    <div class="stage-actions">
+      <span class="pill" id="sound-state">האות הקולי כבוי</span>
+      <button class="btn btn-quiet btn-sm" type="button" id="sound-toggle">הפעל צליל</button>
+      <span class="spacer"></span>
+      <form method="post" action="{{ url_for('attendance.close', sample_id=sample.id) }}" data-confirm="לסגור את הדגימה עכשיו?">
+        <button class="btn btn-danger btn-sm">סגור דגימה</button>
+      </form>
+    </div>
+  </aside>
+</div>
+
+<div class="stage-overlay" id="start-overlay">
+  <div class="stage-overlay-card">
+    <h1>מוכנים לדגימה</h1>
+    <p class="muted">הלחיצה מפעילה את האות הקולי מהרמקול ומעבירה למסך מלא. ודא שהרמקול של המחשב מחובר והווליום גבוה.</p>
+    <button class="btn btn-lg" type="button" id="start-btn">התחל</button>
+    <button class="btn btn-ghost" type="button" id="start-silent">בלי צליל</button>
+  </div>
+</div>
+
+<div class="stage-overlay" id="closed-overlay" hidden>
+  <div class="stage-overlay-card">
+    <h1>הדגימה נסגרה</h1>
+    <p class="stage-count" style="justify-content:center"><span id="final-count">0</span><span class="stage-count-label">נרשמו</span></p>
+    <div class="row" style="justify-content:center">
+      <a class="btn btn-lg" href="{{ url_for('attendance.lesson_report', lesson_id=sample.lesson_id) }}">לדוח השיעור</a>
+      <a class="btn btn-lg btn-quiet" href="{{ url_for('courses.show', course_id=course.id) }}#attendance">לעמוד הקורס</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/audio_protocol.js') }}"></script>
+<script src="{{ url_for('static', filename='js/audio_emitter.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sample_screen.js') }}"></script>
+{% endblock %}

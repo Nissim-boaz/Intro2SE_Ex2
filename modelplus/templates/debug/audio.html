@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}בדיקת אות קולי · Model+{% endblock %}
+{% block main_class %}page-narrow{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>בדיקת אות קולי</h1>
+    <p class="muted">פתח את הדף הזה במחשב של הכיתה ובטלפון. המחשב משמיע, הטלפון מקשיב.</p>
+  </div>
+</div>
+
+<div class="stack">
+  <section class="panel stack">
+    <div class="panel-head" style="margin:0"><h2>הקשבה (בטלפון)</h2><span class="pill" id="mic-state">כבוי</span></div>
+    <div class="debug-meter">
+      <div class="debug-big"><span id="snr">0</span><small>dB מעל הרעש</small></div>
+      <div class="debug-big"><span id="peak" dir="ltr">–</span><small>התדר החזק</small></div>
+      <div class="debug-big"><span id="decoded" dir="ltr">–</span><small>קוד שפוענח</small></div>
+    </div>
+    <div class="debug-bars" id="bars" aria-label="עוצמה בכל אחד מהתדרים"></div>
+    <div class="row">
+      <button class="btn" type="button" id="listen">התחל להקשיב</button>
+      <button class="btn btn-quiet" type="button" id="unlisten" disabled>עצור</button>
+    </div>
+    <p class="xsmall muted">עמודה ראשונה היא טון הסנכרון, ושמונה האחרות הן תדרי הנתונים. אם העמודות עולות כשהמחשב משמיע, הטלפון שומע. מתחת ל-14 dB הפענוח לא יעבוד.</p>
+    <ol class="debug-log" id="log" dir="ltr"></ol>
+  </section>
+
+  <section class="panel stack">
+    <h2>השמעה (במחשב)</h2>
+    <div class="form-grid cols">
+      <label>קוד לבדיקה (0 עד 4095)<input type="number" id="code" min="0" max="4095" value="1234" dir="ltr"></label>
+      <label>ווליום<input type="range" id="volume" min="0.05" max="1" step="0.05" value="0.6"></label>
+    </div>
+    <div class="row">
+      <button class="btn" type="button" id="play">השמע אות בדיקה</button>
+      <button class="btn btn-quiet" type="button" id="stop" disabled>עצור</button>
+    </div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/audio_protocol.js') }}"></script>
+<script src="{{ url_for('static', filename='js/audio_emitter.js') }}"></script>
+<script src="{{ url_for('static', filename='js/audio_listener.js') }}"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const P = window.AudioProtocol;
+  const labels = ["S", "0", "1", "2", "3", "4", "5", "6", "7"];
+  $("bars").innerHTML = labels.map((l) => `<div class="debug-bar"><span></span><small>${l}</small></div>`).join("");
+  const barEls = [...$("bars").querySelectorAll(".debug-bar span")];
+
+  // ---- listener ----
+  let listener = null;
+  $("listen").onclick = async () => {
+    listener = new AudioTokenListener({ timeoutMs: 0 });
+    listener.keepListening = true;
+    listener.onLevel = (info) => {
+      $("snr").textContent = Math.round(info.snr);
+      $("peak").textContent = (info.peakHz / 1000).toFixed(2) + "k";
+      info.levels.forEach((v, i) => (barEls[i].style.transform = `scaleY(${Math.max(0.02, Math.min(1, v / 40))})`));
+    };
+    listener.onCode = (code) => {
+      $("decoded").textContent = code;
+      const li = document.createElement("li");
+      li.textContent = new Date().toLocaleTimeString("he-IL") + "  →  " + code;
+      $("log").prepend(li);
+      listener.streak = 0;
+    };
+    listener.onFail = (reason) => {
+      const text = { denied: "אין הרשאה למיקרופון", unsupported: "הדפדפן לא תומך במיקרופון", low_rate: "המיקרופון דוגם בקצב נמוך מדי" }[reason] || reason;
+      $("mic-state").textContent = text;
+      $("mic-state").className = "pill pill-danger";
+      $("listen").disabled = false; $("unlisten").disabled = true;
+    };
+    await listener.start();
+    if (listener.ctx) {
+      $("mic-state").textContent = "מקשיב, " + listener.ctx.sampleRate + "Hz";
+      $("mic-state").className = "pill pill-ok";
+      $("listen").disabled = true; $("unlisten").disabled = false;
+    }
+  };
+  $("unlisten").onclick = () => {
+    listener && listener.stop();
+    $("mic-state").textContent = "כבוי"; $("mic-state").className = "pill";
+    $("listen").disabled = false; $("unlisten").disabled = true;
+  };
+
+  // ---- emitter ----
+  let emitter = null;
+  function symbolsFor(code) {
+    const data = [(code >> 9) & 7, (code >> 6) & 7, (code >> 3) & 7, code & 7];
+    return data.concat([data.reduce((a, b) => a + b, 0) % 8]);
+  }
+  $("play").onclick = async () => {
+    emitter = new AudioTokenEmitter({ volume: parseFloat($("volume").value) });
+    await emitter.start();
+    emitter.setSymbols(symbolsFor(parseInt($("code").value, 10) & 4095));
+    $("play").disabled = true; $("stop").disabled = false;
+  };
+  $("code").oninput = () => emitter && emitter.setSymbols(symbolsFor(parseInt($("code").value, 10) & 4095));
+  $("volume").oninput = () => emitter && emitter.setVolume(parseFloat($("volume").value));
+  $("stop").onclick = () => { emitter && emitter.stop(); $("play").disabled = false; $("stop").disabled = true; };
+})();
+</script>
+{% endblock %}

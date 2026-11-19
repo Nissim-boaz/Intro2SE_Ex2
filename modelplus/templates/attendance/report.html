@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}נוכחות שיעור {{ lesson.number }} · {{ course.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a class="small" href="{{ url_for('courses.show', course_id=course.id) }}#attendance">{{ course.name }}</a>
+    <h1 style="margin-top:6px">נוכחות בשיעור {{ lesson.number }}</h1>
+    <p class="muted">{{ samples|length }} דגימות, {{ rows|length }} סטודנטים</p>
+  </div>
+  <div class="row">
+    {% if open_sample %}<a class="btn" href="{{ url_for('attendance.screen', sample_id=open_sample.id) }}">למסך הדגימה הפתוחה</a>{% endif %}
+    <a class="btn btn-quiet" href="{{ url_for('attendance.lesson_csv', lesson_id=lesson.id) }}">ייצוא ל-CSV</a>
+  </div>
+</div>
+
+{% if lessons|length > 1 %}
+<nav class="course-nav" aria-label="שיעורים" style="position:static;margin-top:0">
+  {% for l in lessons %}
+  <a href="{{ url_for('attendance.lesson_report', lesson_id=l.id) }}" {% if l.id == lesson.id %}style="background:var(--ink);color:#fff;box-shadow:none"{% endif %}>שיעור {{ l.number }}</a>
+  {% endfor %}
+</nav>
+{% endif %}
+
+{% if suspicious %}
+<div class="notice notice-warn" style="margin-bottom:16px">
+  <strong>{{ suspicious }} רשומות ממתינות לאישור.</strong>
+  אלה סטודנטים שנרשמו בלי אות קולי או מכתובת שמחוץ לקמפוס. אשר או דחה כל אחת בטבלה.
+</div>
+{% endif %}
+
+<section class="panel">
+  {% if rows %}
+  <div class="table-wrap">
+    <table class="matrix">
+      <thead>
+        <tr>
+          <th>סטודנט</th>
+          {% for s in samples %}<th class="center">דגימה {{ s.seq }}</th>{% endfor %}
+          <th class="center">נוכחות</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td><strong style="font-weight:600">{{ row.student.name }}</strong></td>
+          {% for c in row.cells %}
+          <td class="center">
+            {% if not c %}<span class="cell cell-miss" title="לא נרשם">–</span>
+            {% elif c.status == 'ok' %}<span class="cell cell-ok" title="נוכח">✓</span>
+            {% elif c.status == 'approved' %}<span class="cell cell-ok" title="אושר ידנית">✓</span>
+            {% elif c.status == 'rejected' %}<span class="cell cell-no" title="נדחה">✕</span>
+            {% else %}
+              <div class="cell-review" title="{{ c.reason_labels|join(', ') }}">
+                <span class="pill pill-warn">{{ c.reason_labels|join(', ') }}</span>
+                <form method="post" action="{{ url_for('attendance.set_status', record_id=c.id) }}" class="row" style="gap:4px;justify-content:center;flex-wrap:nowrap">
+                  <button class="btn btn-sm" name="status" value="approved">אשר</button>
+                  <button class="btn btn-sm btn-quiet" name="status" value="rejected">דחה</button>
+                </form>
+              </div>
+            {% endif %}
+          </td>
+          {% endfor %}
+          <td class="center"><span class="percent {{ 'percent-low' if row.percent < 60 else '' }}">{{ row.percent }}%</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty"><strong>אין סטודנטים בקורס</strong>מנהל המערכת צריך לשייך סטודנטים לקורס.</div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% set a = attendance %}
+<section class="panel section" id="attendance">
+  <div class="panel-head">
+    <h2>נוכחות</h2>
+    {% if can_manage and a.has_lessons %}<a class="btn btn-sm btn-quiet" href="{{ url_for('attendance.course_report', course_id=course.id) }}">דוחות</a>{% endif %}
+  </div>
+
+  {% if can_manage %}
+    {% if a.open_sample %}
+    <div class="attend-live">
+      <span class="live-dot" aria-hidden="true"></span>
+      <div class="grow">
+        <strong>דגימה {{ a.open_sample.seq }} בשיעור {{ a.open_sample.lesson_number }} פתוחה</strong>
+        <div class="small muted">נשארו {{ (a.seconds_left // 60) }}:{{ '%02d' % (a.seconds_left % 60) }} דקות</div>
+      </div>
+      <a class="btn" href="{{ url_for('attendance.screen', sample_id=a.open_sample.id) }}">למסך הדגימה</a>
+    </div>
+    {% else %}
+    <form method="post" action="{{ url_for('attendance.open_sample', course_id=course.id) }}" class="form-grid cols">
+      <label>מספר שיעור
+        <input type="number" name="lesson_number" min="1" value="{{ a.next_lesson }}" required inputmode="numeric">
+      </label>
+      <label>משך הדגימה
+        <select name="minutes">
+          <option value="1">דקה</option>
+          <option value="2" selected>2 דקות</option>
+          <option value="3">3 דקות</option>
+          <option value="5">5 דקות</option>
+        </select>
+      </label>
+      <button class="btn">פתח דגימה</button>
+    </form>
+    <p class="xsmall muted" style="margin-top:10px">אותו מספר שיעור מוסיף דגימה לאותו שיעור, עד 5 דגימות. מספר חדש פותח שיעור חדש.</p>
+    {% endif %}
+
+  {% elif role == 'student' %}
+    {% if a.open_sample and a.my_record %}
+      <div class="attend-done">
+        <span class="check-badge" aria-hidden="true">✓</span>
+        <div>
+          <strong>נרשמת לדגימה {{ a.open_sample.seq }}</strong>
+          {% if a.my_record.status == 'suspicious' %}<div class="small muted">המרצה יאשר את הנוכחות שלך</div>{% endif %}
+        </div>
+      </div>
+    {% elif a.open_sample %}
+      <a class="btn btn-lg btn-block attend-cta" href="{{ url_for('attendance.scanner', sample_id=a.open_sample.id) }}">סמן נוכחות</a>
+      <p class="small muted" style="margin-top:10px;text-align:center">אפשר גם לסרוק את הקוד שעל המסך עם המצלמה של הטלפון</p>
+    {% else %}
+      <p class="muted">אין דגימה פתוחה כרגע. כשהמרצה יפתח דגימה יופיע כאן כפתור לסימון נוכחות.</p>
+    {% endif %}
+  {% else %}
+    <p class="muted">אין דגימה פתוחה כרגע.</p>
+  {% endif %}
+</section>

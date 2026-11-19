@@ -14,9 +14,16 @@
       <script src="https://accounts.google.com/gsi/client" async></script>
       <div id="g_id_onload"
            data-client_id="{{ google_client_id }}"
-           data-login_uri="{{ url_for('auth.google', _external=True) }}"
-           data-ux_mode="redirect"
+           data-callback="onGoogleCredential"
            data-auto_prompt="false"></div>
+      <script>
+        async function onGoogleCredential(resp) {
+          try {
+            const data = await Model.api("{{ url_for('auth.google') }}", { json: { credential: resp.credential } });
+            location.href = data.next;
+          } catch (err) { Model.toast(err.message, "error"); }
+        }
+      </script>
       <div class="g_id_signin" data-type="standard" data-size="large" data-shape="pill"
            data-text="signin_with" data-locale="he" data-width="320" style="display:flex;justify-content:center"></div>
       <p class="xsmall muted" style="text-align:center">רק חשבונות שמנהל המערכת הוסיף יכולים להיכנס</p>

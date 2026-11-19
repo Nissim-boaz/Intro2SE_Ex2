@@ -27,7 +27,8 @@ class Config:
     TOKEN_WINDOW_SECONDS = 6
     MAX_SAMPLES_PER_LESSON = 5
     DEFAULT_SAMPLE_SECONDS = 120
-    CHECKIN_GRACE_SECONDS = 15
+    # כמה זמן אחרי סריקת ה-QR אפשר להשלים את הרישום (האזנה לאות, ואולי גם התחברות)
+    CHECKIN_GRACE_SECONDS = 90
 
     GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
     GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")

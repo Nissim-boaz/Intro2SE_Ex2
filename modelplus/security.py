@@ -24,8 +24,11 @@ def current_user() -> User | None:
 
 
 def login_user(user: User) -> None:
+    pending_checkin = session.get("checkin")  # סטודנט שסרק QR לפני שהתחבר
     session.clear()
     session["user_id"] = user.id
+    if pending_checkin:
+        session["checkin"] = pending_checkin
     session.permanent = True
 
 

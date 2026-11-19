@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}סריקת קוד · Model+{% endblock %}
+{% block main_class %}page-narrow attend-page{% endblock %}
+{% block content %}
+<div class="attend-card">
+  <div class="attend-state" id="scan-native">
+    <h1>סרוק את הקוד שעל המסך</h1>
+    <div class="scanner-view"><video id="cam" playsinline muted></video><span class="scanner-frame" aria-hidden="true"></span></div>
+    <p class="muted small" id="scan-status">מכוון את המצלמה…</p>
+  </div>
+
+  <div class="attend-state" id="scan-fallback" hidden>
+    <div class="attend-icon" aria-hidden="true">⌗</div>
+    <h1>פתח את המצלמה של הטלפון</h1>
+    <p class="muted">כוון אותה לקוד שעל המסך בכיתה ולחץ על הקישור שמופיע. הדף ייפתח כאן ויסיים את הרישום.</p>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(async function () {
+  const native = document.getElementById("scan-native");
+  const fallback = document.getElementById("scan-fallback");
+  const status = document.getElementById("scan-status");
+  const prefix = location.origin + "/attend/{{ sample.id }}?";
+  function useFallback() { native.hidden = true; fallback.hidden = false; }
+
+  if (!("BarcodeDetector" in window)) return useFallback();
+  let detector;
+  try { detector = new BarcodeDetector({ formats: ["qr_code"] }); } catch (_) { return useFallback(); }
+
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+  } catch (_) { return useFallback(); }
+  const video = document.getElementById("cam");
+  video.srcObject = stream;
+  await video.play();
+
+  async function scan() {
+    try {
+      const codes = await detector.detect(video);
+      const hit = codes.find((c) => c.rawValue.startsWith(prefix));
+      if (hit) {
+        status.textContent = "נמצא קוד";
+        stream.getTracks().forEach((t) => t.stop());
+        location.href = hit.rawValue;
+        return;
+      }
+      if (codes.length) status.textContent = "זה לא הקוד של הדגימה הזו";
+    } catch (_) {}
+    setTimeout(scan, 200);
+  }
+  scan();
+})();
+</script>
+{% endblock %}
