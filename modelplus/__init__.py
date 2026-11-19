@@ -34,7 +34,7 @@ def _ensure_admin(app: Flask) -> None:
 
     conn = db.connect(app.config["DATABASE"])
     try:
-        UserService(conn).ensure(app.config["ADMIN_EMAIL"], "מנהל המערכת", "admin")
+        UserService(conn).ensure_admin(app.config["ADMIN_EMAIL"])
     finally:
         conn.close()
 

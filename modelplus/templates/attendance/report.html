@@ -1,10 +1,10 @@
 {% extends "base.html" %}
+{% set back_url = url_for('courses.show', course_id=course.id) ~ '#attendance' %}{% set back_label = course.name %}
 {% block title %}נוכחות שיעור {{ lesson.number }} · {{ course.name }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
-    <a class="small" href="{{ url_for('courses.show', course_id=course.id) }}#attendance">{{ course.name }}</a>
-    <h1 style="margin-top:6px">נוכחות בשיעור {{ lesson.number }}</h1>
+    <h1>נוכחות בשיעור {{ lesson.number }}</h1>
     <p class="muted">{{ samples|length }} דגימות, {{ rows|length }} סטודנטים</p>
   </div>
   <div class="row">

@@ -58,3 +58,23 @@ def test_import_skips_rows_without_email(db):
 def test_import_rejects_other_formats(db):
     with pytest.raises(ValidationError):
         StudentImporter(UserService(db)).import_file("x.pdf", b"")
+
+
+def test_last_admin_cannot_be_demoted_or_deleted(db):
+    users = UserService(db)
+    admin = users.create("boss@test.ac.il", "מנהל", "admin")
+    with pytest.raises(ValidationError):
+        users.update(admin.id, "מנהל", "student")
+    with pytest.raises(ValidationError):
+        users.delete(admin.id)
+    # כשיש מנהל נוסף, מותר
+    users.create("boss2@test.ac.il", "מנהל 2", "admin")
+    assert users.update(admin.id, "מנהל", "lecturer").role == "lecturer"
+
+
+def test_ensure_admin_restores_role(db):
+    users = UserService(db)
+    users.create("boss@test.ac.il", "מנהל", "admin")
+    users.create("other@test.ac.il", "מנהל 2", "admin")
+    users.update(users.find_by_email("boss@test.ac.il").id, "מנהל", "student")
+    assert users.ensure_admin("boss@test.ac.il").role == "admin"

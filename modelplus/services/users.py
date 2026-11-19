@@ -53,19 +53,38 @@ class UserService:
             raise ValidationError("תפקיד לא מוכר")
         if not name.strip():
             raise ValidationError("צריך למלא שם")
-        self.get(user_id)
+        user = self.get(user_id)
+        if user.is_admin and role != "admin":
+            self._keep_one_admin()
         self.db.execute("UPDATE users SET name = ?, role = ? WHERE id = ?", (name.strip(), role, user_id))
         self.db.commit()
         return self.get(user_id)
 
     def delete(self, user_id: int) -> None:
-        self.get(user_id)
+        if self.get(user_id).is_admin:
+            self._keep_one_admin()
         self.db.execute("DELETE FROM users WHERE id = ?", (user_id,))
         self.db.commit()
 
+    def _keep_one_admin(self) -> None:
+        """בלי מנהל מערכת אף אחד לא יכול לנהל את האתר, אז תמיד נשאר לפחות אחד."""
+        admins = self.db.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'").fetchone()[0]
+        if admins <= 1:
+            raise ValidationError("זה מנהל המערכת היחיד. כדי לשנות אותו, קודם הפוך משתמש אחר למנהל")
+
     def ensure(self, email: str, name: str, role: str) -> User:
-        """מחזיר משתמש קיים או יוצר חדש. משמש לאדמין הראשון ול-seed."""
+        """מחזיר משתמש קיים או יוצר חדש. משמש ל-seed."""
         return self.find_by_email(email) or self.create(email, name, role)
+
+    def ensure_admin(self, email: str, name: str = "מנהל המערכת") -> User:
+        """המייל שבהגדרות תמיד מנהל מערכת, גם אם מישהו שינה לו את התפקיד בטעות."""
+        user = self.find_by_email(email)
+        if user is None:
+            return self.create(email, name, "admin")
+        if not user.is_admin:
+            self.db.execute("UPDATE users SET role = 'admin' WHERE id = ?", (user.id,))
+            self.db.commit()
+        return self.get(user.id)
 
 
 @dataclass(frozen=True)

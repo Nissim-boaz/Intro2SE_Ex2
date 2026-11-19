@@ -50,7 +50,10 @@ def create_user():
 @bp.post("/users/<int:user_id>")
 @role_required("admin")
 def update_user(user_id: int):
-    UserService(get_db()).update(user_id, request.form.get("name", ""), request.form.get("role", ""))
+    role = request.form.get("role", "")
+    if user_id == current_user().id and role != current_user().role:
+        raise ValidationError("אי אפשר לשנות את התפקיד של עצמך")
+    UserService(get_db()).update(user_id, request.form.get("name", ""), role)
     flash("השינויים נשמרו", "success")
     return redirect(url_for("admin.users"))
 

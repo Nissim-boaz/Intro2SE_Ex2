@@ -15,8 +15,8 @@
   {% block topbar %}
   <header class="topbar">
     <div class="topbar-inner">
-      <a class="brand" href="{{ url_for('courses.index') }}" aria-label="Model+ דף הבית">
-        <span class="brand-mark" aria-hidden="true">+</span><span dir="ltr">Model+</span>
+      <a class="brand" href="{{ url_for('courses.index') }}" aria-label="Model+, לרשימת הקורסים">
+        <span dir="ltr">Model<span class="brand-plus">+</span></span>
       </a>
       {% if user %}
       <nav class="topnav">
@@ -46,6 +46,12 @@
   {% endwith %}
 
   <main class="{% block main_class %}page{% endblock %}">
+    {% if back_url is defined %}
+    <a class="back-link" href="{{ back_url }}">
+      <svg viewBox="0 0 12 20" width="10" height="17" aria-hidden="true"><path d="M2 2l8 8-8 8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>{{ back_label }}</span>
+    </a>
+    {% endif %}
     {% block content %}{% endblock %}
   </main>
 

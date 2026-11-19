@@ -100,3 +100,19 @@ def test_google_login_known_email(app, client):
     client.post("/auth/google", data={"credential": "x"})
     with client.session_transaction() as s:
         assert s["user_id"] == stud.id
+
+
+def test_admin_cannot_change_own_role(app, client):
+    admin, *_ = _seed(app)
+    login(client, admin.id)
+    res = client.post(f"/admin/users/{admin.id}", data={"name": admin.name, "role": "student"}, follow_redirects=True)
+    assert "אי אפשר לשנות את התפקיד של עצמך" in res.get_data(as_text=True)
+    assert UserService(connect(app.config["DATABASE"])).get(admin.id).role == "admin"
+
+
+def test_back_link_on_report_points_to_course(app, client):
+    admin, lect, stud, course = _seed(app)
+    login(client, lect.id)
+    client.post(f"/courses/{course.id}/attendance/samples", data={"lesson_number": 1})
+    html = client.get("/attendance/lessons/1").get_data(as_text=True)
+    assert f'class="back-link" href="/courses/{course.id}#attendance"' in html

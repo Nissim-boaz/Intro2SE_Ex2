@@ -72,10 +72,16 @@ p { margin: 0; }
 }
 .brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: 19px; color: var(--ink); letter-spacing: -.02em; }
 .brand:hover { text-decoration: none; }
-.brand-mark {
-  display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px;
-  background: var(--brand); color: var(--brand-ink); font-size: 20px; font-weight: 700; line-height: 1;
+.brand-plus { color: var(--brand); }
+
+/* iOS-style back link: chevron points right because the page is RTL */
+.back-link {
+  display: inline-flex; align-items: center; gap: 6px; margin: -8px 0 14px; padding: 6px 2px;
+  font-size: var(--fs-md); font-weight: 500; color: var(--brand); max-width: 100%;
 }
+.back-link:hover { text-decoration: none; opacity: .75; }
+.back-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.back-link svg { flex: none; }
 .topnav { display: flex; gap: 4px; margin-inline-start: auto; }
 .topnav a { color: var(--ink-2); font-size: var(--fs-sm); padding: 6px 10px; border-radius: 999px; }
 .topnav a:hover { color: var(--ink); background: rgba(0,0,0,.04); text-decoration: none; }

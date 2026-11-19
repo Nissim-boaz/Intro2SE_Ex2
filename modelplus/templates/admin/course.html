@@ -1,10 +1,10 @@
 {% extends "base.html" %}
+{% set back_url = url_for('admin.courses') %}{% set back_label = "כל הקורסים" %}
 {% block title %}{{ course.name }} · ניהול{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
-    <a class="small" href="{{ url_for('admin.courses') }}">כל הקורסים</a>
-    <h1 style="margin-top:6px">{{ course.name }}</h1>
+    <h1>{{ course.name }}</h1>
   </div>
   <a class="btn btn-quiet" href="{{ url_for('courses.show', course_id=course.id) }}">לעמוד הקורס</a>
 </div>

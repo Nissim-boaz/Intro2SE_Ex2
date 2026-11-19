@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set back_url = url_for('courses.index') %}{% set back_label = "הקורסים שלי" %}
 {% block title %}{{ course.name }} · Model+{% endblock %}
 {% block content %}
 <header class="course-hero">

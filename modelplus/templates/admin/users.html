@@ -55,6 +55,9 @@
         <div class="title">{{ u.name }}</div>
         <div class="xsmall muted" dir="ltr" style="text-align:right">{{ u.email }}</div>
       </div>
+      {% if u.id == user.id %}
+      <span class="pill pill-brand" title="אי אפשר לשנות את התפקיד של עצמך">{{ u.role_label }} (אתה)</span>
+      {% else %}
       <form method="post" action="{{ url_for('admin.update_user', user_id=u.id) }}" class="row">
         <input type="hidden" name="name" value="{{ u.name }}">
         <select name="role" onchange="this.form.submit()" aria-label="תפקיד של {{ u.name }}" style="width:auto;padding:6px 10px;font-size:14px">
@@ -63,6 +66,7 @@
           {% endfor %}
         </select>
       </form>
+      {% endif %}
       {% if u.id != user.id %}
       <form method="post" action="{{ url_for('admin.delete_user', user_id=u.id) }}" data-confirm="למחוק את {{ u.name }}? הפעולה תמחק גם את הנוכחות וההודעות שלו.">
         <button class="icon-btn" aria-label="מחק את {{ u.name }}" title="מחק">✕</button>
