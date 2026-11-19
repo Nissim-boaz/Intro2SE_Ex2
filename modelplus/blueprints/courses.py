@@ -4,7 +4,9 @@ from flask import Blueprint, current_app, render_template
 from ..db import get_db
 from ..security import current_user, login_required
 from ..services.content import ContentService, FileStore
+from ..services.chat import ChatService
 from ..services.courses import CourseService, EnrollmentService
+from ..services.polls import PollService
 from ..services.recordings import RecordingService
 
 bp = Blueprint("courses", __name__)
@@ -30,6 +32,9 @@ def show(course_id: int):
     context = {}
     context["attendance"] = _attendance_context(course_id, role)
     context["chat_enabled"] = True
+    # רק ההודעה האחרונה, לכרטיס שמוביל לצ׳אט. עוברת דרך אותה הסתרה של שולח אנונימי
+    last = ChatService(db, poll_reader=PollService(db)).list_messages(course_id, current_user(), limit=1)
+    context["chat_preview"] = last[0] if last else None
     context["recordings"] = RecordingService(db, FileStore(current_app.config["UPLOAD_DIR"])).list(course_id)
     return render_template(
         "courses/show.html",

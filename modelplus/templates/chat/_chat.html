@@ -1,0 +1,128 @@
+  <div class="chat"
+       id="chat-root"
+       data-list-url="{{ url_for('chat.messages', course_id=course.id) }}"
+       data-send-url="{{ url_for('chat.send', course_id=course.id) }}"
+       data-read-url="{{ url_for('chat.mark_read', course_id=course.id) }}"
+       data-poll-url="{{ url_for('polls.create', course_id=course.id) }}"
+       data-can-vote="{{ 1 if role == 'student' else 0 }}"
+       data-is-admin="{{ 1 if role == 'admin' else 0 }}">
+    <div class="chat-scroll" id="chat-scroll" role="log" aria-label="הודעות">
+      <div class="chat-empty" id="chat-empty" hidden>
+        <strong>עוד אין הודעות</strong>
+        <span>שאלה על החומר? כתוב אותה כאן, וכל הכיתה תראה.</span>
+      </div>
+      <div class="chat-list" id="chat-list"></div>
+    </div>
+
+    <div class="msg-pop" id="msg-pop" hidden>
+      <div class="reaction-bar" id="reaction-bar" role="toolbar" aria-label="תגובה להודעה">
+        {% for e in ['👍', '❤️', '😂', '👎', '😢', '🙏'] %}<button type="button" data-emoji="{{ e }}" aria-label="הגב {{ e }}">{{ e }}</button>{% endfor %}
+      </div>
+      <div class="msg-menu" id="msg-menu" role="menu" aria-label="פעולות על ההודעה">
+        <button type="button" role="menuitem" data-action="reply">השב</button>
+        <button type="button" role="menuitem" data-action="info">פרטי ההודעה</button>
+        <button type="button" role="menuitem" data-action="delete" class="danger">מחק</button>
+      </div>
+      <div class="msg-menu msg-confirm" id="msg-confirm" hidden>
+        <p>למחוק את ההודעה אצל כולם?</p>
+        <div class="msg-confirm-actions">
+          <button type="button" data-action="cancel-delete">ביטול</button>
+          <button type="button" data-action="confirm-delete" class="danger">מחק</button>
+        </div>
+      </div>
+    </div>
+
+    <form class="composer" id="composer" autocomplete="off">
+      <div class="composer-reply" id="composer-reply" hidden>
+        <div class="grow"><strong id="reply-name"></strong><span id="reply-body"></span></div>
+        <button type="button" class="icon-btn" id="reply-cancel" aria-label="בטל תגובה">✕</button>
+      </div>
+      {% if role == 'student' %}
+      <div class="composer-anon">
+        <label class="switch">
+          <input type="checkbox" id="anon-toggle">
+          <span class="switch-track" aria-hidden="true"></span>
+          <span>שלח כאנונימי</span>
+        </label>
+        <p class="anon-note" id="anon-note" hidden>השם שלך יוסתר מכולם, כולל המרצה. רק מנהל המערכת יכול לראות אותו, לטיפול בהטרדות.</p>
+      </div>
+      {% endif %}
+      <div class="emoji-panel" id="emoji-panel" hidden>
+        <div class="emoji-tabs" id="emoji-tabs" role="tablist" aria-label="קבוצות אימוג׳י"></div>
+        <div class="emoji-grid" id="emoji-grid" role="listbox" aria-label="אימוג׳י"></div>
+      </div>
+      <div class="composer-row">
+        {% if can_manage %}
+        <button type="button" class="btn btn-quiet composer-poll" data-open-dialog="poll-dialog">סקר</button>
+        {% endif %}
+        <div class="composer-field">
+          <button type="button" class="emoji-toggle" id="emoji-toggle" aria-label="הוסף אימוג׳י" aria-expanded="false">
+            <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="9" cy="10" r="1.25" fill="currentColor"/><circle cx="15" cy="10" r="1.25" fill="currentColor"/><path d="M8.2 14.2c.9 1.5 2.2 2.3 3.8 2.3s2.9-.8 3.8-2.3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          </button>
+          <textarea id="chat-input" rows="1" maxlength="2000" placeholder="כתוב הודעה" dir="auto" aria-label="הודעה"></textarea>
+        </div>
+        <button class="send-btn" id="chat-send" aria-label="שלח" disabled>
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M20.6 3.4 3.9 10.2c-.8.3-.8 1.5 0 1.8l6.4 2.2 2.2 6.4c.3.8 1.5.8 1.8 0l6.8-16.7c.3-.7-.4-1.4-1.1-1.1Z" fill="currentColor"/><path d="M10.3 13.7 15.4 8.6" stroke="var(--send-cut)" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </form>
+  </div>
+
+<dialog id="info-dialog" class="dialog-compact" data-light-dismiss>
+  <div class="dialog-body">
+    <h2>פרטי ההודעה</h2>
+    <div class="info-preview" id="info-preview"></div>
+    <div>
+      <h3 class="info-head"><span class="ticks read-all" aria-hidden="true"></span>נקרא על ידי <span id="info-count" class="muted"></span></h3>
+      <ul class="list info-list" id="info-list"></ul>
+    </div>
+    <p class="muted small" id="info-unread"></p>
+    <div class="dialog-actions"><button class="btn btn-quiet" type="button" data-close-dialog>סגור</button></div>
+  </div>
+</dialog>
+
+<dialog id="voters-dialog" class="dialog-compact" data-light-dismiss>
+  <div class="dialog-body">
+    <h2 id="voters-title">מי הצביע</h2>
+    <div class="voters" id="voters-list"></div>
+    <div class="dialog-actions"><button class="btn btn-quiet" type="button" data-close-dialog>סגור</button></div>
+  </div>
+</dialog>
+
+<dialog id="who-dialog" class="dialog-compact" data-light-dismiss>
+  <div class="dialog-body">
+    <h2>מי הגיב</h2>
+    <div class="who-mine">
+      <span class="small muted" id="who-mine-label">התגובה שלך</span>
+      <div class="who-emoji" id="who-emoji" role="toolbar" aria-label="שנה את התגובה שלך">
+        {% for e in ['👍', '❤️', '😂', '👎', '😢', '🙏'] %}<button type="button" data-dialog-emoji="{{ e }}" aria-label="{{ e }}">{{ e }}</button>{% endfor %}
+      </div>
+    </div>
+    <ul class="list" id="who-list"></ul>
+    <div class="dialog-actions"><button class="btn btn-quiet" type="button" data-close-dialog>סגור</button></div>
+  </div>
+</dialog>
+
+{% if can_manage %}
+<dialog id="poll-dialog">
+  <form class="dialog-body" id="poll-form">
+    <h2>סקר חדש</h2>
+    <label>שאלה<input type="text" id="poll-question" maxlength="200" required></label>
+    <div class="poll-options-edit" id="poll-options">
+      <span class="field-hint">תשובות (עד 6). שורה חדשה מופיעה כשממלאים את האחרונה.</span>
+    </div>
+    <div class="poll-anon">
+      <label class="switch">
+        <input type="checkbox" id="poll-anonymous" checked>
+        <span class="switch-track" aria-hidden="true"></span>
+        <span>הצבעה אנונימית</span>
+      </label>
+      <p class="xsmall muted" id="poll-anon-hint">כולם יראו רק כמה הצביעו לכל תשובה, בלי שמות.</p>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-quiet" type="button" data-close-dialog>ביטול</button>
+      <button class="btn">שלח סקר</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}

@@ -1,16 +1,18 @@
 """API של הצ׳אט. הדפדפן עושה polling כל 2.5 שניות."""
 import time
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, render_template, request
 
 from ..db import get_db
 from ..errors import ValidationError
 from ..security import current_user, login_required
 from ..services.chat import ChatService, ReactionService, ReadReceiptService
-from ..services.courses import EnrollmentService
+from ..services.courses import CourseService, EnrollmentService
 from ..services.polls import PollService
 
 bp = Blueprint("chat", __name__, url_prefix="/api")
+# העמוד עצמו (לא API) יושב ב-blueprint נפרד בלי הקידומת /api, ונרשם יחד עם bp
+page_bp = Blueprint("chat_page", __name__)
 
 # חפיפה קטנה בין בקשות, כדי שלא נפספס הודעה שנכתבה בדיוק בזמן הבקשה. הדפדפן מסנן כפילויות לפי id.
 OVERLAP_SECONDS = 1.0
@@ -25,6 +27,22 @@ def _require_member_of_message(message_id: int):
     row = _chat().get_row(message_id)
     EnrollmentService(get_db()).require_member(row["course_id"], current_user())
     return row
+
+
+@page_bp.get("/courses/<int:course_id>/chat")
+@login_required
+def page(course_id: int):
+    """הצ׳אט במסך מלא. עמוד הקורס מציג רק כרטיס שמוביל לכאן."""
+    db = get_db()
+    enrollments = EnrollmentService(db)
+    role = enrollments.require_member(course_id, current_user())
+    return render_template(
+        "chat/page.html",
+        course=CourseService(db).get(course_id),
+        role=role,
+        can_manage=role in ("admin", "lecturer"),
+        members=len(enrollments.members(course_id)),
+    )
 
 
 @bp.get("/courses/<int:course_id>/chat")

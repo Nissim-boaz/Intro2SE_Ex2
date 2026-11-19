@@ -51,6 +51,8 @@ def _register_blueprints(app: Flask) -> None:
         except ModuleNotFoundError:
             continue
         app.register_blueprint(module.bp)
+        if hasattr(module, "page_bp"):  # דפי HTML של תחום שה-bp הראשי שלו הוא API
+            app.register_blueprint(module.page_bp)
 
 
 def _start_jobs(app: Flask) -> None:

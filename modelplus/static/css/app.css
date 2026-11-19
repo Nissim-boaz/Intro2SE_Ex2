@@ -724,3 +724,40 @@ form[data-live-submit] .btn:not(.is-idle) { animation: sendReady .28s var(--ease
 .theme-pick .segmented span { padding: 5px 0; font-size: 13px; }
 /* smooth switch between themes, but not on first paint */
 html.theme-anim, html.theme-anim * { transition: background-color .25s ease, color .25s ease, border-color .25s ease !important; }
+
+/* ---------- chat card on the course page ---------- */
+.chat-card { display: flex; align-items: center; gap: 16px; color: var(--ink); transition: transform .18s var(--ease), box-shadow .18s var(--ease); }
+.chat-card:hover { text-decoration: none; transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,.05), 0 14px 32px rgba(0,0,0,.1); }
+.chat-card-icon { flex: none; width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; background: var(--brand); color: #fff; }
+.chat-card-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.chat-card-title { font-size: var(--fs-lg); font-weight: 700; }
+.chat-card-last { color: var(--ink-2); font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-card-last strong { color: var(--ink); font-weight: 600; }
+.chat-card-go { flex: none; color: var(--ink-3); }
+
+/* ---------- full-screen chat page ---------- */
+body.chat-fullscreen { overflow: hidden; }
+.chat-page {
+  height: 100vh; height: 100dvh; display: flex; flex-direction: column;
+  max-width: 860px; margin: 0 auto; background: var(--surface);
+}
+@media (min-width: 900px) { .chat-page { box-shadow: 0 0 0 1px var(--line); } }
+.chat-bar {
+  flex: none; display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+  padding-top: max(10px, env(safe-area-inset-top));
+  border-bottom: 1px solid var(--line); background: var(--surface);
+}
+.chat-back {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px 6px 4px; border-radius: 10px;
+  font-size: var(--fs-md); font-weight: 500; color: var(--brand);
+}
+.chat-back:hover { text-decoration: none; background: var(--brand-soft); }
+.chat-bar-title { flex: 1; min-width: 0; display: grid; text-align: center; padding-inline-end: 64px; }
+.chat-bar-title strong { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-page .chat { margin: 0; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.chat-page .chat-scroll { flex: 1; height: auto; min-height: 0; border-top: 0; }
+.chat-page .composer { padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+.chat-page .toasts { top: 70px; }
+
+.chat-status:not(:empty) { color: var(--danger); }
+.chat-status:not(:empty)::before { content: " · "; color: var(--ink-3); }

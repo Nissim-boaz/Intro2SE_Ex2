@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}צ׳אט · {{ course.name }}{% endblock %}
+{% block body_class %}chat-fullscreen{% endblock %}
+{% block topbar %}{% endblock %}
+{% block main_class %}chat-page{% endblock %}
+{% block content %}
+<header class="chat-bar">
+  <a class="chat-back" href="{{ url_for('courses.show', course_id=course.id) }}" aria-label="חזרה לעמוד הקורס">
+    <svg viewBox="0 0 12 20" width="11" height="19" aria-hidden="true"><path d="M2 2l8 8-8 8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span>חזרה</span>
+  </a>
+  <div class="chat-bar-title">
+    <strong>{{ course.name }}</strong>
+    <span class="xsmall muted">{{ members }} חברים בקורס <span id="chat-status" class="chat-status" aria-live="polite"></span></span>
+  </div>
+</header>
+{% include "chat/_chat.html" %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+{% endblock %}

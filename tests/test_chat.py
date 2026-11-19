@@ -280,3 +280,35 @@ def test_migration_adds_deleted_column(tmp_path):
     conn = connect(path)
     init_schema(conn)
     assert "deleted" in {r[1] for r in conn.execute("PRAGMA table_info(messages)")}
+
+
+def test_chat_page_full_screen_for_members_only(app, client):
+    conn = connect(app.config["DATABASE"])
+    users = UserService(conn)
+    member = users.create("m2@test.ac.il", "חבר", "student")
+    outsider = users.create("o2@test.ac.il", "זר", "student")
+    course = CourseService(conn).create("קורס")
+    EnrollmentService(conn).enroll(course.id, member)
+    conn.close()
+    login(client, member.id)
+    page = client.get(f"/courses/{course.id}/chat").get_data(as_text=True)
+    assert 'id="chat-root"' in page and "chat-back" in page
+    course_page = client.get(f"/courses/{course.id}").get_data(as_text=True)
+    assert f'href="/courses/{course.id}/chat"' in course_page
+    assert 'id="chat-root"' not in course_page  # בעמוד הקורס רק כרטיס, לא הצ׳אט עצמו
+    login(client, outsider.id)
+    assert client.get(f"/courses/{course.id}/chat").status_code == 302
+
+
+def test_course_card_preview_keeps_anonymity(app, client):
+    conn = connect(app.config["DATABASE"])
+    users = UserService(conn)
+    a = users.create("a3@test.ac.il", "שולח סודי", "student")
+    b = users.create("b3@test.ac.il", "קורא", "student")
+    course = CourseService(conn).create("קורס")
+    EnrollmentService(conn).enroll_many(course.id, [a, b])
+    ChatService(conn).send(course.id, a, "שאלה", anonymous=True)
+    conn.close()
+    login(client, b.id)
+    html = client.get(f"/courses/{course.id}").get_data(as_text=True)
+    assert "שולח סודי" not in html and "אנונימי" in html

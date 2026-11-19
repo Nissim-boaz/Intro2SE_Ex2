@@ -15,7 +15,7 @@
   <a href="#content">תכנים</a>
   {% if attendance is defined %}<a href="#attendance">נוכחות</a>{% endif %}
   {% if recordings is defined and (recordings or can_manage) %}<a href="#recordings">הקלטות</a>{% endif %}
-  {% if chat_enabled is defined %}<a href="#chat">צ׳אט</a>{% endif %}
+  {% if chat_enabled is defined %}<a href="{{ url_for('chat_page.page', course_id=course.id) }}">צ׳אט</a>{% endif %}
 </nav>
 
 <div class="stack-lg">
@@ -27,6 +27,5 @@
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/content.js') }}"></script>
-{% if chat_enabled is defined %}<script src="{{ url_for('static', filename='js/chat.js') }}"></script>{% endif %}
 {% if recordings is defined %}<script src="{{ url_for('static', filename='js/recordings.js') }}"></script>{% endif %}
 {% endblock %}
