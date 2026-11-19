@@ -55,6 +55,16 @@
     {% block content %}{% endblock %}
   </main>
 
+  <dialog id="confirm-dialog" class="dialog-compact" data-light-dismiss>
+    <div class="dialog-body">
+      <p class="confirm-text" id="confirm-text"></p>
+      <div class="dialog-actions">
+        <button class="btn btn-quiet" type="button" data-close-dialog>ביטול</button>
+        <button class="btn btn-danger-solid" type="button" id="confirm-ok">מחק</button>
+      </div>
+    </div>
+  </dialog>
+
   <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
   {% block scripts %}{% endblock %}
 </body>

@@ -29,7 +29,7 @@
       <span class="pill" id="sound-state">האות הקולי כבוי</span>
       <button class="btn btn-quiet btn-sm" type="button" id="sound-toggle">הפעל צליל</button>
       <span class="spacer"></span>
-      <form method="post" action="{{ url_for('attendance.close', sample_id=sample.id) }}" data-confirm="לסגור את הדגימה עכשיו?">
+      <form method="post" action="{{ url_for('attendance.close', sample_id=sample.id) }}" data-confirm="לסגור את הדגימה עכשיו? סטודנטים שעוד לא נרשמו לא יוכלו להירשם." data-confirm-ok="סגור דגימה">
         <button class="btn btn-danger btn-sm">סגור דגימה</button>
       </form>
     </div>

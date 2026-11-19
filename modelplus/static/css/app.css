@@ -618,3 +618,8 @@ button.chapter-time { all: unset; cursor: pointer; color: var(--brand); font-wei
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* in-page confirm dialog */
+.confirm-text { font-size: 17px; font-weight: 500; line-height: 1.5; }
+.btn-danger-solid { background: var(--danger); color: #fff; }
+.btn-danger-solid:hover { background: color-mix(in srgb, var(--danger) 85%, black); }

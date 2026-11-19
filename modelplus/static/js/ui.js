@@ -41,9 +41,24 @@
     return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   };
 
+  // <form data-confirm="question" data-confirm-ok="button text"> asks in an in-page dialog,
+  // not with the browser's confirm() box
   document.addEventListener("submit", (e) => {
-    const msg = e.target.dataset.confirm;
-    if (msg && !confirm(msg)) e.preventDefault();
+    const form = e.target;
+    const msg = form.dataset.confirm;
+    if (!msg || form.dataset.confirmed === "1") return;
+    e.preventDefault();
+    const dialog = document.getElementById("confirm-dialog");
+    const ok = document.getElementById("confirm-ok");
+    document.getElementById("confirm-text").textContent = msg;
+    ok.textContent = form.dataset.confirmOk || "מחק";
+    ok.onclick = () => {
+      dialog.close();
+      form.dataset.confirmed = "1";
+      form.requestSubmit ? form.requestSubmit() : form.submit();
+    };
+    dialog.showModal();
+    ok.focus();
   });
 
   document.addEventListener("click", (e) => {
