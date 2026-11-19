@@ -521,10 +521,29 @@ body.stage { background: #fff; }
 .emoji-grid button { border: 0; background: transparent; font-size: 26px; height: 44px; border-radius: 10px; cursor: pointer; transition: transform .1s, background .1s; }
 .emoji-grid button:hover { background: var(--surface); transform: scale(1.12); }
 
+/* small dialogs (who reacted, message info) */
+dialog.dialog-compact { width: min(340px, calc(100vw - 32px)); }
+.dialog-compact .dialog-body { padding: 18px 18px 14px; gap: 10px; }
+.dialog-compact h2 { font-size: 18px; }
+.dialog-compact .list > li { padding: 8px 0; gap: 10px; }
+.dialog-compact .dialog-actions .btn { min-height: 36px; }
+
 /* "who reacted" dialog: change your own reaction */
-.who-mine { display: grid; gap: 6px; padding: 10px 12px; border-radius: 14px; background: var(--bg); }
-.who-emoji { display: flex; gap: 4px; flex-wrap: wrap; }
-.who-emoji button { border: 0; background: var(--surface); font-size: 22px; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; transition: transform .12s, box-shadow .12s; }
+.who-mine { display: grid; gap: 6px; padding: 8px 10px; border-radius: 12px; background: var(--bg); }
+.who-mine .small { font-size: 12.5px; }
+.who-emoji { display: flex; gap: 2px; justify-content: space-between; }
+.who-emoji button { border: 0; background: transparent; font-size: 20px; width: 38px; height: 38px; border-radius: 50%; cursor: pointer; transition: transform .12s, box-shadow .12s; }
+#who-list { max-height: 240px; overflow: auto; }
+#who-list li span:first-child { font-size: 19px !important; }
+
+/* delete confirmation inside the message popover */
+.msg-confirm { padding: 12px; gap: 10px; min-width: 210px; }
+.msg-confirm p { font-size: 15px; font-weight: 500; }
+.msg-confirm-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.msg-confirm-actions button { padding: 8px 14px; border-radius: 999px; font-weight: 600; text-align: center; }
+.msg-confirm-actions button:not(.danger) { background: var(--bg); }
+.msg-confirm-actions button.danger { background: var(--danger); color: #fff; }
+.msg-confirm-actions button.danger:hover { background: color-mix(in srgb, var(--danger) 85%, black); }
 .who-emoji button:hover { transform: scale(1.1); }
 .who-emoji button.active { box-shadow: 0 0 0 2px var(--brand); background: var(--brand-soft); }
 .composer-reply { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 12px; background: var(--bg); border-inline-start: 3px solid var(--brand); font-size: 13px; }

@@ -20,6 +20,7 @@
   const pop = document.getElementById("msg-pop");
   const bar = document.getElementById("reaction-bar");
   const menu = document.getElementById("msg-menu");
+  const confirmBox = document.getElementById("msg-confirm");
   const input = document.getElementById("chat-input");
   const status = document.getElementById("chat-status");
   const esc = Model.escape;
@@ -328,12 +329,18 @@
     popFor = m.id;
     bar.hidden = !react;
     menu.hidden = !menuOpen;
+    confirmBox.hidden = true;
     bar.querySelectorAll("[data-emoji]").forEach((b) => b.classList.toggle("active", m.reactions.mine === b.dataset.emoji));
     menu.querySelector('[data-action="info"]').hidden = !m.mine;
     menu.querySelector('[data-action="delete"]').hidden = !m.can_delete;
     pop.hidden = false;
     msgEl.classList.add("active");
-
+    placePop();
+  }
+  function placePop() {
+    // look the message up again: polling may have re-rendered it since the popover opened
+    const msgEl = popFor === null ? null : document.getElementById("msg-" + popFor);
+    if (!msgEl) return;
     const bubble = msgEl.querySelector(".bubble").getBoundingClientRect();
     const host = root.getBoundingClientRect();
     const h = pop.offsetHeight;
@@ -374,6 +381,15 @@
   pop.addEventListener("click", async (e) => {
     const btn = e.target.closest("button");
     if (!btn || popFor === null) return;
+    // delete asks inside the popover itself, not with a browser dialog
+    if (btn.dataset.action === "delete" || btn.dataset.action === "cancel-delete") {
+      const asking = btn.dataset.action === "delete";
+      confirmBox.hidden = !asking;
+      menu.hidden = asking;
+      bar.hidden = true;
+      placePop();
+      return;
+    }
     const id = popFor;
     const m = messages.get(id);
     closePop();
@@ -386,8 +402,7 @@
       setReply(m);
     } else if (btn.dataset.action === "info") {
       showInfo(m);
-    } else if (btn.dataset.action === "delete") {
-      if (!confirm("למחוק את ההודעה? היא תימחק אצל כולם.")) return;
+    } else if (btn.dataset.action === "confirm-delete") {
       try {
         await Model.api(`/api/messages/${id}`, { method: "DELETE" });
         refresh();

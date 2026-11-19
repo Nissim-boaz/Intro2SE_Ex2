@@ -51,6 +51,12 @@
     if (opener) document.getElementById(opener.dataset.openDialog)?.showModal();
     const closer = e.target.closest("[data-close-dialog]");
     if (closer) closer.closest("dialog")?.close();
+    // a click on the dim backdrop closes "light" dialogs (not forms, so a stray click never loses typing)
+    if (e.target.tagName === "DIALOG" && e.target.hasAttribute("data-light-dismiss")) {
+      const r = e.target.getBoundingClientRect();
+      const outside = e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+      if (outside) e.target.close();
+    }
   });
 
   // close the account menu on outside click

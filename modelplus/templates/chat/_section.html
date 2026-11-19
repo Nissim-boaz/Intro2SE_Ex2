@@ -29,6 +29,13 @@
         <button type="button" role="menuitem" data-action="info">פרטי ההודעה</button>
         <button type="button" role="menuitem" data-action="delete" class="danger">מחק</button>
       </div>
+      <div class="msg-menu msg-confirm" id="msg-confirm" hidden>
+        <p>למחוק את ההודעה אצל כולם?</p>
+        <div class="msg-confirm-actions">
+          <button type="button" data-action="cancel-delete">ביטול</button>
+          <button type="button" data-action="confirm-delete" class="danger">מחק</button>
+        </div>
+      </div>
     </div>
 
     <form class="composer" id="composer" autocomplete="off">
@@ -68,7 +75,7 @@
   </div>
 </section>
 
-<dialog id="info-dialog">
+<dialog id="info-dialog" class="dialog-compact" data-light-dismiss>
   <div class="dialog-body">
     <h2>פרטי ההודעה</h2>
     <div class="info-preview" id="info-preview"></div>
@@ -81,7 +88,7 @@
   </div>
 </dialog>
 
-<dialog id="who-dialog">
+<dialog id="who-dialog" class="dialog-compact" data-light-dismiss>
   <div class="dialog-body">
     <h2>מי הגיב</h2>
     <div class="who-mine">
