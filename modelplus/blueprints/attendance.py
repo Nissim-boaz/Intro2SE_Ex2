@@ -82,7 +82,8 @@ def live(sample_id: int):
         code = service.audio.code(sample_id)
         data.update(
             token=token,
-            qr_svg=segno.make(url, error="m").svg_inline(omitsize=True, border=2, dark="#1D1D1F"),
+            # רמת תיקון L: פחות ריבועים וגדולים יותר, ולכן קל לסרוק מהשורה האחרונה
+            qr_svg=segno.make(url, error="l", boost_error=False).svg_inline(omitsize=True, border=2, dark="#1D1D1F"),
             audio_symbols=AudioTokenService.symbols(code),
             window_ms_left=int(service.clock.seconds_left(now) * 1000),
         )
