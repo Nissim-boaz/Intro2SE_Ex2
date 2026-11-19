@@ -761,3 +761,21 @@ body.chat-fullscreen { overflow: hidden; }
 
 .chat-status:not(:empty) { color: var(--danger); }
 .chat-status:not(:empty)::before { content: " · "; color: var(--ink-3); }
+
+/* mute students */
+.chat-bar-title.has-tool { padding-inline-end: 0; }
+.chat-mute {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; border: 0; cursor: pointer; font: inherit;
+  font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: 999px; background: var(--fill); color: var(--ink-2);
+  transition: background .15s, color .15s;
+}
+.chat-mute:hover { background: var(--fill-2); color: var(--ink); }
+.chat-mute[aria-pressed="true"] { background: var(--warn-soft); color: var(--warn); }
+.chat-mute:disabled { opacity: .6; cursor: default; }
+@media (max-width: 480px) { .chat-mute span { display: none; } .chat-mute { padding: 9px; } }
+.chat-locked-bar {
+  display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px;
+  background: var(--warn-soft); color: var(--warn-ink); font-size: 14px; text-align: center;
+  border-top: 1px solid var(--line);
+}
+.chat-locked-bar svg { flex: none; color: var(--warn); }

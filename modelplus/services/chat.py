@@ -7,6 +7,7 @@ from ..models import User
 
 ANONYMOUS_NAME = "אנונימי"
 DELETED_TEXT = "ההודעה נמחקה"
+LOCKED_TEXT = "הצ׳אט מושתק. כרגע רק המרצה יכול לשלוח הודעות"
 REACTIONS = ("👍", "❤️", "😂", "👎", "😢", "🙏")
 MAX_LENGTH = 2000
 
@@ -45,6 +46,8 @@ class ChatService:
 
     def send(self, course_id: int, sender: User, body: str, reply_to_id: int | None = None,
              anonymous: bool = False, poll_id: int | None = None) -> int:
+        if sender.role == "student" and self.is_locked(course_id):
+            raise Forbidden(LOCKED_TEXT)
         body = (body or "").strip()
         if not body and poll_id is None:
             raise ValidationError("אי אפשר לשלוח הודעה ריקה")
@@ -82,6 +85,16 @@ class ChatService:
         reactions = self._reactions_for(ids, viewer)
         replies = self._reply_previews([r["reply_to_id"] for r in rows if r["reply_to_id"]], viewer)
         return [self._view(r, viewer, reactions.get(r["id"]), replies.get(r["reply_to_id"])) for r in rows]
+
+    # ---------- mute: only the lecturer and the admin may post ----------
+    def is_locked(self, course_id: int) -> bool:
+        row = self.db.execute("SELECT chat_locked FROM courses WHERE id = ?", (course_id,)).fetchone()
+        return bool(row and row["chat_locked"])
+
+    def set_locked(self, course_id: int, locked: bool) -> None:
+        """ההרשאה (מרצה הקורס או מנהל) נבדקת ב-route. סטודנטים עדיין מגיבים, מצביעים ומוחקים הודעות שלהם."""
+        self.db.execute("UPDATE courses SET chat_locked = ? WHERE id = ?", (1 if locked else 0, course_id))
+        self.db.commit()
 
     def delete(self, message_id: int, user: User) -> None:
         """השולח מוחק הודעה שלו. מנהל המערכת יכול למחוק כל הודעה (טיפול בהטרדות).

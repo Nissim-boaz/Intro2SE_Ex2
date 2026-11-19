@@ -28,6 +28,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
     added = {
         ("messages", "deleted"): "INTEGER NOT NULL DEFAULT 0",
         ("polls", "anonymous"): "INTEGER NOT NULL DEFAULT 1",
+        ("courses", "chat_locked"): "INTEGER NOT NULL DEFAULT 0",
     }
     for (table, column), ddl in added.items():
         cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}

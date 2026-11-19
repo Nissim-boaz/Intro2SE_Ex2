@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS courses (
     code        TEXT NOT NULL DEFAULT '',
     name        TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
+    chat_locked INTEGER NOT NULL DEFAULT 0,  -- 1: רק מרצה ומנהל שולחים הודעות בצ׳אט
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

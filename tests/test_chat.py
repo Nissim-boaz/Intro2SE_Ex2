@@ -312,3 +312,47 @@ def test_course_card_preview_keeps_anonymity(app, client):
     login(client, b.id)
     html = client.get(f"/courses/{course.id}").get_data(as_text=True)
     assert "שולח סודי" not in html and "אנונימי" in html
+
+
+# ---------- mute students ----------
+def test_locked_chat_blocks_students_only(chat, people):
+    from modelplus.errors import Forbidden
+
+    c = people["course"].id
+    chat.set_locked(c, True)
+    assert chat.is_locked(c)
+    with pytest.raises(Forbidden):
+        chat.send(c, people["s1"], "היי")
+    assert chat.send(c, people["lecturer"], "הודעה מהמרצה")
+    assert chat.send(c, people["admin"], "הודעה מהמנהל")
+    chat.set_locked(c, False)
+    assert chat.send(c, people["s1"], "עכשיו מותר")
+
+
+def test_locked_chat_still_allows_reactions_and_votes(db, chat, people):
+    polls = PollService(db)
+    c = people["course"].id
+    mid = polls.create(c, people["lecturer"], "ש", ["א", "ב"])
+    chat.set_locked(c, True)
+    ReactionService(db).toggle(mid, people["s1"], "👍")
+    pid = db.execute("SELECT poll_id FROM messages WHERE id = ?", (mid,)).fetchone()[0]
+    polls.vote(pid, people["s1"], polls.results(pid, people["s1"])["options"][0]["id"])
+    assert polls.results(pid, people["s1"])["total"] == 1
+
+
+def test_only_managers_can_lock_via_api(app, client):
+    conn = connect(app.config["DATABASE"])
+    users = UserService(conn)
+    lect = users.create("l4@test.ac.il", "מרצה", "lecturer")
+    stud = users.create("s4@test.ac.il", "סטודנט", "student")
+    course = CourseService(conn).create("קורס")
+    EnrollmentService(conn).enroll_many(course.id, [lect, stud])
+    conn.close()
+    login(client, stud.id)
+    assert client.post(f"/api/courses/{course.id}/chat/lock", json={"locked": True}).status_code == 403
+    login(client, lect.id)
+    assert client.post(f"/api/courses/{course.id}/chat/lock", json={"locked": True}).get_json()["locked"] is True
+    assert client.get(f"/api/courses/{course.id}/chat").get_json()["locked"] is True
+    login(client, stud.id)
+    res = client.post(f"/api/courses/{course.id}/chat", json={"body": "היי"})
+    assert res.status_code == 403 and "מושתק" in res.get_json()["error"]

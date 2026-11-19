@@ -5,7 +5,10 @@
        data-read-url="{{ url_for('chat.mark_read', course_id=course.id) }}"
        data-poll-url="{{ url_for('polls.create', course_id=course.id) }}"
        data-can-vote="{{ 1 if role == 'student' else 0 }}"
-       data-is-admin="{{ 1 if role == 'admin' else 0 }}">
+       data-is-admin="{{ 1 if role == 'admin' else 0 }}"
+       data-lock-url="{{ url_for('chat.lock', course_id=course.id) }}"
+       data-is-student="{{ 1 if role == 'student' else 0 }}"
+       data-locked="{{ 1 if locked else 0 }}">
     <div class="chat-scroll" id="chat-scroll" role="log" aria-label="הודעות">
       <div class="chat-empty" id="chat-empty" hidden>
         <strong>עוד אין הודעות</strong>
@@ -32,7 +35,12 @@
       </div>
     </div>
 
-    <form class="composer" id="composer" autocomplete="off">
+    <div class="chat-locked-bar" id="chat-locked-bar" {% if not locked %}hidden{% endif %}>
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 10V7.5a5 5 0 0 1 10 0V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="4.5" y="10" width="15" height="11" rx="3" fill="currentColor"/></svg>
+      <span>{% if role == 'student' %}הצ׳אט מושתק. כרגע רק המרצה יכול לשלוח הודעות, ואפשר עדיין להגיב ולהצביע.{% else %}הסטודנטים מושתקים. רק אתה ומנהל המערכת יכולים לשלוח הודעות.{% endif %}</span>
+    </div>
+
+    <form class="composer" id="composer" autocomplete="off" {% if locked and role == 'student' %}hidden{% endif %}>
       <div class="composer-reply" id="composer-reply" hidden>
         <div class="grow"><strong id="reply-name"></strong><span id="reply-body"></span></div>
         <button type="button" class="icon-btn" id="reply-cancel" aria-label="בטל תגובה">✕</button>

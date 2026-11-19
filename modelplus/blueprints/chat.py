@@ -42,6 +42,7 @@ def page(course_id: int):
         role=role,
         can_manage=role in ("admin", "lecturer"),
         members=len(enrollments.members(course_id)),
+        locked=ChatService(db).is_locked(course_id),
     )
 
 
@@ -54,7 +55,18 @@ def messages(course_id: int):
     items = _chat().list_messages(course_id, current_user(), since=since)
     # הווים משתנים גם בלי שההודעה עצמה השתנתה, לכן הם נשלחים בכל בקשה
     receipts = ReadReceiptService(get_db()).receipts_for(course_id, current_user())
-    return jsonify(ok=True, now=now - OVERLAP_SECONDS, messages=items, receipts=receipts)
+    locked = _chat().is_locked(course_id)
+    return jsonify(ok=True, now=now - OVERLAP_SECONDS, messages=items, receipts=receipts, locked=locked)
+
+
+@bp.post("/courses/<int:course_id>/chat/lock")
+@login_required
+def lock(course_id: int):
+    """השתקת סטודנטים: רק מרצה הקורס או מנהל המערכת."""
+    EnrollmentService(get_db()).require_manager(course_id, current_user())
+    locked = bool((request.get_json(silent=True) or {}).get("locked"))
+    _chat().set_locked(course_id, locked)
+    return jsonify(ok=True, locked=locked)
 
 
 @bp.post("/courses/<int:course_id>/chat/read")

@@ -167,6 +167,7 @@
       const d = await Model.api(listUrl + (since ? `?since=${since}` : ""));
       since = d.now;
       receipts = d.receipts || receipts;
+      applyLock(!!d.locked);
       let added = false;
       d.messages.forEach((m) => {
         if (!messages.has(m.id)) added = true;
@@ -493,6 +494,38 @@
       } catch (err) { Model.toast(err.message, "error"); }
     }
   });
+
+  // ---------- mute students: only the lecturer and the admin can post ----------
+  // the server enforces it; here we only reflect the state (it arrives with every poll)
+  const isStudent = root.dataset.isStudent === "1";
+  const lockedBar = document.getElementById("chat-locked-bar");
+  const composer = document.getElementById("composer");
+  const muteBtn = document.getElementById("chat-mute");
+  let locked = root.dataset.locked === "1";
+  function applyLock(value) {
+    if (value === locked && lockedBar.hidden === !value) return;
+    locked = value;
+    lockedBar.hidden = !locked;
+    if (isStudent) {
+      composer.hidden = locked;
+      if (locked) { closePanel(); setReply(null); }
+    }
+    if (muteBtn) {
+      muteBtn.setAttribute("aria-pressed", String(locked));
+      document.getElementById("chat-mute-label").textContent = locked ? "בטל השתקה" : "השתק סטודנטים";
+    }
+  }
+  if (muteBtn) {
+    muteBtn.addEventListener("click", async () => {
+      muteBtn.disabled = true;
+      try {
+        const d = await Model.api(root.dataset.lockUrl, { json: { locked: !locked } });
+        applyLock(d.locked);
+        Model.toast(d.locked ? "הסטודנטים מושתקים. רק אתה ומנהל המערכת יכולים לשלוח" : "ההשתקה בוטלה. כולם יכולים לכתוב");
+      } catch (err) { Model.toast(err.message, "error"); }
+      muteBtn.disabled = false;
+    });
+  }
 
   // ---------- "who reacted" dialog: also lets you change or remove your own reaction ----------
   let whoFor = null;
