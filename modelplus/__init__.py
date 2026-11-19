@@ -68,7 +68,10 @@ def _wants_json() -> bool:
 
 
 def _register_handlers(app: Flask) -> None:
+    from .services.llm import fmt_time
+
     app.before_request(load_current_user)
+    app.jinja_env.filters["clock"] = fmt_time
 
     @app.context_processor
     def inject_user():

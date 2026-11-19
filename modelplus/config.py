@@ -31,7 +31,7 @@ class Config:
     CHECKIN_GRACE_SECONDS = 90
 
     GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-    GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+    GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
     WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "small")
     START_JOB_RUNNER = True
 

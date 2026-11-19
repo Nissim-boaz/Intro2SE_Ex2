@@ -1,0 +1,110 @@
+{% if recordings or can_manage %}
+<section class="panel section" id="recordings">
+  <div class="panel-head">
+    <h2>הקלטות</h2>
+    {% if can_manage %}<button class="btn btn-sm" type="button" data-open-dialog="upload-recording">העלה הקלטה</button>{% endif %}
+  </div>
+
+  {% if recordings %}
+  <div class="recordings">
+    {% for rec in recordings %}
+    <details class="recording" {% if loop.first %}open{% endif %} data-recording="{{ rec.id }}"
+             {% if rec.processing %}data-processing="1" data-status-url="{{ url_for('recordings.status', recording_id=rec.id) }}" data-status="{{ rec.status }}"{% endif %}>
+      <summary>
+        <span class="grow">
+          <span class="recording-title">{{ rec.title }}</span>
+          <span class="xsmall muted">{{ rec.created_at[:10] }}</span>
+        </span>
+        {% if rec.status == 'ready' %}
+          {% if rec.chapters %}<span class="pill">{{ rec.chapters|length }} פרקים</span>{% endif %}
+        {% elif rec.status == 'failed' %}
+          <span class="pill pill-danger">{{ rec.status_label }}</span>
+        {% else %}
+          <span class="pill pill-brand"><span class="spinner" aria-hidden="true"></span>{{ rec.status_label }}</span>
+        {% endif %}
+      </summary>
+
+      <div class="recording-body">
+        <div class="player">
+          {% if rec.is_video %}
+          <video controls preload="metadata" playsinline src="{{ url_for('recordings.media', recording_id=rec.id) }}"></video>
+          {% else %}
+          <audio controls preload="metadata" src="{{ url_for('recordings.media', recording_id=rec.id) }}"></audio>
+          {% endif %}
+        </div>
+
+        {% if rec.status == 'ready' %}
+        <div class="recording-grid">
+          <div class="stack">
+            {% if rec.summary %}<div><h3>סיכום</h3><p class="recording-summary">{{ rec.summary }}</p></div>{% endif %}
+            {% if rec.key_points %}
+            <div>
+              <h3>נקודות מפתח</h3>
+              <ul class="key-points">{% for p in rec.key_points %}<li>{{ p }}</li>{% endfor %}</ul>
+            </div>
+            {% endif %}
+          </div>
+          {% if rec.chapters %}
+          <nav class="chapters" aria-label="ראשי פרקים">
+            <h3>ראשי פרקים</h3>
+            <ol>
+              {% for ch in rec.chapters %}
+              <li><button type="button" data-seek="{{ ch.start }}"><span class="chapter-time" dir="ltr">{{ ch.start|clock }}</span><span>{{ ch.title }}</span></button></li>
+              {% endfor %}
+            </ol>
+          </nav>
+          {% endif %}
+        </div>
+        {% if rec.transcript %}
+        <details class="transcript">
+          <summary>תמלול מלא</summary>
+          <div class="transcript-lines">
+            {% for s in rec.transcript %}<p><button type="button" data-seek="{{ s.start|int }}" class="chapter-time" dir="ltr">{{ s.start|clock }}</button> {{ s.text }}</p>{% endfor %}
+          </div>
+        </details>
+        {% endif %}
+
+        {% elif rec.status == 'failed' %}
+        <div class="notice notice-warn">
+          <strong>העיבוד נכשל.</strong> {{ rec.error }}
+          {% if rec.transcript %}<span>התמלול נשמר, כך שבניסיון חוזר רק הסיכום ירוץ שוב.</span>{% endif %}
+        </div>
+
+        {% else %}
+        <p class="muted small">{{ 'ההקלטה בתמלול. בשיעור של שעה וחצי זה יכול לקחת חצי שעה. העמוד יתעדכן לבד.' if rec.status != 'summarizing' else 'התמלול מוכן, ועכשיו נכתבים הסיכום וראשי הפרקים.' }}</p>
+        {% endif %}
+
+        {% if can_manage %}
+        <div class="row row-end">
+          {% if rec.status == 'failed' %}
+          <form method="post" action="{{ url_for('recordings.retry', recording_id=rec.id) }}"><button class="btn btn-sm">נסה שוב</button></form>
+          {% endif %}
+          <form method="post" action="{{ url_for('recordings.delete', recording_id=rec.id) }}" data-confirm="למחוק את ההקלטה ואת הסיכום שלה?">
+            <button class="btn btn-sm btn-ghost">מחק הקלטה</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+    </details>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty"><strong>עוד אין הקלטות</strong>העלה קובץ וידאו או אודיו של שיעור, ותקבל תמלול, סיכום וראשי פרקים.</div>
+  {% endif %}
+</section>
+
+{% if can_manage %}
+<dialog id="upload-recording">
+  <form method="post" action="{{ url_for('recordings.upload', course_id=course.id) }}" enctype="multipart/form-data" class="dialog-body" id="upload-form">
+    <h2>הקלטה חדשה</h2>
+    <label>שם ההקלטה<input type="text" name="title" placeholder="שיעור 5: תבניות עיצוב"></label>
+    <label>קובץ וידאו או אודיו<input type="file" name="file" accept="video/*,audio/*" required></label>
+    <p class="xsmall muted">התמלול רץ על המחשב הזה, והסיכום נכתב עם Gemini. אפשר לסגור את העמוד בזמן העיבוד.</p>
+    <div class="dialog-actions">
+      <button class="btn btn-quiet" type="button" data-close-dialog>ביטול</button>
+      <button class="btn" id="upload-btn">העלה</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+{% endif %}

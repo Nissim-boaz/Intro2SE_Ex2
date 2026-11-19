@@ -5,6 +5,7 @@ from ..db import get_db
 from ..security import current_user, login_required
 from ..services.content import ContentService, FileStore
 from ..services.courses import CourseService, EnrollmentService
+from ..services.recordings import RecordingService
 
 bp = Blueprint("courses", __name__)
 
@@ -29,6 +30,7 @@ def show(course_id: int):
     context = {}
     context["attendance"] = _attendance_context(course_id, role)
     context["chat_enabled"] = True
+    context["recordings"] = RecordingService(db, FileStore(current_app.config["UPLOAD_DIR"])).list(course_id)
     return render_template(
         "courses/show.html",
         **context,

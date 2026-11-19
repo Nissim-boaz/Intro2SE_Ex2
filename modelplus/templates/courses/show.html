@@ -13,7 +13,7 @@
 <nav class="course-nav" aria-label="חלקי הקורס">
   <a href="#content">תכנים</a>
   {% if attendance is defined %}<a href="#attendance">נוכחות</a>{% endif %}
-  {% if recordings is defined %}<a href="#recordings">הקלטות</a>{% endif %}
+  {% if recordings is defined and (recordings or can_manage) %}<a href="#recordings">הקלטות</a>{% endif %}
   {% if chat_enabled is defined %}<a href="#chat">צ׳אט</a>{% endif %}
 </nav>
 
