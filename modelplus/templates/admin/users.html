@@ -29,9 +29,9 @@
   <section class="panel">
     <h2 style="margin-bottom:6px">ייבוא סטודנטים</h2>
     <p class="muted small" style="margin-bottom:14px">קובץ CSV או XLSX עם עמודות שם ומייל. אפשר להעלות גם ייצוא משתתפים מ-Moodle כמו שהוא.</p>
-    <form method="post" action="{{ url_for('admin.import_users') }}" enctype="multipart/form-data" class="form-grid">
+    <form method="post" action="{{ url_for('admin.import_users') }}" enctype="multipart/form-data" class="form-grid" data-live-submit>
       <input type="file" name="file" accept=".csv,.xlsx" required>
-      <button class="btn btn-quiet">ייבא</button>
+      <button class="btn">ייבא</button>
     </form>
     <p class="xsmall muted" style="margin-top:12px">כדי לשייך את הסטודנטים לקורס כבר בייבוא, עשה את זה מתוך עמוד הקורס.</p>
   </section>

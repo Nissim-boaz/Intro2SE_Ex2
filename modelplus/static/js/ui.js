@@ -81,5 +81,54 @@
     });
   });
 
+  // ---------- file pickers: show the chosen file name, with an ✕ to clear it before uploading ----------
+  function enhanceFileInput(input) {
+    if (input.dataset.enhanced) return;
+    input.dataset.enhanced = "1";
+    const wrap = document.createElement("div");
+    wrap.className = "file-pick";
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    wrap.insertAdjacentHTML("beforeend",
+      '<button type="button" class="file-pick-btn">בחר קובץ</button>' +
+      '<span class="file-pick-name">לא נבחר קובץ</span>' +
+      '<button type="button" class="file-pick-clear" aria-label="הסר את הקובץ" title="הסר את הקובץ" hidden>✕</button>');
+    const name = wrap.querySelector(".file-pick-name");
+    const clear = wrap.querySelector(".file-pick-clear");
+    const sync = () => {
+      const f = input.files && input.files[0];
+      name.textContent = f ? f.name : "לא נבחר קובץ";
+      name.classList.toggle("chosen", !!f);
+      clear.hidden = !f;
+    };
+    wrap.querySelector(".file-pick-btn").addEventListener("click", () => input.click());
+    clear.addEventListener("click", () => {
+      input.value = "";
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    input.addEventListener("change", sync);
+    sync();
+  }
+  document.querySelectorAll('input[type="file"]').forEach(enhanceFileInput);
+
+  // ---------- <form data-live-submit>: the button wakes up only when something changed ----------
+  // compares the form to how it looked when the page loaded, so undoing an edit greys it out again
+  function snapshot(form) {
+    return JSON.stringify([...new FormData(form)].map(([k, v]) => [k, v instanceof File ? v.name + ":" + v.size : v]));
+  }
+  document.querySelectorAll("form[data-live-submit]").forEach((form) => {
+    const button = form.querySelector("button:not([type=button])");
+    if (!button) return;
+    const initial = snapshot(form);
+    const sync = () => {
+      const changed = snapshot(form) !== initial;
+      button.disabled = !changed;
+      button.classList.toggle("is-idle", !changed);
+    };
+    form.addEventListener("input", sync);
+    form.addEventListener("change", sync);
+    sync();
+  });
+
   setTimeout(() => document.querySelectorAll(".toasts .toast").forEach((t) => t.classList.add("hide")), 4200);
 })();

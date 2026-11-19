@@ -12,11 +12,11 @@
 <div class="grid-2" style="margin-bottom:16px">
   <section class="panel">
     <h2 style="margin-bottom:14px">פרטי הקורס</h2>
-    <form method="post" action="{{ url_for('admin.update_course', course_id=course.id) }}" class="form-grid">
+    <form method="post" action="{{ url_for('admin.update_course', course_id=course.id) }}" class="form-grid" data-live-submit>
       <label>שם<input type="text" name="name" value="{{ course.name }}" required></label>
       <label>מספר קורס<input type="text" name="code" value="{{ course.code }}" dir="ltr"></label>
       <label>תיאור קצר<textarea name="description" rows="3">{{ course.description }}</textarea></label>
-      <button class="btn btn-quiet">שמור</button>
+      <button class="btn">שמור</button>
     </form>
   </section>
 
@@ -24,9 +24,9 @@
     <div>
       <h2 style="margin-bottom:14px">שיוך משתמשים</h2>
       {% if candidates %}
-      <form method="post" action="{{ url_for('admin.add_members', course_id=course.id) }}" class="form-grid">
+      <form method="post" action="{{ url_for('admin.add_members', course_id=course.id) }}" class="form-grid" data-live-submit>
         <label>בחר מרצים או סטודנטים
-          <span class="field-hint">אפשר לבחור כמה בעזרת Ctrl או Shift</span>
+          <span class="field-hint">כדי לבחור כמה, החזק Ctrl ולחץ על השמות</span>
           <select name="user_id" multiple size="7">
             {% for group, label in [('lecturer', 'מרצים'), ('student', 'סטודנטים')] %}
             <optgroup label="{{ label }}">
@@ -43,9 +43,9 @@
     </div>
     <div>
       <h3 style="margin-bottom:8px">ייבוא סטודנטים לקורס</h3>
-      <form method="post" action="{{ url_for('admin.import_to_course', course_id=course.id) }}" enctype="multipart/form-data" class="form-grid">
+      <form method="post" action="{{ url_for('admin.import_to_course', course_id=course.id) }}" enctype="multipart/form-data" class="form-grid" data-live-submit>
         <input type="file" name="file" accept=".csv,.xlsx" required>
-        <button class="btn btn-quiet">ייבא ושייך</button>
+        <button class="btn">ייבא ושייך</button>
       </form>
     </div>
   </section>

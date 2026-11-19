@@ -632,3 +632,17 @@ button.chapter-time { all: unset; cursor: pointer; color: var(--brand); font-wei
 .voters { display: grid; gap: 12px; max-height: 340px; overflow: auto; }
 .voters h3 { display: flex; justify-content: space-between; gap: 10px; font-size: 15px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
 .voters ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+
+/* live submit: grey and inert until the form changed, then wakes up in the brand colour */
+.btn.is-idle, .btn.is-idle:hover { background: var(--line); color: var(--ink-3); opacity: 1; box-shadow: none; }
+form[data-live-submit] .btn:not(.is-idle) { animation: sendReady .28s var(--ease); }
+
+/* file picker with an ✕ to clear the choice */
+.file-pick { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 6px; border-radius: var(--r-sm); border: 1px dashed var(--line); background: var(--surface); }
+.file-pick input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.file-pick-btn { flex: none; border: 0; font: inherit; font-size: 14px; font-weight: 600; padding: 7px 14px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); cursor: pointer; }
+.file-pick-btn:hover { background: color-mix(in srgb, var(--brand-soft) 70%, var(--brand) 12%); }
+.file-pick-name { flex: 1; min-width: 0; font-size: 14px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; text-align: right; }
+.file-pick-name.chosen { color: var(--ink); }
+.file-pick-clear { flex: none; width: 30px; height: 30px; border-radius: 50%; border: 0; background: var(--bg); color: var(--ink-2); cursor: pointer; font-size: 13px; }
+.file-pick-clear:hover { background: var(--danger-soft); color: var(--danger); }
