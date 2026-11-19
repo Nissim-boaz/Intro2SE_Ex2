@@ -46,12 +46,23 @@
         <p class="anon-note" id="anon-note" hidden>השם שלך יוסתר מכולם, כולל המרצה. רק מנהל המערכת יכול לראות אותו, לטיפול בהטרדות.</p>
       </div>
       {% endif %}
+      <div class="emoji-panel" id="emoji-panel" hidden>
+        <div class="emoji-tabs" id="emoji-tabs" role="tablist" aria-label="קבוצות אימוג׳י"></div>
+        <div class="emoji-grid" id="emoji-grid" role="listbox" aria-label="אימוג׳י"></div>
+      </div>
       <div class="composer-row">
         {% if can_manage %}
         <button type="button" class="btn btn-quiet composer-poll" data-open-dialog="poll-dialog">סקר</button>
         {% endif %}
-        <textarea id="chat-input" rows="1" maxlength="2000" placeholder="כתוב הודעה" dir="auto" aria-label="הודעה"></textarea>
-        <button class="btn composer-send" id="chat-send" aria-label="שלח">שלח</button>
+        <div class="composer-field">
+          <button type="button" class="emoji-toggle" id="emoji-toggle" aria-label="הוסף אימוג׳י" aria-expanded="false">
+            <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="9" cy="10" r="1.25" fill="currentColor"/><circle cx="15" cy="10" r="1.25" fill="currentColor"/><path d="M8.2 14.2c.9 1.5 2.2 2.3 3.8 2.3s2.9-.8 3.8-2.3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          </button>
+          <textarea id="chat-input" rows="1" maxlength="2000" placeholder="כתוב הודעה" dir="auto" aria-label="הודעה"></textarea>
+        </div>
+        <button class="send-btn" id="chat-send" aria-label="שלח" disabled>
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M20.6 3.4 3.9 10.2c-.8.3-.8 1.5 0 1.8l6.4 2.2 2.2 6.4c.3.8 1.5.8 1.8 0l6.8-16.7c.3-.7-.4-1.4-1.1-1.1Z" fill="currentColor"/><path d="M10.3 13.7 15.4 8.6" stroke="var(--send-cut)" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
       </div>
     </form>
   </div>
@@ -73,6 +84,12 @@
 <dialog id="who-dialog">
   <div class="dialog-body">
     <h2>מי הגיב</h2>
+    <div class="who-mine">
+      <span class="small muted" id="who-mine-label">התגובה שלך</span>
+      <div class="who-emoji" id="who-emoji" role="toolbar" aria-label="שנה את התגובה שלך">
+        {% for e in ['👍', '❤️', '😂', '👎', '😢', '🙏'] %}<button type="button" data-dialog-emoji="{{ e }}" aria-label="{{ e }}">{{ e }}</button>{% endfor %}
+      </div>
+    </div>
     <ul class="list" id="who-list"></ul>
     <div class="dialog-actions"><button class="btn btn-quiet" type="button" data-close-dialog>סגור</button></div>
   </div>

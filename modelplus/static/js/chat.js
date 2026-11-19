@@ -55,7 +55,12 @@
     if (!m.mine || m.deleted) return "";
     const state = tickState(m);
     const label = { sent: "נשלחה", "read-some": "חלק מהקורס קרא", "read-all": "כולם קראו" }[state];
-    return `<span class="ticks ${state}" data-ticks="${m.id}" role="img" aria-label="${label}"></span>`;
+    return `<span class="ticks ${state}" data-ticks="${m.id}" role="img" aria-label="${label}" title="${label}">${tickSvg(state)}</span>`;
+  }
+  function tickSvg(state) {
+    const one = '<path d="M1.6 6.3 4.7 9.3 10.8 1.9"/>';
+    const two = '<path d="M1.2 6.3 4.3 9.3 10.4 1.9"/><path d="M7.6 8.6 8.3 9.3 14.4 1.9"/>';
+    return `<svg viewBox="0 0 16 11" width="17" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${state === "sent" ? one : two}</svg>`;
   }
 
   function renderPoll(p) {
@@ -178,11 +183,94 @@
   });
 
   // ---------- composer ----------
+  const sendBtn = document.getElementById("chat-send");
   function autosize() {
     input.style.height = "auto";
     input.style.height = Math.min(140, input.scrollHeight) + "px";
+    // the send button wakes up only when there is something to send
+    const ready = input.value.trim().length > 0;
+    if (ready !== sendBtn.classList.contains("ready")) {
+      sendBtn.classList.toggle("ready", ready);
+      sendBtn.disabled = !ready;
+    }
   }
   input.addEventListener("input", autosize);
+
+  // ---------- emoji keyboard ----------
+  const EMOJI = [
+    ["😀", "סמיילים", "😀 😃 😄 😁 😆 😅 🤣 😂 🙂 🙃 😉 😊 😇 🥰 😍 🤩 😘 😋 😛 😜 🤪 😝 🤗 🤭 🤫 🤔 🤐 🤨 😐 😑 😶 😏 😒 🙄 😬 😌 😔 😪 😴 😷 🤒 🤕 🤢 🥵 🥶 🥴 😵 🤯 🤠 🥳 😎 🤓 🧐 😕 😟 🙁 😮 😯 😲 😳 🥺 😦 😧 😨 😰 😥 😢 😭 😱 😖 😣 😞 😓 😩 😫 🥱 😤 😡 😠 🤬 😈 💀 🤡 👻 🤖"],
+    ["👍", "ידיים", "👍 👎 👌 🤌 🤏 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ ✋ 🤚 🖐️ 🖖 👋 👏 🙌 👐 🤲 🤝 🙏 ✍️ 💪 🫶 👀 🧠"],
+    ["❤️", "לבבות", "❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💯 💢 💥 💫 💦 💤"],
+    ["📚", "לימודים", "📚 📖 📝 ✏️ 🖊️ 📎 📌 📅 📆 🗓️ ⏰ ⏳ 💻 🖥️ ⌨️ 🖱️ 📱 📊 📈 📉 🧮 🔬 🧪 🎓 🏫 💡 🔍 📢 📣 🔔 ✅ ☑️ ❌ ❓ ❗ ⚠️ 🆗 🆕"],
+    ["🎉", "חגיגות", "🎉 🎊 🥳 🎈 🎁 🏆 🥇 🥈 🥉 🏅 ⭐ 🌟 ✨ 🔥 ⚡ 🌈 ☀️ 🌙 ☕ 🍕 🍔 🍟 🌮 🍩 🍪 🎂 🍫 🍿 🥤 🍻"],
+    ["🐶", "חיות", "🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🙈 🙉 🙊 🐔 🐧 🐦 🦄 🐝 🦋 🐢 🐍 🐙 🐬 🐳"],
+  ];
+  const RECENT_KEY = "modelplus.recentEmoji";
+  const panel = document.getElementById("emoji-panel");
+  const tabs = document.getElementById("emoji-tabs");
+  const grid = document.getElementById("emoji-grid");
+  const emojiToggle = document.getElementById("emoji-toggle");
+  let caret = 0;
+
+  function recent() {
+    try { return JSON.parse(localStorage.getItem(RECENT_KEY)) || []; } catch (_) { return []; }
+  }
+  function remember(e) {
+    const list = [e, ...recent().filter((x) => x !== e)].slice(0, 24);
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch (_) {}
+  }
+  function groups() {
+    const r = recent();
+    return (r.length ? [["🕘", "בשימוש לאחרונה", r.join(" ")]] : []).concat(EMOJI);
+  }
+  function showGroup(i) {
+    const g = groups();
+    tabs.querySelectorAll("button").forEach((b, j) => b.setAttribute("aria-selected", String(j === i)));
+    grid.innerHTML = `<div class="emoji-title">${g[i][1]}</div>` +
+      g[i][2].split(" ").map((e) => `<button type="button" data-insert="${e}" aria-label="${e}">${e}</button>`).join("");
+    grid.scrollTop = 0;
+  }
+  function openPanel() {
+    tabs.innerHTML = groups().map((g, i) => `<button type="button" role="tab" data-tab="${i}" title="${g[1]}" aria-label="${g[1]}">${g[0]}</button>`).join("");
+    showGroup(0);
+    panel.hidden = false;
+    emojiToggle.setAttribute("aria-expanded", "true");
+    emojiToggle.classList.add("on");
+  }
+  function closePanel() {
+    panel.hidden = true;
+    emojiToggle.setAttribute("aria-expanded", "false");
+    emojiToggle.classList.remove("on");
+  }
+  // remember where the caret was, so emoji go into the right place even after focus moved
+  ["keyup", "click", "input", "select"].forEach((ev) =>
+    input.addEventListener(ev, () => { caret = input.selectionStart ?? input.value.length; }));
+  emojiToggle.addEventListener("click", () => (panel.hidden ? openPanel() : closePanel()));
+  tabs.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-tab]");
+    if (b) showGroup(Number(b.dataset.tab));
+  });
+  grid.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-insert]");
+    if (!b) return;
+    const em = b.dataset.insert;
+    const pos = Math.min(caret, input.value.length);
+    input.value = input.value.slice(0, pos) + em + input.value.slice(pos);
+    caret = pos + em.length;
+    remember(em);
+    autosize();
+    // on a phone, focusing would pop the system keyboard over the emoji panel
+    if (window.matchMedia("(hover: hover)").matches) {
+      input.focus();
+      input.setSelectionRange(caret, caret);
+    }
+  });
+  document.addEventListener("click", (e) => {
+    if (!panel.hidden && !panel.contains(e.target) && !emojiToggle.contains(e.target)) closePanel();
+  });
+  input.addEventListener("focus", () => {
+    if (!window.matchMedia("(hover: hover)").matches) closePanel(); // phone keyboard opened
+  });
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey && !("ontouchstart" in window)) {
       e.preventDefault();
@@ -214,19 +302,21 @@
     e.preventDefault();
     const text = input.value.trim();
     if (!text) return;
-    const btn = document.getElementById("chat-send");
-    btn.disabled = true;
+    sendBtn.disabled = true;
+    sendBtn.classList.add("sending");
     try {
       await Model.api(sendUrl, { json: { body: text, reply_to: replyTo, anonymous: !!(anon && anon.checked) } });
       input.value = "";
-      autosize();
+      caret = 0;
+      closePanel();
       setReply(null);
       await refresh();
       scrollToBottom(true);
     } catch (err) {
       Model.toast(err.message, "error");
     } finally {
-      btn.disabled = false;
+      sendBtn.classList.remove("sending");
+      autosize();
       input.focus();
     }
   });
@@ -318,6 +408,7 @@
       document.getElementById("info-preview").innerHTML = m.poll
         ? `<strong>סקר:</strong> ${esc(m.poll.question)}`
         : esc(m.body);
+      document.querySelector("#info-dialog .info-head .ticks").innerHTML = tickSvg("read-all");
       document.getElementById("info-count").textContent = d.read_by.length ? `(${d.read_by.length})` : "";
       document.getElementById("info-list").innerHTML = d.read_by.length
         ? d.read_by.map((r) => `<li><span class="grow">${esc(r.name)}</span><span class="xsmall muted">${fmtWhen(r.read_at)}</span></li>`).join("")
@@ -351,12 +442,9 @@
 
     const who = e.target.closest("[data-who]");
     if (who) {
-      try {
-        const d = await Model.api(`/api/messages/${who.dataset.who}/reactions`);
-        document.getElementById("who-list").innerHTML = d.reactions
-          .map((r) => `<li><span style="font-size:22px">${r.emoji}</span><span class="grow">${esc(r.name)}</span></li>`).join("");
-        document.getElementById("who-dialog").showModal();
-      } catch (err) { Model.toast(err.message, "error"); }
+      whoFor = Number(who.dataset.who);
+      await fillWho();
+      document.getElementById("who-dialog").showModal();
       return;
     }
 
@@ -368,6 +456,31 @@
         if (msg) { msg.poll = d.poll; upsert(msg); }
       } catch (err) { Model.toast(err.message, "error"); }
     }
+  });
+
+  // ---------- "who reacted" dialog: also lets you change or remove your own reaction ----------
+  let whoFor = null;
+  async function fillWho() {
+    try {
+      const d = await Model.api(`/api/messages/${whoFor}/reactions`);
+      const mine = messages.get(whoFor)?.reactions.mine || null;
+      document.querySelectorAll("[data-dialog-emoji]").forEach((b) => b.classList.toggle("active", b.dataset.dialogEmoji === mine));
+      document.getElementById("who-mine-label").textContent = mine ? "התגובה שלך. לחיצה על אותו אימוג׳י מסירה אותה" : "הוסף תגובה";
+      document.getElementById("who-list").innerHTML = d.reactions.length
+        ? d.reactions.map((r) => `<li><span style="font-size:22px">${r.emoji}</span><span class="grow">${esc(r.name)}</span></li>`).join("")
+        : `<li class="muted small">אין תגובות</li>`;
+    } catch (err) { Model.toast(err.message, "error"); }
+  }
+  document.getElementById("who-emoji").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-dialog-emoji]");
+    if (!b || whoFor === null) return;
+    try {
+      const d = await Model.api(`/api/messages/${whoFor}/reactions`, { json: { emoji: b.dataset.dialogEmoji } });
+      const m = messages.get(whoFor);
+      if (m) m.reactions.mine = d.mine;
+      await refresh();
+      await fillWho();
+    } catch (err) { Model.toast(err.message, "error"); }
   });
 
   // ---------- poll creation (lecturer) ----------

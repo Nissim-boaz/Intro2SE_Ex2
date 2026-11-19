@@ -397,12 +397,11 @@ body.stage { background: #fff; }
 .msg.mine .time { color: rgba(255,255,255,.7); }
 
 /* read receipts: ✓ sent, ✓✓ someone read, blue ✓✓ everyone read */
-.ticks { display: inline-flex; font-size: 12px; line-height: 1; font-weight: 700; color: rgba(255,255,255,.65); direction: ltr; }
-.ticks::before { content: "✓"; }
-.ticks.read-some::before, .ticks.read-all::before { content: "✓✓"; letter-spacing: -5px; padding-right: 5px; }
-.msg.mine .ticks.read-all { color: #8FE3FF; }
+.ticks { display: inline-flex; line-height: 0; color: rgba(255,255,255,.8); }
+.ticks svg { display: block; }
+.msg.mine .ticks.read-all { color: #9BE7FF; }
 .info-head { display: flex; align-items: center; gap: 8px; font-size: var(--fs-md); margin-bottom: 4px; }
-.info-head .ticks { color: #34B7F1; font-size: 14px; }
+.info-head .ticks { color: #34B7F1; }
 .info-preview { padding: 10px 14px; border-radius: 14px; background: var(--bg); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 120px; overflow: auto; }
 .info-list { max-height: 260px; overflow: auto; }
 .info-list > li { padding: 9px 0; }
@@ -427,11 +426,17 @@ body.stage { background: #fff; }
 /* side buttons: appear on hover, but only a click opens anything */
 .msg-tools {
   position: absolute; top: 50%; transform: translateY(-50%); display: flex; gap: 4px;
-  opacity: 0; pointer-events: none; transition: opacity .15s;
+  /* the padding bridges the gap to the bubble, so the mouse never "leaves" on the way */
+  padding: 8px 10px;
+  opacity: 0; visibility: hidden;
+  /* stay visible for a moment after the mouse leaves */
+  transition: opacity .2s ease .6s, visibility 0s linear .8s;
 }
-.msg.theirs .msg-tools { inset-inline-start: calc(100% + 6px); }
-.msg.mine .msg-tools { inset-inline-end: calc(100% + 6px); flex-direction: row-reverse; }
-.msg:hover .msg-tools, .msg.active .msg-tools, .msg-tools:focus-within { opacity: 1; pointer-events: auto; }
+.msg.theirs .msg-tools { inset-inline-start: 100%; }
+.msg.mine .msg-tools { inset-inline-end: 100%; flex-direction: row-reverse; }
+.msg:hover .msg-tools, .msg.active .msg-tools, .msg-tools:focus-within {
+  opacity: 1; visibility: visible; transition: opacity .12s ease 0s, visibility 0s linear 0s;
+}
 .msg-tool {
   width: 30px; height: 30px; border-radius: 50%; border: 0; display: grid; place-items: center;
   background: var(--surface); box-shadow: var(--shadow); cursor: pointer; font-size: 15px; color: var(--ink-2);
@@ -473,8 +478,55 @@ body.stage { background: #fff; }
 
 .composer { padding: 10px 12px 14px; background: var(--surface); border-top: 1px solid var(--line); display: grid; gap: 8px; }
 .composer-row { display: flex; gap: 8px; align-items: flex-end; }
-.composer-row textarea { min-height: 44px; height: 44px; max-height: 140px; resize: none; border-radius: 22px; padding: 10px 16px; line-height: 1.4; }
-.composer-send, .composer-poll { flex: none; min-height: 44px; }
+.composer-poll { flex: none; min-height: 46px; }
+.composer-field { position: relative; flex: 1; min-width: 0; }
+.composer-field textarea {
+  display: block; min-height: 46px; height: 46px; max-height: 140px; resize: none; border-radius: 23px;
+  padding: 11px 16px; padding-inline-start: 46px; line-height: 1.4;
+}
+.emoji-toggle {
+  position: absolute; inset-inline-start: 6px; bottom: 6px; width: 34px; height: 34px; border-radius: 50%;
+  border: 0; background: transparent; color: var(--ink-3); cursor: pointer; display: grid; place-items: center;
+  transition: color .15s, background .15s;
+}
+.emoji-toggle:hover, .emoji-toggle.on { color: var(--brand); background: var(--brand-soft); }
+
+/* send: grey and quiet while empty, wakes up in the brand colour once you type */
+.send-btn {
+  --send-cut: var(--line);
+  flex: none; width: 46px; height: 46px; border-radius: 50%; border: 0; display: grid; place-items: center;
+  background: var(--line); color: var(--ink-3); cursor: default;
+  transition: background .2s var(--ease), color .2s var(--ease), transform .2s var(--ease), box-shadow .2s;
+}
+.send-btn svg { transform: scaleX(-1); } /* point left: forward in Hebrew */
+.send-btn.ready {
+  --send-cut: var(--brand);
+  background: var(--brand); color: #fff; cursor: pointer;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--brand) 35%, transparent);
+  animation: sendReady .28s var(--ease);
+}
+.send-btn.ready:hover { transform: scale(1.06); }
+.send-btn.ready:active { transform: scale(.92); }
+.send-btn.sending svg { animation: sendFly .45s var(--ease); }
+@keyframes sendReady { 0% { transform: scale(.82); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
+@keyframes sendFly { 0% { transform: scaleX(-1) translate(0, 0); opacity: 1; } 50% { transform: scaleX(-1) translate(10px, -10px); opacity: 0; } 51% { transform: scaleX(-1) translate(-8px, 8px); opacity: 0; } 100% { transform: scaleX(-1) translate(0, 0); opacity: 1; } }
+
+/* emoji keyboard */
+.emoji-panel { border-radius: 16px; background: var(--bg); box-shadow: 0 0 0 1px var(--line) inset; overflow: hidden; animation: pop .16s var(--ease); }
+.emoji-tabs { display: flex; gap: 2px; padding: 6px 8px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.emoji-tabs button { flex: none; border: 0; background: transparent; font-size: 20px; width: 40px; height: 36px; border-radius: 10px; cursor: pointer; opacity: .6; }
+.emoji-tabs button[aria-selected="true"] { opacity: 1; background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.emoji-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); padding: 6px 8px 10px; max-height: 220px; overflow-y: auto; overscroll-behavior: contain; }
+.emoji-title { grid-column: 1 / -1; font-size: 12px; color: var(--ink-2); padding: 4px 4px 6px; }
+.emoji-grid button { border: 0; background: transparent; font-size: 26px; height: 44px; border-radius: 10px; cursor: pointer; transition: transform .1s, background .1s; }
+.emoji-grid button:hover { background: var(--surface); transform: scale(1.12); }
+
+/* "who reacted" dialog: change your own reaction */
+.who-mine { display: grid; gap: 6px; padding: 10px 12px; border-radius: 14px; background: var(--bg); }
+.who-emoji { display: flex; gap: 4px; flex-wrap: wrap; }
+.who-emoji button { border: 0; background: var(--surface); font-size: 22px; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; transition: transform .12s, box-shadow .12s; }
+.who-emoji button:hover { transform: scale(1.1); }
+.who-emoji button.active { box-shadow: 0 0 0 2px var(--brand); background: var(--brand-soft); }
 .composer-reply { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 12px; background: var(--bg); border-inline-start: 3px solid var(--brand); font-size: 13px; }
 .composer-reply .grow { flex: 1; min-width: 0; display: grid; }
 .composer-reply strong { color: var(--brand); }
