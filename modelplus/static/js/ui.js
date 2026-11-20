@@ -152,6 +152,14 @@
     });
   });
 
+  // ---------- sticky rows: mark them "stuck" once they reach the top (shows the compact back arrow) ----------
+  document.querySelectorAll("[data-stuck-watch]").forEach((bar) => {
+    const sentinel = bar.previousElementSibling;
+    if (!sentinel || !sentinel.classList.contains("nav-sentinel")) return;
+    new IntersectionObserver(([entry]) => bar.classList.toggle("stuck", !entry.isIntersecting),
+      { rootMargin: "-60px 0px 0px 0px" }).observe(sentinel);
+  });
+
   // ---------- theme: auto (follow the device) / light / dark, remembered per browser ----------
   const THEME_KEY = "modelplus.theme";
   function savedTheme() {

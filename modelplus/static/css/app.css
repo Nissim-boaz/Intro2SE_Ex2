@@ -940,3 +940,13 @@ details.fold:not([open]) > summary { margin-bottom: 0; }
   background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: saturate(180%) blur(14px);
   -webkit-backdrop-filter: saturate(180%) blur(14px); box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 70%, transparent);
 }
+
+/* course page: one sticky row only. The back link stays put, and a compact arrow joins the tab row once it sticks */
+.back-link.static { position: static; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; padding-inline: 2px; }
+.nav-sentinel { display: block; height: 1px; }
+.course-nav .nav-back {
+  display: none; place-items: center; width: 36px; padding: 0; color: var(--brand); background: var(--brand-soft);
+  box-shadow: none; animation: pop .16s var(--ease);
+}
+.course-nav.stuck .nav-back { display: inline-grid; }
+.course-nav.stuck { box-shadow: 0 8px 12px -12px rgba(0,0,0,.25); }
