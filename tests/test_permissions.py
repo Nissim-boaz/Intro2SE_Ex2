@@ -1,9 +1,9 @@
 import pytest
 
-from modelplus.db import connect
-from modelplus.errors import Forbidden
-from modelplus.services.courses import CourseService, EnrollmentService
-from modelplus.services.users import UserService
+from moodleplus.db import connect
+from moodleplus.errors import Forbidden
+from moodleplus.services.courses import CourseService, EnrollmentService
+from moodleplus.services.users import UserService
 from tests.conftest import login
 
 

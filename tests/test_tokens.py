@@ -1,4 +1,4 @@
-from modelplus.services.tokens import AudioTokenService, QrTokenService
+from moodleplus.services.tokens import AudioTokenService, QrTokenService
 from tests.fakes import FakeClock
 
 

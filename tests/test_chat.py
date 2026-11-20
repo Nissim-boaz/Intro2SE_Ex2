@@ -2,12 +2,12 @@ import json
 
 import pytest
 
-from modelplus.db import connect
-from modelplus.errors import ValidationError
-from modelplus.services.chat import ANONYMOUS_NAME, ChatService, ReactionService
-from modelplus.services.courses import CourseService, EnrollmentService
-from modelplus.services.polls import PollService
-from modelplus.services.users import UserService
+from moodleplus.db import connect
+from moodleplus.errors import ValidationError
+from moodleplus.services.chat import ANONYMOUS_NAME, ChatService, ReactionService
+from moodleplus.services.courses import CourseService, EnrollmentService
+from moodleplus.services.polls import PollService
+from moodleplus.services.users import UserService
 from tests.conftest import login
 
 
@@ -167,7 +167,7 @@ def test_sender_deletes_own_message(db, chat, people):
 
 
 def test_cannot_delete_others_message_but_admin_can(chat, people):
-    from modelplus.errors import Forbidden
+    from moodleplus.errors import Forbidden
 
     c = people["course"].id
     mid = chat.send(c, people["s1"], "הודעה")
@@ -212,7 +212,7 @@ def test_deleted_poll_hides_results(db, people):
 
 # ---------- read receipts ----------
 def test_read_receipts_counts_and_blue_ticks(db, chat, people):
-    from modelplus.services.chat import ReadReceiptService
+    from moodleplus.services.chat import ReadReceiptService
 
     c = people["course"].id
     reads = ReadReceiptService(db)
@@ -227,7 +227,7 @@ def test_read_receipts_counts_and_blue_ticks(db, chat, people):
 
 
 def test_mark_read_skips_own_and_future_messages(db, chat, people):
-    from modelplus.services.chat import ReadReceiptService
+    from moodleplus.services.chat import ReadReceiptService
 
     c = people["course"].id
     reads = ReadReceiptService(db)
@@ -241,7 +241,7 @@ def test_mark_read_skips_own_and_future_messages(db, chat, people):
 
 
 def test_non_member_reads_are_not_counted(db, chat, people):
-    from modelplus.services.chat import ReadReceiptService
+    from moodleplus.services.chat import ReadReceiptService
 
     c = people["course"].id
     reads = ReadReceiptService(db)
@@ -251,8 +251,8 @@ def test_non_member_reads_are_not_counted(db, chat, people):
 
 
 def test_message_info_only_for_sender(db, chat, people):
-    from modelplus.errors import Forbidden
-    from modelplus.services.chat import ReadReceiptService
+    from moodleplus.errors import Forbidden
+    from moodleplus.services.chat import ReadReceiptService
 
     c = people["course"].id
     reads = ReadReceiptService(db)
@@ -269,7 +269,7 @@ def test_message_info_only_for_sender(db, chat, people):
 def test_migration_adds_deleted_column(tmp_path):
     import sqlite3
 
-    from modelplus.db import connect, init_schema
+    from moodleplus.db import connect, init_schema
 
     path = str(tmp_path / "old.db")
     old = sqlite3.connect(path)
@@ -316,7 +316,7 @@ def test_course_card_preview_keeps_anonymity(app, client):
 
 # ---------- mute students ----------
 def test_locked_chat_blocks_students_only(chat, people):
-    from modelplus.errors import Forbidden
+    from moodleplus.errors import Forbidden
 
     c = people["course"].id
     chat.set_locked(c, True)

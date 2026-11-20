@@ -12,13 +12,13 @@ from dotenv import load_dotenv
 
 load_dotenv()  # לפני ה-import של Config, כדי שיקרא את הערכים מ-.env
 
-from modelplus.config import Config  # noqa: E402
-from modelplus.db import connect, init_schema
-from modelplus.services.chat import ChatService, ReactionService
-from modelplus.services.content import ContentService, FileStore
-from modelplus.services.courses import CourseService, EnrollmentService
-from modelplus.services.polls import PollService
-from modelplus.services.users import StudentImporter, UserService
+from moodleplus.config import Config  # noqa: E402
+from moodleplus.db import connect, init_schema
+from moodleplus.services.chat import ChatService, ReactionService
+from moodleplus.services.content import ContentService, FileStore
+from moodleplus.services.courses import CourseService, EnrollmentService
+from moodleplus.services.polls import PollService
+from moodleplus.services.users import StudentImporter, UserService
 
 ROOT = Path(__file__).resolve().parent
 
@@ -118,6 +118,6 @@ def _seed_chat(db, course_id, lecturer, students) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="יצירת נתוני דמו ל-Model+")
+    parser = argparse.ArgumentParser(description="יצירת נתוני דמו ל-Moodle+")
     parser.add_argument("--reset", action="store_true", help="מחק את ה-DB הקיים לפני היצירה")
     seed(Config.DATABASE, parser.parse_args().reset)

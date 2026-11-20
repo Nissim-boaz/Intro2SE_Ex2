@@ -11,7 +11,7 @@ def _flag(name: str, default: str = "0") -> bool:
 
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-me")
-    DATABASE = os.environ.get("DATABASE", str(ROOT / "instance" / "modelplus.db"))
+    DATABASE = os.environ.get("DATABASE", str(ROOT / "instance" / "moodleplus.db"))
     UPLOAD_DIR = os.environ.get("UPLOAD_DIR", str(ROOT / "instance" / "uploads"))
     MAX_CONTENT_LENGTH = 2 * 1024 * 1024 * 1024  # 2GB, הקלטות ארוכות
     SESSION_COOKIE_SAMESITE = "Lax"  # חוסם POST מאתרים אחרים (הגנת CSRF בסיסית)

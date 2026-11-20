@@ -246,7 +246,7 @@
     ["🎉", "חגיגות", "🎉 🎊 🥳 🎈 🎁 🏆 🥇 🥈 🥉 🏅 ⭐ 🌟 ✨ 🔥 ⚡ 🌈 ☀️ 🌙 ☕ 🍕 🍔 🍟 🌮 🍩 🍪 🎂 🍫 🍿 🥤 🍻"],
     ["🐶", "חיות", "🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🙈 🙉 🙊 🐔 🐧 🐦 🦄 🐝 🦋 🐢 🐍 🐙 🐬 🐳"],
   ];
-  const RECENT_KEY = "modelplus.recentEmoji";
+  const RECENT_KEY = "moodleplus.recentEmoji";
   const panel = document.getElementById("emoji-panel");
   const tabs = document.getElementById("emoji-tabs");
   const grid = document.getElementById("emoji-grid");

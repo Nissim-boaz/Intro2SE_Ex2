@@ -57,7 +57,24 @@ def _close_db(_exc=None) -> None:
         conn.close()
 
 
+LEGACY_DB_NAME = "model" + "plus.db"  # השם הקודם של האתר. מפוצל כדי שחיפוש-החלפה לא ישנה אותו
+
+
+def move_legacy_db(path: str) -> bool:
+    """עד שהאתר נקרא Moodle+, קובץ ה-DB נקרא אחרת. אם יש קובץ ישן ואין חדש, מעבירים אותו כדי שלא יאבדו נתונים."""
+    new = Path(path)
+    old = new.with_name(LEGACY_DB_NAME)
+    if new.exists() or not old.exists():
+        return False
+    for suffix in ("", "-wal", "-shm"):  # קובצי ה-WAL זזים יחד עם ה-DB
+        src = Path(str(old) + suffix)
+        if src.exists():
+            src.rename(str(new) + suffix)
+    return True
+
+
 def init_app(app: Flask) -> None:
+    move_legacy_db(app.config["DATABASE"])
     conn = connect(app.config["DATABASE"])
     try:
         init_schema(conn)

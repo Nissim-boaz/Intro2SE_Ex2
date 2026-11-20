@@ -145,7 +145,7 @@
 
   // ---------- <details data-fold="name">: remember collapsed sections per browser ----------
   document.querySelectorAll("details[data-fold]").forEach((d) => {
-    const key = "modelplus.fold." + d.dataset.fold;
+    const key = "moodleplus.fold." + d.dataset.fold;
     try { if (localStorage.getItem(key) === "closed") d.removeAttribute("open"); } catch (_) {}
     d.addEventListener("toggle", () => {
       try { d.open ? localStorage.removeItem(key) : localStorage.setItem(key, "closed"); } catch (_) {}
@@ -173,7 +173,7 @@
   });
 
   // ---------- theme: auto (follow the device) / light / dark, remembered per browser ----------
-  const THEME_KEY = "modelplus.theme";
+  const THEME_KEY = "moodleplus.theme";
   function savedTheme() {
     try { return localStorage.getItem(THEME_KEY) || "auto"; } catch (_) { return "auto"; }
   }

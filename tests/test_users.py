@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from modelplus.errors import ValidationError
-from modelplus.services.users import StudentImporter, UserService
+from moodleplus.errors import ValidationError
+from moodleplus.services.users import StudentImporter, UserService
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 
@@ -78,3 +78,16 @@ def test_ensure_admin_restores_role(db):
     users.create("other@test.ac.il", "מנהל 2", "admin")
     users.update(users.find_by_email("boss@test.ac.il").id, "מנהל", "student")
     assert users.ensure_admin("boss@test.ac.il").role == "admin"
+
+
+def test_legacy_db_file_is_moved_to_the_new_name(tmp_path):
+    from moodleplus.db import LEGACY_DB_NAME, move_legacy_db
+
+    old = tmp_path / LEGACY_DB_NAME
+    old.write_bytes(b"data")
+    (tmp_path / (LEGACY_DB_NAME + "-wal")).write_bytes(b"wal")
+    new = tmp_path / "moodleplus.db"
+    assert move_legacy_db(str(new))
+    assert new.read_bytes() == b"data" and (tmp_path / "moodleplus.db-wal").read_bytes() == b"wal"
+    assert not old.exists()
+    assert not move_legacy_db(str(new))  # אין מה להעביר בפעם השנייה

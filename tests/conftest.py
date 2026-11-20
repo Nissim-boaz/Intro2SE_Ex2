@@ -1,10 +1,10 @@
 import pytest
 
-from modelplus import create_app
-from modelplus.config import TestConfig
-from modelplus.db import connect, init_schema
-from modelplus.services.courses import CourseService, EnrollmentService
-from modelplus.services.users import UserService
+from moodleplus import create_app
+from moodleplus.config import TestConfig
+from moodleplus.db import connect, init_schema
+from moodleplus.services.courses import CourseService, EnrollmentService
+from moodleplus.services.users import UserService
 
 
 @pytest.fixture

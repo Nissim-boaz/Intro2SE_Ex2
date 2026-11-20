@@ -3,14 +3,14 @@ import io
 import pytest
 from werkzeug.datastructures import FileStorage
 
-from modelplus.db import connect
-from modelplus.errors import ValidationError
-from modelplus.services.content import FileStore
-from modelplus.services.courses import CourseService, EnrollmentService
-from modelplus.services.llm import LessonSummarizer, LLMError, LLMProvider, fmt_time, parse_json
-from modelplus.services.recordings import RecordingService
-from modelplus.services.transcription import Segment, Transcriber
-from modelplus.services.users import UserService
+from moodleplus.db import connect
+from moodleplus.errors import ValidationError
+from moodleplus.services.content import FileStore
+from moodleplus.services.courses import CourseService, EnrollmentService
+from moodleplus.services.llm import LessonSummarizer, LLMError, LLMProvider, fmt_time, parse_json
+from moodleplus.services.recordings import RecordingService
+from moodleplus.services.transcription import Segment, Transcriber
+from moodleplus.services.users import UserService
 from tests.conftest import login
 
 SEGMENTS = [Segment(0.0, 30.0, "שלום לכולם, היום נדבר על UML"), Segment(300.0, 330.0, "עכשיו נעבור ל-Design Patterns")]
@@ -119,7 +119,7 @@ def test_fmt_time():
 
 
 def test_gemini_requires_key():
-    from modelplus.services.llm import GeminiProvider
+    from moodleplus.services.llm import GeminiProvider
 
     with pytest.raises(LLMError):
         GeminiProvider("", "gemini-3.8-flash")
@@ -133,7 +133,7 @@ class _ApiError(Exception):
 
 def _scripted_provider(script):
     """GeminiProvider שבמקום רשת מחזיר תשובות לפי תסריט: {model: [תשובה או שגיאה, ...]}."""
-    from modelplus.services.llm import GeminiProvider
+    from moodleplus.services.llm import GeminiProvider
 
     class Scripted(GeminiProvider):
         calls = []
@@ -233,7 +233,7 @@ def test_course_shows_cards_and_recording_page_has_details(app, client):
 
 
 def test_hebrew_date_filter():
-    from modelplus import date_he
+    from moodleplus import date_he
 
     assert date_he("2026-11-20 10:00:00").endswith("בנובמבר 2026")
     assert date_he("garbage") == "garbage"
@@ -241,7 +241,7 @@ def test_hebrew_date_filter():
 
 # ---------- drafts, publishing and editing ----------
 def test_new_recording_is_a_draft_hidden_from_students(recs, people):
-    from modelplus.errors import NotFound
+    from moodleplus.errors import NotFound
 
     rec = _upload(recs, people["course"].id)
     assert not rec.published
@@ -254,7 +254,7 @@ def test_new_recording_is_a_draft_hidden_from_students(recs, people):
 
 
 def test_parse_clock():
-    from modelplus.services.recordings import parse_clock
+    from moodleplus.services.recordings import parse_clock
 
     assert parse_clock("75") == 75
     assert parse_clock("1:15") == 75
@@ -334,7 +334,7 @@ def test_only_lecturer_edits_and_publishes(app, client):
 def test_existing_recordings_stay_published_after_migration(tmp_path):
     import sqlite3
 
-    from modelplus.db import connect, init_schema
+    from moodleplus.db import connect, init_schema
 
     path = str(tmp_path / "old.db")
     old = sqlite3.connect(path)
@@ -363,7 +363,7 @@ FEEDBACK_JSON = {
 
 
 def test_feedback_writer_cleans_items():
-    from modelplus.services.llm import LessonFeedbackWriter
+    from moodleplus.services.llm import LessonFeedbackWriter
 
     fb = LessonFeedbackWriter(FakeLLM(response=FEEDBACK_JSON)).write(SEGMENTS)
     assert fb.overall.startswith("שיעור ברור")
@@ -376,7 +376,7 @@ def test_feedback_writer_cleans_items():
 
 
 def test_feedback_flow_pending_ready_and_failure(recs, people):
-    from modelplus.services.llm import LessonFeedbackWriter
+    from moodleplus.services.llm import LessonFeedbackWriter
 
     rec = _upload(recs, people["course"].id)
     with pytest.raises(ValidationError):
@@ -390,7 +390,7 @@ def test_feedback_flow_pending_ready_and_failure(recs, people):
 
 
 def test_feedback_failure_allows_retry(recs, people):
-    from modelplus.services.llm import LessonFeedbackWriter
+    from moodleplus.services.llm import LessonFeedbackWriter
 
     rec = _upload(recs, people["course"].id)
     recs.process(rec.id, FakeTranscriber(), LessonSummarizer(FakeLLM()))
@@ -401,7 +401,7 @@ def test_feedback_failure_allows_retry(recs, people):
 
 
 def test_feedback_visible_only_to_course_lecturer(app, client):
-    from modelplus.services.llm import LessonFeedbackWriter
+    from moodleplus.services.llm import LessonFeedbackWriter
 
     conn = connect(app.config["DATABASE"])
     users = UserService(conn)
@@ -436,7 +436,7 @@ def test_feedback_visible_only_to_course_lecturer(app, client):
 
 
 def test_one_feedback_per_recording_until_transcript_is_edited(recs, people):
-    from modelplus.services.llm import LessonFeedbackWriter
+    from moodleplus.services.llm import LessonFeedbackWriter
 
     rec = _upload(recs, people["course"].id)
     recs.process(rec.id, FakeTranscriber(), LessonSummarizer(FakeLLM()))
@@ -462,7 +462,7 @@ def test_double_click_does_not_open_a_second_request(recs, people):
 
 
 def test_cancel_discards_the_late_result(recs, people):
-    from modelplus.services.llm import LessonFeedbackWriter
+    from moodleplus.services.llm import LessonFeedbackWriter
 
     rec = _upload(recs, people["course"].id)
     recs.process(rec.id, FakeTranscriber(), LessonSummarizer(FakeLLM()))

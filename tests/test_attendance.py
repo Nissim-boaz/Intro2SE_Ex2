@@ -1,13 +1,13 @@
 import pytest
 
-from modelplus.db import connect
-from modelplus.errors import ValidationError
-from modelplus.services.attendance import (AlreadyCheckedIn, AttendanceReport, AttendanceService, SampleClosed,
+from moodleplus.db import connect
+from moodleplus.errors import ValidationError
+from moodleplus.services.attendance import (AlreadyCheckedIn, AttendanceReport, AttendanceService, SampleClosed,
                                            SampleLimitReached)
-from modelplus.services.courses import CourseService, EnrollmentService
-from modelplus.services.network import CampusNetworkPolicy
-from modelplus.services.tokens import AudioTokenService, QrTokenService
-from modelplus.services.users import UserService
+from moodleplus.services.courses import CourseService, EnrollmentService
+from moodleplus.services.network import CampusNetworkPolicy
+from moodleplus.services.tokens import AudioTokenService, QrTokenService
+from moodleplus.services.users import UserService
 from tests.conftest import login
 from tests.fakes import FakeClock
 

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% set back_url = url_for('courses.index') %}{% set back_label = "הקורסים שלי" %}
-{% block title %}{{ course.name }} · Model+{% endblock %}
+{% block title %}{{ course.name }} · Moodle+{% endblock %}
 {% block content %}
 <header class="course-hero">
   {% if course.code %}<span class="pill" dir="ltr">{{ course.code }}</span>{% endif %}

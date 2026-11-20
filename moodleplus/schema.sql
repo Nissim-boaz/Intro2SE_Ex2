@@ -1,4 +1,4 @@
--- Model+ schema (SQLite, WAL)
+-- Moodle+ schema (SQLite, WAL)
 
 CREATE TABLE IF NOT EXISTS users (
     id          INTEGER PRIMARY KEY,

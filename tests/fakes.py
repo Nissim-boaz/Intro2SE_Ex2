@@ -1,4 +1,4 @@
-from modelplus.services.tokens import TokenClock
+from moodleplus.services.tokens import TokenClock
 
 
 class FakeClock(TokenClock):

@@ -1,10 +1,10 @@
 import pytest
 
-from modelplus.db import connect
-from modelplus.errors import ValidationError
-from modelplus.services.content import ContentService, FileStore
-from modelplus.services.courses import CourseService, EnrollmentService
-from modelplus.services.users import UserService
+from moodleplus.db import connect
+from moodleplus.errors import ValidationError
+from moodleplus.services.content import ContentService, FileStore
+from moodleplus.services.courses import CourseService, EnrollmentService
+from moodleplus.services.users import UserService
 from tests.conftest import login
 
 

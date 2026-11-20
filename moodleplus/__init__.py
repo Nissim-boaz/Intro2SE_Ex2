@@ -1,4 +1,4 @@
-"""Model+: אתר קורסים עם נוכחות, צ׳אט, סקרים והקלטות."""
+"""Moodle+: אתר קורסים עם נוכחות, צ׳אט, סקרים והקלטות."""
 from datetime import timedelta
 
 from dotenv import load_dotenv
@@ -47,7 +47,7 @@ def _register_blueprints(app: Flask) -> None:
 
     for name in ("content", "attendance", "chat", "polls", "recordings", "debug"):
         try:
-            module = __import__(f"modelplus.blueprints.{name}", fromlist=["bp"])
+            module = __import__(f"moodleplus.blueprints.{name}", fromlist=["bp"])
         except ModuleNotFoundError:
             continue
         app.register_blueprint(module.bp)

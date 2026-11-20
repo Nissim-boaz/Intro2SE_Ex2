@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% if course is defined %}{% set back_url = url_for('courses.show', course_id=course.id) ~ '#attendance' %}{% set back_label = "עמוד הקורס" %}{% endif %}
-{% block title %}סימון נוכחות · Model+{% endblock %}
+{% block title %}סימון נוכחות · Moodle+{% endblock %}
 {% block main_class %}page-narrow attend-page{% endblock %}
 {% block content %}
 <div class="attend-card" id="attend"

@@ -1,7 +1,7 @@
 """הרצה מקומית: python run.py"""
 import os
 
-from modelplus import create_app
+from moodleplus import create_app
 
 app = create_app()
 

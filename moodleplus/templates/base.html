@@ -8,11 +8,11 @@
   <script>
     // apply the saved theme before the first paint, so dark mode never flashes white
     try {
-      var t = localStorage.getItem("modelplus.theme");
+      var t = localStorage.getItem("moodleplus.theme");
       if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
     } catch (e) {}
   </script>
-  <title>{% block title %}Model+{% endblock %}</title>
+  <title>{% block title %}Moodle+{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -23,8 +23,8 @@
   {% block topbar %}
   <header class="topbar">
     <div class="topbar-inner">
-      <a class="brand" href="{{ url_for('courses.index') }}" aria-label="Model+, לרשימת הקורסים">
-        <span dir="ltr">Model+</span>
+      <a class="brand" href="{{ url_for('courses.index') }}" aria-label="Moodle+, לרשימת הקורסים">
+        <span dir="ltr">Moodle+</span>
       </a>
       {% if user %}
       <nav class="topnav">
