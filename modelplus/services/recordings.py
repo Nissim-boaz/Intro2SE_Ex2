@@ -39,6 +39,7 @@ class Recording:
     chapters: list[dict]
     error: str
     created_at: str
+    published: bool = False
 
     @property
     def status_label(self) -> str:
@@ -49,6 +50,11 @@ class Recording:
         return self.status in ("uploaded", "transcribing", "summarizing")
 
     @property
+    def editable(self) -> bool:
+        """עורכים רק אחרי שהעיבוד נגמר, כדי שהסיכום האוטומטי לא ידרוס את התיקונים של המרצה."""
+        return not self.processing
+
+    @property
     def is_video(self) -> bool:
         return self.mime.startswith("video/")
 
@@ -57,8 +63,24 @@ class Recording:
         return cls(
             r["id"], r["course_id"], r["title"], r["file_path"], r["mime"], r["status"],
             json.loads(r["transcript_json"]), r["summary"], json.loads(r["key_points_json"]),
-            json.loads(r["chapters_json"]), r["error"], r["created_at"],
+            json.loads(r["chapters_json"]), r["error"], r["created_at"], bool(r["published"]),
         )
+
+
+def parse_clock(value: str) -> int:
+    """'75', '1:15' או '1:02:30' -> שניות."""
+    value = (value or "").strip()
+    parts = value.split(":")
+    try:
+        nums = [int(p) for p in parts]
+    except ValueError:
+        raise ValidationError(f"הזמן ״{value}״ לא תקין. כתוב אותו כמו 1:15")
+    if not 1 <= len(nums) <= 3 or any(n < 0 for n in nums) or any(n > 59 for n in nums[1:]):
+        raise ValidationError(f"הזמן ״{value}״ לא תקין. כתוב אותו כמו 1:15")
+    seconds = 0
+    for n in nums:
+        seconds = seconds * 60 + n
+    return seconds
 
 
 class RecordingService:
@@ -74,8 +96,8 @@ class RecordingService:
         rel = self.files.save_stream(f"recordings/{course_id}", filename, upload)
         if not mime.startswith(("video/", "audio/")):
             mime = "video/mp4" if filename.lower().endswith((".mp4", ".mov", ".m4v", ".webm", ".mkv")) else "audio/mpeg"
-        cur = self.db.execute(
-            "INSERT INTO recordings (course_id, title, file_path, mime) VALUES (?, ?, ?, ?)",
+        cur = self.db.execute(  # published=0: מתחיל כטיוטה שרק המרצה רואה
+            "INSERT INTO recordings (course_id, title, file_path, mime, published) VALUES (?, ?, ?, ?, 0)",
             (course_id, title.strip() or filename, rel, mime),
         )
         self.db.commit()
@@ -87,9 +109,66 @@ class RecordingService:
             raise NotFound("ההקלטה לא נמצאה")
         return Recording.from_row(row)
 
-    def list(self, course_id: int) -> list[Recording]:
-        rows = self.db.execute("SELECT * FROM recordings WHERE course_id = ? ORDER BY id DESC", (course_id,))
+    def list(self, course_id: int, include_drafts: bool = True) -> list[Recording]:
+        """סטודנטים מקבלים include_drafts=False ורואים רק הקלטות שפורסמו."""
+        sql = "SELECT * FROM recordings WHERE course_id = ?"
+        if not include_drafts:
+            sql += " AND published = 1"
+        rows = self.db.execute(sql + " ORDER BY id DESC", (course_id,))
         return [Recording.from_row(r) for r in rows]
+
+    def get_visible(self, recording_id: int, can_manage: bool) -> Recording:
+        """טיוטה נראית כאילו לא קיימת עבור מי שלא מנהל את הקורס."""
+        rec = self.get(recording_id)
+        if not rec.published and not can_manage:
+            raise NotFound("ההקלטה לא נמצאה")
+        return rec
+
+    # ---------- publishing and editing (lecturer) ----------
+    def set_published(self, recording_id: int, published: bool) -> None:
+        self.get(recording_id)
+        self._set(recording_id, published=1 if published else 0)
+
+    def update_details(self, recording_id: int, title: str, summary: str,
+                       key_points: list[str], chapters: list[tuple[str, str]]) -> Recording:
+        """chapters: זוגות של (זמן כטקסט, כותרת). זמן נכתב כמו 1:05 או 1:02:30."""
+        rec = self.get(recording_id)
+        if not rec.editable:
+            raise ValidationError("אפשר לערוך אחרי שהתמלול והסיכום מסתיימים")
+        title = (title or "").strip()
+        if not title:
+            raise ValidationError("צריך לתת להקלטה שם")
+        cleaned_chapters = []
+        for raw_time, raw_title in chapters:
+            raw_time, raw_title = (raw_time or "").strip(), (raw_title or "").strip()
+            if not raw_time and not raw_title:
+                continue  # שורה ריקה שנשארה בטופס
+            if not raw_title:
+                raise ValidationError(f"לפרק שמתחיל ב-{raw_time} חסרה כותרת")
+            cleaned_chapters.append({"start": parse_clock(raw_time), "title": raw_title})
+        cleaned_chapters.sort(key=lambda c: c["start"])
+        starts = [c["start"] for c in cleaned_chapters]
+        if len(set(starts)) != len(starts):
+            raise ValidationError("יש שני פרקים שמתחילים באותו זמן")
+        self._set(
+            recording_id,
+            title=title,
+            summary=(summary or "").strip(),
+            key_points_json=json.dumps([p.strip() for p in key_points if p and p.strip()], ensure_ascii=False),
+            chapters_json=json.dumps(cleaned_chapters, ensure_ascii=False),
+        )
+        return self.get(recording_id)
+
+    def update_transcript(self, recording_id: int, texts: list[str]) -> Recording:
+        """מחליף רק את הטקסט של כל קטע. הזמנים נשארים כמו שהתמלול קבע, כדי שהקפיצה בנגן תמשיך לעבוד."""
+        rec = self.get(recording_id)
+        if not rec.editable:
+            raise ValidationError("אפשר לערוך אחרי שהתמלול והסיכום מסתיימים")
+        if len(texts) != len(rec.transcript):
+            raise ValidationError("התמלול השתנה בזמן העריכה. רענן את העמוד ונסה שוב")
+        segments = [dict(seg, text=(text or "").strip()) for seg, text in zip(rec.transcript, texts)]
+        self._set(recording_id, transcript_json=json.dumps(segments, ensure_ascii=False))
+        return self.get(recording_id)
 
     def pending_ids(self) -> list[int]:
         rows = self.db.execute(

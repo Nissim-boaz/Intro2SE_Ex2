@@ -1,0 +1,69 @@
+{# Edit mode for the lecturer. The save button stays grey until something changes (data-live-submit). #}
+<form method="post" action="{{ url_for('recordings.edit', recording_id=rec.id) }}" class="rec-edit stack" id="rec-edit" data-live-submit>
+  <section class="panel form-grid">
+    <label>שם ההקלטה<input type="text" name="title" value="{{ rec.title }}" required maxlength="200"></label>
+    <label>סיכום<textarea name="summary" rows="5">{{ rec.summary }}</textarea></label>
+    <div class="edit-list" data-edit-list="key_point">
+      <span class="edit-list-head">נקודות מפתח</span>
+      {% for p in rec.key_points %}
+      <div class="edit-row">
+        <input type="text" name="key_point" value="{{ p }}" aria-label="נקודת מפתח">
+        <button type="button" class="icon-btn" data-remove-row aria-label="מחק נקודה">✕</button>
+      </div>
+      {% endfor %}
+      <button type="button" class="btn btn-sm btn-ghost edit-add" data-add-row="key_point">הוסף נקודה</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="edit-list" data-edit-list="chapter">
+      <span class="edit-list-head">ראשי פרקים</span>
+      <p class="field-hint">זמן בפורמט דקות:שניות, למשל 12:30. ״מהנגן״ לוקח את הנקודה שבה הנגן עומד עכשיו.</p>
+      {% for ch in rec.chapters %}
+      <div class="edit-row chapter-row">
+        <input type="text" name="chapter_time" value="{{ ch.start|clock }}" class="time-input" dir="ltr" inputmode="numeric" aria-label="זמן הפרק">
+        <button type="button" class="btn btn-sm btn-quiet" data-take-time title="קח את הזמן מהנגן">מהנגן</button>
+        <input type="text" name="chapter_title" value="{{ ch.title }}" aria-label="כותרת הפרק">
+        <button type="button" class="icon-btn" data-remove-row aria-label="מחק פרק">✕</button>
+      </div>
+      {% endfor %}
+      <button type="button" class="btn btn-sm btn-ghost edit-add" data-add-row="chapter">הוסף פרק</button>
+    </div>
+  </section>
+
+  {% if rec.transcript %}
+  <section class="panel">
+    <span class="edit-list-head">תמלול</span>
+    <p class="field-hint">אפשר לתקן את הטקסט של כל קטע. הזמנים נשארים, כדי שהקפיצה בנגן תמשיך לעבוד. לחיצה על הזמן משמיעה את הקטע.</p>
+    <div class="transcript-edit">
+      {% for s in rec.transcript %}
+      <div class="seg-row">
+        <button type="button" data-seek="{{ s.start|int }}" class="chapter-time" dir="ltr">{{ s.start|clock }}</button>
+        <textarea name="segment" rows="1" dir="auto" aria-label="קטע בזמן {{ s.start|clock }}">{{ s.text }}</textarea>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <div class="edit-actions">
+    <a class="btn btn-quiet" href="{{ url_for('recordings.show', recording_id=rec.id) }}">ביטול</a>
+    <button class="btn">שמור שינויים</button>
+  </div>
+</form>
+
+{# row templates for "add" buttons #}
+<template id="tpl-key_point">
+  <div class="edit-row">
+    <input type="text" name="key_point" aria-label="נקודת מפתח">
+    <button type="button" class="icon-btn" data-remove-row aria-label="מחק נקודה">✕</button>
+  </div>
+</template>
+<template id="tpl-chapter">
+  <div class="edit-row chapter-row">
+    <input type="text" name="chapter_time" class="time-input" dir="ltr" inputmode="numeric" placeholder="0:00" aria-label="זמן הפרק">
+    <button type="button" class="btn btn-sm btn-quiet" data-take-time title="קח את הזמן מהנגן">מהנגן</button>
+    <input type="text" name="chapter_title" placeholder="כותרת הפרק" aria-label="כותרת הפרק">
+    <button type="button" class="icon-btn" data-remove-row aria-label="מחק פרק">✕</button>
+  </div>
+</template>

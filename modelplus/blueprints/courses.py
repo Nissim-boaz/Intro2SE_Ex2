@@ -35,7 +35,9 @@ def show(course_id: int):
     # רק ההודעה האחרונה, לכרטיס שמוביל לצ׳אט. עוברת דרך אותה הסתרה של שולח אנונימי
     last = ChatService(db, poll_reader=PollService(db)).list_messages(course_id, current_user(), limit=1)
     context["chat_preview"] = last[0] if last else None
-    context["recordings"] = RecordingService(db, FileStore(current_app.config["UPLOAD_DIR"])).list(course_id)
+    context["recordings"] = RecordingService(db, FileStore(current_app.config["UPLOAD_DIR"])).list(
+        course_id, include_drafts=role in ("admin", "lecturer")  # טיוטות רק למרצה ולמנהל
+    )
     return render_template(
         "courses/show.html",
         **context,

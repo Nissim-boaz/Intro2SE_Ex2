@@ -21,6 +21,7 @@
         {% endif %}
         <span class="rec-play" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" fill="currentColor"/></svg></span>
         <span class="rec-duration" data-duration hidden></span>
+        {% if not rec.published %}<span class="rec-draft pill">טיוטה</span>{% endif %}
         {% if rec.status == 'failed' %}
           <span class="rec-badge pill pill-danger">{{ rec.status_label }}</span>
         {% elif rec.processing %}

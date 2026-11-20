@@ -32,6 +32,47 @@
     else media.addEventListener("loadedmetadata", show, { once: true });
   });
 
+  // ---------- edit mode (lecturer) ----------
+  const editForm = document.getElementById("rec-edit");
+  if (editForm) {
+    // the live "save" button listens to input events; adding/removing rows must tell it too
+    const changed = () => editForm.dispatchEvent(new Event("input", { bubbles: true }));
+    const player = document.querySelector(".player video, .player audio");
+
+    editForm.addEventListener("click", (e) => {
+      const add = e.target.closest("[data-add-row]");
+      if (add) {
+        const tpl = document.getElementById("tpl-" + add.dataset.addRow);
+        add.insertAdjacentHTML("beforebegin", tpl.innerHTML);
+        const row = add.previousElementSibling;
+        if (add.dataset.addRow === "chapter" && player) row.querySelector(".time-input").value = fmt(player.currentTime || 0);
+        row.querySelector('input[type="text"]:not(.time-input)')?.focus();
+        changed();
+        return;
+      }
+      const remove = e.target.closest("[data-remove-row]");
+      if (remove) { remove.closest(".edit-row").remove(); changed(); return; }
+      const take = e.target.closest("[data-take-time]");
+      if (take && player) {
+        take.closest(".edit-row").querySelector(".time-input").value = fmt(player.currentTime || 0);
+        changed();
+      }
+    });
+
+    // transcript boxes grow with their text
+    const grow = (ta) => { ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px"; };
+    editForm.querySelectorAll(".seg-row textarea").forEach(grow);
+    editForm.addEventListener("input", (e) => { if (e.target.matches(".seg-row textarea")) grow(e.target); });
+
+    // don't lose edits by navigating away by mistake
+    let submitting = false;
+    editForm.addEventListener("submit", () => { submitting = true; });
+    window.addEventListener("beforeunload", (e) => {
+      const save = editForm.querySelector("button:not([type=button])");
+      if (!submitting && save && !save.disabled) { e.preventDefault(); e.returnValue = ""; }
+    });
+  }
+
   const upload = document.getElementById("upload-form");
   if (upload) {
     upload.addEventListener("submit", () => {

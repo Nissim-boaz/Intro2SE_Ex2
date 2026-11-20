@@ -2,21 +2,41 @@
 {% set back_url = url_for('courses.show', course_id=course.id) ~ '#recordings' %}{% set back_label = course.name %}
 {% block title %}{{ rec.title }} · {{ course.name }}{% endblock %}
 {% block content %}
-<article class="recording rec-page" data-recording="{{ rec.id }}"
+<article class="recording rec-page{% if editing %} is-editing{% endif %}" data-recording="{{ rec.id }}"
          {% if rec.processing %}data-processing="1" data-status-url="{{ url_for('recordings.status', recording_id=rec.id) }}" data-status="{{ rec.status }}"{% endif %}>
+
+  {% if can_manage and not rec.published %}
+  <div class="draft-bar">
+    <div class="grow">
+      <strong>טיוטה. הסטודנטים עוד לא רואים את ההקלטה.</strong>
+      <span>{% if rec.processing %}אחרי שהתמלול והסיכום יסתיימו תוכל לעבור עליהם ולתקן.{% else %}עבור על הסיכום, ראשי הפרקים והתמלול, ופרסם כשהכול נראה טוב.{% endif %}</span>
+    </div>
+    <form method="post" action="{{ url_for('recordings.publish', recording_id=rec.id) }}">
+      <input type="hidden" name="published" value="1">
+      <button class="btn">פרסם לסטודנטים</button>
+    </form>
+  </div>
+  {% endif %}
+
   <header class="rec-head">
     <div>
       <h1>{{ rec.title }}</h1>
       <p class="muted">{{ rec.created_at|date_he }}{% if rec.status == 'ready' and rec.chapters %}, {{ rec.chapters|length }} פרקים{% endif %}</p>
     </div>
-    {% if rec.status == 'failed' %}
-      <span class="pill pill-danger">{{ rec.status_label }}</span>
-    {% elif rec.processing %}
-      <span class="pill pill-brand"><span class="spinner" aria-hidden="true"></span>{{ rec.status_label }}</span>
-    {% endif %}
+    <div class="row">
+      {% if rec.status == 'failed' %}
+        <span class="pill pill-danger">{{ rec.status_label }}</span>
+      {% elif rec.processing %}
+        <span class="pill pill-brand"><span class="spinner" aria-hidden="true"></span>{{ rec.status_label }}</span>
+      {% endif %}
+      {% if can_manage and rec.editable and not editing %}
+        <a class="btn btn-quiet" href="{{ url_for('recordings.show', recording_id=rec.id, edit=1) }}">ערוך</a>
+      {% endif %}
+    </div>
   </header>
 
-  <div class="rec-layout">
+  {% set has_side = not editing and rec.status == 'ready' and rec.chapters %}
+  <div class="rec-layout{% if not has_side %} single{% endif %}">
     <div class="rec-main">
       <div class="player">
         {% if rec.is_video %}
@@ -27,11 +47,15 @@
         {% endif %}
       </div>
 
-      {% if rec.status == 'ready' %}
-        {% if rec.summary %}
+      {% if editing %}
+        {% include "recordings/_edit.html" %}
+      {% elif rec.status == 'ready' %}
+        {% if rec.summary or rec.key_points %}
         <section class="panel">
+          {% if rec.summary %}
           <h2 style="margin-bottom:8px">סיכום</h2>
           <p class="recording-summary">{{ rec.summary }}</p>
+          {% endif %}
           {% if rec.key_points %}
           <h3 style="margin:18px 0 8px">נקודות מפתח</h3>
           <ul class="key-points">{% for p in rec.key_points %}<li>{{ p }}</li>{% endfor %}</ul>
@@ -58,7 +82,7 @@
       {% endif %}
     </div>
 
-    {% if rec.status == 'ready' and rec.chapters %}
+    {% if has_side %}
     <aside class="panel rec-side">
       <nav class="chapters" aria-label="ראשי פרקים">
         <h2 style="margin-bottom:8px">ראשי פרקים</h2>
@@ -72,10 +96,16 @@
     {% endif %}
   </div>
 
-  {% if can_manage %}
+  {% if can_manage and not editing %}
   <div class="row row-end" style="margin-top:20px">
     {% if rec.status == 'failed' %}
     <form method="post" action="{{ url_for('recordings.retry', recording_id=rec.id) }}"><button class="btn btn-sm">נסה שוב</button></form>
+    {% endif %}
+    {% if rec.published %}
+    <form method="post" action="{{ url_for('recordings.publish', recording_id=rec.id) }}" data-confirm="להסתיר את ההקלטה מהסטודנטים? היא תחזור להיות טיוטה." data-confirm-ok="הסתר">
+      <input type="hidden" name="published" value="0">
+      <button class="btn btn-sm btn-quiet">הסתר מהסטודנטים</button>
+    </form>
     {% endif %}
     <form method="post" action="{{ url_for('recordings.delete', recording_id=rec.id) }}" data-confirm="למחוק את ההקלטה ואת הסיכום שלה?">
       <button class="btn btn-sm btn-ghost">מחק הקלטה</button>

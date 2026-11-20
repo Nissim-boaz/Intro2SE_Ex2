@@ -194,6 +194,10 @@ def test_media_only_for_members_and_upload_only_for_lecturer(app, client):
     assert conn.execute("SELECT COUNT(*) FROM recordings").fetchone()[0] == 1
 
     login(client, stud.id)
+    assert client.get("/recordings/1/media").status_code == 302  # עדיין טיוטה: הסרטון לא נשלח, מפנים חזרה
+    login(client, lect.id)
+    client.post("/recordings/1/publish", data={"published": "1"})
+    login(client, stud.id)
     res = client.get("/recordings/1/media", headers={"Range": "bytes=1-3"})
     assert res.status_code == 206 and res.data == b"ide"  # Range עובד, כך שאפשר לקפוץ לפרק
     res.close()
@@ -211,6 +215,7 @@ def test_course_shows_cards_and_recording_page_has_details(app, client):
     recs = RecordingService(conn, FileStore(app.config["UPLOAD_DIR"]))
     rec = _upload(recs, course.id)
     recs.process(rec.id, FakeTranscriber(), LessonSummarizer(FakeLLM()))
+    recs.set_published(rec.id, True)
     conn.close()
 
     login(client, stud.id)
@@ -231,3 +236,113 @@ def test_hebrew_date_filter():
 
     assert date_he("2026-11-20 10:00:00").endswith("בנובמבר 2026")
     assert date_he("garbage") == "garbage"
+
+
+# ---------- drafts, publishing and editing ----------
+def test_new_recording_is_a_draft_hidden_from_students(recs, people):
+    from modelplus.errors import NotFound
+
+    rec = _upload(recs, people["course"].id)
+    assert not rec.published
+    assert recs.list(people["course"].id, include_drafts=False) == []
+    assert len(recs.list(people["course"].id)) == 1
+    with pytest.raises(NotFound):
+        recs.get_visible(rec.id, can_manage=False)
+    recs.set_published(rec.id, True)
+    assert recs.get_visible(rec.id, can_manage=False).published
+
+
+def test_parse_clock():
+    from modelplus.services.recordings import parse_clock
+
+    assert parse_clock("75") == 75
+    assert parse_clock("1:15") == 75
+    assert parse_clock("1:02:30") == 3750
+    for bad in ("", "1:75", "a:10", "-1", "1:2:3:4"):
+        with pytest.raises(ValidationError):
+            parse_clock(bad)
+
+
+def test_edit_details_chapters_sorted_and_validated(recs, people):
+    rec = _upload(recs, people["course"].id)
+    recs.process(rec.id, FakeTranscriber(), LessonSummarizer(FakeLLM()))
+    done = recs.update_details(rec.id, "שם חדש", "סיכום שלי", ["נקודה א", "", "נקודה ב"],
+                               [("5:00", "פרק שני"), ("0:00", "פתיחה"), ("", "")])
+    assert done.title == "שם חדש" and done.summary == "סיכום שלי"
+    assert done.key_points == ["נקודה א", "נקודה ב"]
+    assert done.chapters == [{"start": 0, "title": "פתיחה"}, {"start": 300, "title": "פרק שני"}]
+    with pytest.raises(ValidationError):
+        recs.update_details(rec.id, "", "", [], [])                   # בלי שם
+    with pytest.raises(ValidationError):
+        recs.update_details(rec.id, "שם", "", [], [("1:00", "")])     # פרק בלי כותרת
+    with pytest.raises(ValidationError):
+        recs.update_details(rec.id, "שם", "", [], [("1:00", "א"), ("1:00", "ב")])  # אותו זמן
+
+
+def test_edit_transcript_keeps_times(recs, people):
+    rec = _upload(recs, people["course"].id)
+    recs.process(rec.id, FakeTranscriber(), LessonSummarizer(FakeLLM()))
+    done = recs.update_transcript(rec.id, ["טקסט מתוקן", "עוד תיקון"])
+    assert [s["text"] for s in done.transcript] == ["טקסט מתוקן", "עוד תיקון"]
+    assert [s["start"] for s in done.transcript] == [0.0, 300.0]
+    with pytest.raises(ValidationError):
+        recs.update_transcript(rec.id, ["רק אחד"])
+
+
+def test_cannot_edit_while_processing(recs, people):
+    rec = _upload(recs, people["course"].id)  # עדיין 'uploaded'
+    with pytest.raises(ValidationError):
+        recs.update_details(rec.id, "שם", "", [], [])
+
+
+def test_only_lecturer_edits_and_publishes(app, client):
+    conn = connect(app.config["DATABASE"])
+    users = UserService(conn)
+    lect = users.create("l8@test.ac.il", "מרצה", "lecturer")
+    stud = users.create("s8@test.ac.il", "סטודנט", "student")
+    course = CourseService(conn).create("קורס")
+    EnrollmentService(conn).enroll_many(course.id, [lect, stud])
+    recs = RecordingService(conn, FileStore(app.config["UPLOAD_DIR"]))
+    rec = _upload(recs, course.id)
+    recs.process(rec.id, FakeTranscriber(), LessonSummarizer(FakeLLM()))
+    conn.close()
+
+    login(client, stud.id)
+    assert client.get(f"/recordings/{rec.id}").status_code == 302  # טיוטה: כאילו לא קיימת
+    client.post(f"/recordings/{rec.id}/publish", data={"published": "1"})
+    client.post(f"/recordings/{rec.id}/edit", data={"title": "פריצה"})
+    conn = connect(app.config["DATABASE"])
+    row = conn.execute("SELECT published, title FROM recordings WHERE id = ?", (rec.id,)).fetchone()
+    assert row["published"] == 0 and row["title"] == "שיעור 1"
+
+    login(client, lect.id)
+    page = client.get(f"/recordings/{rec.id}?edit=1").get_data(as_text=True)
+    assert 'id="rec-edit"' in page and "פרסם לסטודנטים" in page
+    client.post(f"/recordings/{rec.id}/edit", data={
+        "title": "UML מתוקן", "summary": "ס", "key_point": ["א"],
+        "chapter_time": ["0:00", "2:00"], "chapter_title": ["פתיחה", "סיום"],
+        "segment": ["אחד", "שתיים"],
+    })
+    client.post(f"/recordings/{rec.id}/publish", data={"published": "1"})
+    login(client, stud.id)
+    page = client.get(f"/recordings/{rec.id}").get_data(as_text=True)
+    assert "UML מתוקן" in page and "סיום" in page and "שתיים" in page
+    assert 'id="rec-edit"' not in client.get(f"/recordings/{rec.id}?edit=1").get_data(as_text=True)
+
+
+def test_existing_recordings_stay_published_after_migration(tmp_path):
+    import sqlite3
+
+    from modelplus.db import connect, init_schema
+
+    path = str(tmp_path / "old.db")
+    old = sqlite3.connect(path)
+    old.execute("CREATE TABLE recordings (id INTEGER PRIMARY KEY, course_id INT, title TEXT, file_path TEXT, mime TEXT, "
+                "status TEXT, transcript_json TEXT, summary TEXT, key_points_json TEXT, chapters_json TEXT, error TEXT, "
+                "created_at TEXT)")
+    old.execute("INSERT INTO recordings VALUES (1, 1, 'ישנה', 'x', 'video/mp4', 'ready', '[]', '', '[]', '[]', '', '')")
+    old.commit()
+    old.close()
+    conn = connect(path)
+    init_schema(conn)
+    assert conn.execute("SELECT published FROM recordings WHERE id = 1").fetchone()[0] == 1

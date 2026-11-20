@@ -132,5 +132,6 @@ CREATE TABLE IF NOT EXISTS recordings (
     key_points_json TEXT NOT NULL DEFAULT '[]',
     chapters_json   TEXT NOT NULL DEFAULT '[]',
     error           TEXT NOT NULL DEFAULT '',
+    published       INTEGER NOT NULL DEFAULT 0,  -- 0: טיוטה שרק המרצה רואה
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );

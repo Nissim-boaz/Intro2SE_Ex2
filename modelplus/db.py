@@ -29,6 +29,9 @@ def _migrate(conn: sqlite3.Connection) -> None:
         ("messages", "deleted"): "INTEGER NOT NULL DEFAULT 0",
         ("polls", "anonymous"): "INTEGER NOT NULL DEFAULT 1",
         ("courses", "chat_locked"): "INTEGER NOT NULL DEFAULT 0",
+        # הקלטות שכבר היו לפני שנוסף שלב הטיוטה נשארות גלויות לסטודנטים.
+        # הקלטות חדשות נשמרות כטיוטה כי RecordingService.create מכניס published=0 במפורש
+        ("recordings", "published"): "INTEGER NOT NULL DEFAULT 1",
     }
     for (table, column), ddl in added.items():
         cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
