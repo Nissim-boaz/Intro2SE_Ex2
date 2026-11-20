@@ -20,8 +20,8 @@
     </div>
 
     <div class="msg-pop" id="msg-pop" hidden>
+      {# filled by chat.js: the six reactions you used most recently, then a + for any other emoji #}
       <div class="reaction-bar" id="reaction-bar" role="toolbar" aria-label="תגובה להודעה">
-        {% for e in ['👍', '❤️', '😂', '👎', '😢', '🙏'] %}<button type="button" data-emoji="{{ e }}" aria-label="הגב {{ e }}">{{ e }}</button>{% endfor %}
       </div>
       <div class="msg-menu" id="msg-menu" role="menu" aria-label="פעולות על ההודעה">
         <button type="button" role="menuitem" data-action="reply">השב</button>
@@ -41,6 +41,13 @@
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 10V7.5a5 5 0 0 1 10 0V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="4.5" y="10" width="15" height="11" rx="3" fill="currentColor"/></svg>
       <span>{% if role == 'student' %}הצ׳אט מושתק. כרגע רק המרצה יכול לשלוח הודעות, ואפשר עדיין להגיב ולהצביע.{% else %}הסטודנטים מושתקים. רק אתה ומנהל המערכת יכולים לשלוח הודעות.{% endif %}</span>
     </div>
+
+    <div class="reaction-picker" id="reaction-picker" hidden role="dialog" aria-label="בחר אימוג׳י לתגובה">
+      <div class="emoji-tabs" id="reaction-tabs" role="tablist" aria-label="קבוצות אימוג׳י"></div>
+      <div class="emoji-grid" id="reaction-grid" role="listbox" aria-label="אימוג׳י"></div>
+    </div>
+    {# on a phone, "+" focuses this field so the phone's own keyboard opens; the first emoji typed is the reaction #}
+    <input type="text" class="native-emoji" id="native-emoji" aria-label="בחר אימוג׳י מהמקלדת" autocomplete="off" inputmode="text">
 
     <form class="composer" id="composer" autocomplete="off" {% if locked and role == 'student' %}hidden{% endif %}>
       <div class="composer-reply" id="composer-reply" hidden>
@@ -105,7 +112,6 @@
     <div class="who-mine">
       <span class="small muted" id="who-mine-label">התגובה שלך</span>
       <div class="who-emoji" id="who-emoji" role="toolbar" aria-label="שנה את התגובה שלך">
-        {% for e in ['👍', '❤️', '😂', '👎', '😢', '🙏'] %}<button type="button" data-dialog-emoji="{{ e }}" aria-label="{{ e }}">{{ e }}</button>{% endfor %}
       </div>
     </div>
     <ul class="list" id="who-list"></ul>

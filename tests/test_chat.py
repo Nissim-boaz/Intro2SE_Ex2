@@ -124,10 +124,25 @@ def test_reaction_summary_and_who(db, chat, people):
     assert {w["name"] for w in r.who(mid)} == {"סטודנט אחד", "סטודנט שתיים", "אדמין"}
 
 
-def test_unknown_emoji_rejected(db, chat, people):
+def test_any_single_emoji_is_allowed_but_not_text(db, chat, people):
     mid = chat.send(people["course"].id, people["s1"], "x")
-    with pytest.raises(ValidationError):
-        ReactionService(db).toggle(mid, people["s1"], "🔥")
+    r = ReactionService(db)
+    assert r.toggle(mid, people["s1"], "🔥") == "🔥"          # לא רק ששת הקבועים
+    assert r.toggle(mid, people["s1"], "👍🏽") == "👍🏽"        # גוון עור מחליף את הקודם
+    for bad in ("hi", "🔥🔥", "", "<b>", "1"):
+        with pytest.raises(ValidationError):
+            r.toggle(mid, people["s2"], bad)
+
+
+def test_summary_sorted_by_count(db, chat, people):
+    c = people["course"].id
+    mid = chat.send(c, people["lecturer"], "הודעה")
+    r = ReactionService(db)
+    r.toggle(mid, people["s1"], "🔥")
+    r.toggle(mid, people["s2"], "🔥")
+    r.toggle(mid, people["admin"], "👍")
+    view = _only(chat.list_messages(c, people["s1"]), mid)
+    assert view["reactions"]["summary"] == [["🔥", 2], ["👍", 1]]
 
 
 def test_db_enforces_one_reaction_per_user(db, chat, people):

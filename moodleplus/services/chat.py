@@ -8,7 +8,34 @@ from ..models import User
 ANONYMOUS_NAME = "אנונימי"
 DELETED_TEXT = "ההודעה נמחקה"
 LOCKED_TEXT = "הצ׳אט מושתק. כרגע רק המרצה יכול לשלוח הודעות"
+# ברירת המחדל לשורת התגובות, לפני שלמשתמש יש היסטוריה. אפשר להגיב גם בכל אימוג׳י אחר
 REACTIONS = ("👍", "❤️", "😂", "👎", "😢", "🙏")
+
+
+def is_single_emoji(value: str) -> bool:
+    """אימוג׳י אחד בלבד: גם מורכב (גוון עור, דגל, משפחה עם ZWJ, מקש 1️⃣), אבל לא טקסט רגיל."""
+    import unicodedata
+
+    if not value or len(value) > 16 or any(ch.isspace() for ch in value):
+        return False
+    keycap = "⃣" in value
+    has_symbol = False
+    for ch in value:
+        cat = unicodedata.category(ch)
+        if cat == "So":
+            has_symbol = True
+        elif cat in ("Sk", "Mn", "Me", "Cf"):   # גוון עור, FE0F, מקש, ZWJ
+            continue
+        elif keycap and ch in "0123456789#*":
+            has_symbol = True
+        else:
+            return False                         # אותיות, ספרות, פיסוק
+    # לכל היותר אימוג׳י "בסיסי" אחד, חוץ מצירופי ZWJ ודגלים (שני Regional Indicators)
+    base = [ch for ch in value if unicodedata.category(ch) == "So"]
+    regional = all(0x1F1E6 <= ord(ch) <= 0x1F1FF for ch in base) and len(base) == 2
+    if len(base) > 1 and "‍" not in value and not regional:
+        return False
+    return has_symbol
 MAX_LENGTH = 2000
 
 
@@ -210,8 +237,15 @@ class ChatService:
             entry["counts"][r["emoji"]] = entry["counts"].get(r["emoji"], 0) + 1
             if r["user_id"] == viewer.id:
                 entry["mine"] = r["emoji"]
+        # הנפוץ ביותר ראשון. בתיקו, הקבועים לפי הסדר שלהם, ואחריהם השאר
+        order = {e: i for i, e in enumerate(REACTIONS)}
+
+        def rank(item):
+            emoji, count = item
+            return (-count, order.get(emoji, len(order)), emoji)
+
         return {
-            mid: {"summary": [[e, e_count] for e in REACTIONS if (e_count := v["counts"].get(e))], "mine": v["mine"]}
+            mid: {"summary": [[e, c] for e, c in sorted(v["counts"].items(), key=rank)], "mine": v["mine"]}
             for mid, v in out.items()
         }
 
@@ -223,8 +257,9 @@ class ReactionService:
         self.db = db
 
     def toggle(self, message_id: int, user: User, emoji: str) -> str | None:
-        if emoji not in REACTIONS:
-            raise ValidationError("אפשר להגיב רק עם אחד מששת האימוג׳ים")
+        emoji = (emoji or "").strip()
+        if not is_single_emoji(emoji):
+            raise ValidationError("אפשר להגיב רק עם אימוג׳י אחד")
         msg = self.db.execute("SELECT deleted FROM messages WHERE id = ?", (message_id,)).fetchone()
         if msg is None or msg["deleted"]:
             raise ValidationError("ההודעה נמחקה")

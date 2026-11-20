@@ -150,6 +150,17 @@
     if (d.getFullYear() !== today.getFullYear()) opts.year = "numeric";
     return d.toLocaleDateString("he-IL", opts);
   }
+  // sticky day bars pile up at the top; only the last one that reached the top stays visible, like WhatsApp
+  function syncStuckDays() {
+    // stuck bars sit at the scroller top + its padding + the sticky offset (about 20px); 40px leaves room for that
+    const top = scroller.getBoundingClientRect().top + 40;
+    const bars = [...list.querySelectorAll(".day-divider")];
+    let current = -1;
+    bars.forEach((b, i) => { if (b.getBoundingClientRect().top <= top) current = i; });
+    bars.forEach((b, i) => b.classList.toggle("covered", i < current));
+  }
+  scroller.addEventListener("scroll", syncStuckDays, { passive: true });
+
   function renderDays() {
     list.querySelectorAll(".day-divider").forEach((el) => el.remove());
     let last = null;
@@ -162,6 +173,7 @@
         last = key;
       }
     });
+    syncStuckDays();
   }
 
   function updateTicks() {
@@ -174,7 +186,10 @@
   }
 
   const nearBottom = () => scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 120;
-  const scrollToBottom = (smooth) => scroller.scrollTo({ top: scroller.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+  const scrollToBottom = (smooth) => {
+    scroller.scrollTo({ top: scroller.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+    if (!smooth) syncStuckDays(); // an instant jump may not fire a scroll event
+  };
 
   // ---------- read receipts: the chat counts as read while it is on screen ----------
   new IntersectionObserver((entries) => {
@@ -363,6 +378,124 @@
   });
 
   // ---------- popover: emoji row and/or menu ----------
+  // ---------- reactions: the six you used most recently, plus "+" for any emoji ----------
+  const DEFAULT_REACTIONS = ["👍", "❤️", "😂", "👎", "😢", "🙏"];
+  const RECENT_REACT_KEY = "moodleplus.recentReactions";
+  const isPhone = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+
+  function recentReactions(mine) {
+    let saved = [];
+    try { saved = JSON.parse(localStorage.getItem(RECENT_REACT_KEY)) || []; } catch (_) {}
+    const list = [];
+    for (const e of [mine, ...saved, ...DEFAULT_REACTIONS]) {   // your current reaction always shows
+      if (e && !list.includes(e)) list.push(e);
+      if (list.length === 6) break;
+    }
+    return list;
+  }
+  function rememberReaction(e) {
+    let saved = [];
+    try { saved = JSON.parse(localStorage.getItem(RECENT_REACT_KEY)) || []; } catch (_) {}
+    try { localStorage.setItem(RECENT_REACT_KEY, JSON.stringify([e, ...saved.filter((x) => x !== e)].slice(0, 12))); } catch (_) {}
+  }
+  const plusButton = (attr) =>
+    `<button type="button" class="react-more" ${attr} aria-label="אימוג׳י אחר" title="אימוג׳י אחר">
+       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+     </button>`;
+  function renderBar(mine) {
+    bar.innerHTML = recentReactions(mine)
+      .map((e) => `<button type="button" data-emoji="${e}" aria-label="הגב ${e}" class="${e === mine ? "active" : ""}">${e}</button>`)
+      .join("") + plusButton("data-react-more");
+  }
+
+  async function react(id, emoji) {
+    try {
+      const d = await Model.api(`/api/messages/${id}/reactions`, { json: { emoji } });
+      if (d.mine) rememberReaction(d.mine);
+      const m = messages.get(id);
+      if (m) m.reactions.mine = d.mine;
+      await refresh();
+      return d;
+    } catch (err) { Model.toast(err.message, "error"); }
+  }
+
+  // "+" on a computer: the site's emoji keyboard, next to the message
+  const reactPicker = document.getElementById("reaction-picker");
+  const reactTabs = document.getElementById("reaction-tabs");
+  const reactGrid = document.getElementById("reaction-grid");
+  let pickFor = null;
+  let pickDone = null;
+  function showReactGroup(i) {
+    const g = EMOJI[i];
+    reactTabs.querySelectorAll("button").forEach((b, j) => b.setAttribute("aria-selected", String(j === i)));
+    reactGrid.innerHTML = `<div class="emoji-title">${g[1]}</div>` +
+      g[2].split(" ").map((e) => `<button type="button" data-pick="${e}" aria-label="${e}">${e}</button>`).join("");
+    reactGrid.scrollTop = 0;
+  }
+  function openReactPicker(id, anchorEl, done) {
+    pickFor = id;
+    pickDone = done || null;
+    reactTabs.innerHTML = EMOJI.map((g, i) => `<button type="button" role="tab" data-rtab="${i}" title="${g[1]}" aria-label="${g[1]}">${g[0]}</button>`).join("");
+    showReactGroup(0);
+    reactPicker.hidden = false;
+    const host = root.getBoundingClientRect();
+    const a = anchorEl.getBoundingClientRect();
+    const h = reactPicker.offsetHeight;
+    let top = a.top - host.top - h - 6;
+    if (top < 4) top = Math.min(a.bottom - host.top + 6, host.height - h - 4);
+    reactPicker.style.top = Math.max(4, top) + "px";
+  }
+  function closeReactPicker() { reactPicker.hidden = true; pickFor = null; pickDone = null; }
+  reactTabs.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-rtab]");
+    if (b) showReactGroup(Number(b.dataset.rtab));
+  });
+  reactGrid.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-pick]");
+    if (!b || pickFor === null) return;
+    const id = pickFor, done = pickDone;
+    closeReactPicker();
+    await react(id, b.dataset.pick);
+    if (done) done();
+  });
+  document.addEventListener("click", (e) => {
+    if (!reactPicker.hidden && !reactPicker.contains(e.target) && !e.target.closest("[data-react-more], [data-who-more]")) closeReactPicker();
+  });
+
+  // "+" on a phone: focus a hidden field so the phone's own keyboard opens; the first emoji typed is sent
+  const nativeInput = document.getElementById("native-emoji");
+  let nativeFor = null;
+  let nativeDone = null;
+  function openNativeKeyboard(id, done) {
+    nativeFor = id;
+    nativeDone = done || null;
+    nativeInput.value = "";
+    nativeInput.focus();   // must run inside the tap itself, or iOS will not open the keyboard
+    Model.toast("בחר אימוג׳י מהמקלדת (כפתור הסמיילי במקלדת)");
+  }
+  function firstEmoji(text) {
+    const parts = window.Intl && Intl.Segmenter
+      ? [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text)].map((s) => s.segment)
+      : Array.from(text);
+    return parts.find((p) => /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(p)) || null;
+  }
+  nativeInput.addEventListener("input", async () => {
+    const emoji = firstEmoji(nativeInput.value);
+    nativeInput.value = "";
+    if (!emoji || nativeFor === null) return;   // letters are ignored: only an emoji counts
+    const id = nativeFor, done = nativeDone;
+    nativeFor = null; nativeDone = null;
+    nativeInput.blur();
+    await react(id, emoji);
+    if (done) done();
+  });
+  nativeInput.addEventListener("blur", () => { nativeFor = null; nativeDone = null; });
+
+  function moreReactions(id, anchorEl, done) {
+    if (isPhone) openNativeKeyboard(id, done);
+    else openReactPicker(id, anchorEl, done);
+  }
+
   function openPop(msgEl, { react, menuOpen }) {
     const m = messages.get(Number(msgEl.dataset.id));
     if (!m || m.deleted) return;
@@ -370,7 +503,7 @@
     bar.hidden = !react;
     menu.hidden = !menuOpen;
     confirmBox.hidden = true;
-    bar.querySelectorAll("[data-emoji]").forEach((b) => b.classList.toggle("active", m.reactions.mine === b.dataset.emoji));
+    renderBar(m.reactions.mine);
     menu.querySelector('[data-action="info"]').hidden = !m.mine;
     menu.querySelector('[data-action="delete"]').hidden = !m.can_delete;
     pop.hidden = false;
@@ -432,12 +565,16 @@
     }
     const id = popFor;
     const m = messages.get(id);
+    if (btn.hasAttribute("data-react-more")) {
+      // anchor the picker to the message before the popover closes
+      const msgEl = document.getElementById("msg-" + id);
+      closePop();
+      moreReactions(id, msgEl ? msgEl.querySelector(".bubble") : btn);
+      return;
+    }
     closePop();
     if (btn.dataset.emoji) {
-      try {
-        await Model.api(`/api/messages/${id}/reactions`, { json: { emoji: btn.dataset.emoji } });
-        refresh();
-      } catch (err) { Model.toast(err.message, "error"); }
+      await react(id, btn.dataset.emoji);
     } else if (btn.dataset.action === "reply") {
       setReply(m);
     } else if (btn.dataset.action === "info") {
@@ -651,7 +788,9 @@
     try {
       const d = await Model.api(`/api/messages/${whoFor}/reactions`);
       const mine = messages.get(whoFor)?.reactions.mine || null;
-      document.querySelectorAll("[data-dialog-emoji]").forEach((b) => b.classList.toggle("active", b.dataset.dialogEmoji === mine));
+      document.getElementById("who-emoji").innerHTML = recentReactions(mine)
+        .map((e) => `<button type="button" data-dialog-emoji="${e}" aria-label="${e}" class="${e === mine ? "active" : ""}">${e}</button>`)
+        .join("") + plusButton("data-who-more");
       document.getElementById("who-mine-label").textContent = mine ? "התגובה שלך. לחיצה על אותו אימוג׳י מסירה אותה" : "הוסף תגובה";
       document.getElementById("who-list").innerHTML = d.reactions.length
         ? d.reactions.map((r) => `<li><span style="font-size:22px">${r.emoji}</span><span class="grow">${esc(r.name)}</span></li>`).join("")
@@ -659,15 +798,24 @@
     } catch (err) { Model.toast(err.message, "error"); }
   }
   document.getElementById("who-emoji").addEventListener("click", async (e) => {
+    if (whoFor === null) return;
+    const id = whoFor;
+    const more = e.target.closest("[data-who-more]");
+    if (more) {
+      // the dialog is modal, so the site picker cannot open over it: close it, pick, reopen
+      document.getElementById("who-dialog").close();
+      const msgEl = document.getElementById("msg-" + id);
+      moreReactions(id, msgEl ? msgEl.querySelector(".bubble") : more, async () => {
+        whoFor = id;
+        await fillWho();
+        document.getElementById("who-dialog").showModal();
+      });
+      return;
+    }
     const b = e.target.closest("[data-dialog-emoji]");
-    if (!b || whoFor === null) return;
-    try {
-      const d = await Model.api(`/api/messages/${whoFor}/reactions`, { json: { emoji: b.dataset.dialogEmoji } });
-      const m = messages.get(whoFor);
-      if (m) m.reactions.mine = d.mine;
-      await refresh();
-      await fillWho();
-    } catch (err) { Model.toast(err.message, "error"); }
+    if (!b) return;
+    await react(id, b.dataset.dialogEmoji);
+    await fillWho();
   });
 
   // ---------- poll creation (lecturer) ----------

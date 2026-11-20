@@ -958,3 +958,26 @@ details.fold:not([open]) > summary { margin-bottom: 0; }
 /* on the course page the sticky tab row has its own arrow, so the floating one steps aside */
 body.nav-stuck .back-link { opacity: 0; pointer-events: none; }
 .back-link { transition: padding .22s var(--ease), gap .22s var(--ease), box-shadow .2s, opacity .15s; }
+
+/* ---------- reactions: "+" for any emoji ---------- */
+.react-more {
+  display: grid; place-items: center; border: 0; cursor: pointer; color: var(--ink-2);
+  width: 42px; height: 42px; border-radius: 50%; background: var(--fill); transition: background .12s, color .12s;
+}
+.react-more:hover { background: var(--brand-soft); color: var(--brand); }
+@media (max-width: 420px) { .reaction-bar .react-more { width: 36px; height: 36px; } }
+.who-emoji .react-more { width: 38px; height: 38px; }
+.reaction-picker {
+  position: absolute; z-index: 7; inset-inline: 12px; max-width: 380px; margin-inline: auto;
+  background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-pop); overflow: hidden;
+  animation: pop .16s var(--ease);
+}
+.reaction-picker .emoji-grid { max-height: 240px; }
+/* the phone keyboard opens on this field; it stays out of sight */
+.native-emoji {
+  position: fixed; bottom: 0; left: 0; width: 1px; height: 1px; padding: 0; border: 0;
+  opacity: 0; font-size: 16px; pointer-events: none;
+}
+
+/* a day bar that the next one already covers at the top fades out */
+.day-divider.covered { visibility: hidden; }
