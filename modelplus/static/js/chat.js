@@ -226,6 +226,8 @@
   function autosize() {
     input.style.height = "auto";
     input.style.height = Math.min(140, input.scrollHeight) + "px";
+    // a scrollbar only once the message really is taller than the box
+    input.style.overflowY = input.scrollHeight > 140 ? "auto" : "hidden";
     // the send button wakes up only when there is something to send
     const ready = input.value.trim().length > 0;
     if (ready !== sendBtn.classList.contains("ready")) {
