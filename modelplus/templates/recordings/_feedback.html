@@ -1,0 +1,60 @@
+{# Private feedback for the course lecturer. This file is only ever rendered for them (see is_course_lecturer). #}
+{% set fb = rec.feedback %}
+<section class="panel feedback" id="feedback"
+         {% if rec.feedback_status == 'pending' %}data-feedback-pending data-feedback-url="{{ url_for('recordings.feedback_status', recording_id=rec.id) }}"{% endif %}>
+  <div class="panel-head" style="margin-bottom:6px">
+    <h2>משוב אישי על השיעור</h2>
+    <span class="pill feedback-private" title="הסטודנטים ומנהל המערכת לא רואים את המשוב">
+      <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M7 10V7.5a5 5 0 0 1 10 0V10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><rect x="4.5" y="10" width="15" height="11" rx="3" fill="currentColor"/></svg>
+      רק אתה רואה את זה
+    </span>
+  </div>
+
+  {% if rec.feedback_status == 'pending' %}
+    <p class="feedback-wait"><span class="spinner" aria-hidden="true"></span> כותב משוב על השיעור. זה לוקח בערך דקה, והעמוד יתעדכן לבד.</p>
+
+  {% elif rec.feedback_status == 'ready' and fb %}
+    {% if fb.overall %}<p class="feedback-overall">{{ fb.overall }}</p>{% endif %}
+
+    {% if fb.strengths %}
+    <h3 class="feedback-sub">מה עבד טוב</h3>
+    <ul class="feedback-strengths">{% for s in fb.strengths %}<li>{{ s }}</li>{% endfor %}</ul>
+    {% endif %}
+
+    <h3 class="feedback-sub">מה אפשר לשפר</h3>
+    {% if fb['items'] %}
+    <ol class="feedback-items">
+      {% for it in fb['items'] %}
+      <li class="feedback-item">
+        <div class="feedback-item-top">
+          <span class="pill feedback-cat feedback-cat-{{ it.category }}">{{ feedback_labels.get(it.category, it.category) }}</span>
+          <button type="button" class="chapter-time" data-seek="{{ it.start }}" dir="ltr" title="שמע את הקטע">{{ it.start|clock }}</button>
+        </div>
+        {% if it.quote %}<blockquote>״{{ it.quote }}״</blockquote>{% endif %}
+        <p>{{ it.issue }}</p>
+        {% if it.suggestion %}<p class="feedback-suggestion"><strong>בפעם הבאה:</strong> {{ it.suggestion }}</p>{% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    <p class="muted">לא נמצאו דברים לשפר בשיעור הזה.</p>
+    {% endif %}
+    <p class="xsmall muted" style="margin-top:12px">המשוב נכתב אוטומטית מתוך התמלול, ולפעמים הוא טועה. אם הערה לא נראית לך נכונה, לחץ על הזמן ושמע את הקטע.</p>
+    <form method="post" action="{{ url_for('recordings.request_feedback', recording_id=rec.id) }}" style="margin-top:10px">
+      <button class="btn btn-sm btn-quiet">כתוב משוב מחדש</button>
+    </form>
+
+  {% else %}
+    {% if rec.feedback_status == 'failed' %}
+    <div class="notice notice-warn" style="margin-bottom:12px"><strong>כתיבת המשוב נכשלה.</strong> {{ rec.feedback_error }}</div>
+    {% endif %}
+    <p class="muted">משוב בונה על השיעור: טעויות לשון כמו ״שלושה מחלקות״, משפטים שנאמרו לא מדויק, והסברים שאפשר לעשות ברורים יותר. לכל הערה יש הזמן בהקלטה והצעה לפעם הבאה.</p>
+    {% if rec.transcript %}
+    <form method="post" action="{{ url_for('recordings.request_feedback', recording_id=rec.id) }}" style="margin-top:12px">
+      <button class="btn">{{ 'נסה שוב' if rec.feedback_status == 'failed' else 'צור משוב' }}</button>
+    </form>
+    {% else %}
+    <p class="xsmall muted" style="margin-top:8px">אפשר ליצור משוב אחרי שהתמלול מסתיים.</p>
+    {% endif %}
+  {% endif %}
+</section>

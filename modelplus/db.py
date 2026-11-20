@@ -32,6 +32,9 @@ def _migrate(conn: sqlite3.Connection) -> None:
         # הקלטות שכבר היו לפני שנוסף שלב הטיוטה נשארות גלויות לסטודנטים.
         # הקלטות חדשות נשמרות כטיוטה כי RecordingService.create מכניס published=0 במפורש
         ("recordings", "published"): "INTEGER NOT NULL DEFAULT 1",
+        ("recordings", "feedback_status"): "TEXT NOT NULL DEFAULT ''",
+        ("recordings", "feedback_json"): "TEXT NOT NULL DEFAULT ''",
+        ("recordings", "feedback_error"): "TEXT NOT NULL DEFAULT ''",
     }
     for (table, column), ddl in added.items():
         cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}

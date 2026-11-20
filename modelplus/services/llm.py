@@ -159,3 +159,83 @@ class LessonSummarizer:
             if not unique or ch["start"] != unique[-1]["start"]:
                 unique.append(ch)
         return unique
+
+
+FEEDBACK_CATEGORIES = {
+    "language": "לשון",
+    "content": "תוכן",
+    "clarity": "בהירות",
+    "pace": "קצב ומבנה",
+}
+
+
+@dataclass
+class LessonFeedback:
+    overall: str
+    strengths: list[str] = field(default_factory=list)
+    items: list[dict] = field(default_factory=list)  # [{start, category, quote, issue, suggestion}]
+
+
+class LessonFeedbackWriter:
+    """משוב אישי ובונה למרצה על השיעור, מתוך התמלול. רק מרצה הקורס רואה אותו."""
+
+    PROMPT = """אתה מנטור ותיק להוראה באוניברסיטה. לפניך תמלול של שיעור, שורה לכל קטע, עם זמן התחלה בשניות.
+המרצה ביקש משוב אישי ובונה כדי להשתפר בשיעורים הבאים. המשוב יגיע רק אליו.
+
+חפש:
+- language: טעויות לשון בעברית, כמו התאמה במין ובמספר ("שלושה מחלקות" במקום "שלוש מחלקות"), מילים שגויות או ניסוחים שבורים.
+- content: משפטים שנאמרו ושגויים מקצועית, או הסבר לא מדויק של מושג.
+- clarity: הסבר מבלבל, מונח שלא הוסבר, מקום שבו דוגמה הייתה עוזרת.
+- pace: קפיצות בין נושאים, חזרות מיותרות, חלק ארוך מדי.
+
+כללים חשובים:
+- התמלול נעשה אוטומטית ויש בו שגיאות זיהוי. אם משהו נראה כמו שגיאת תמלול ולא כמו מה שהמרצה אמר, התעלם ממנו.
+- היה מדויק, הוגן וחם. בלי הגזמה ובלי להמציא בעיות. אם השיעור טוב, אמור את זה.
+- לכל הערה: הזמן בשניות מתוך התמלול, ציטוט קצר של מה שנאמר, מה הבעיה, ואיך לומר את זה טוב יותר בפעם הבאה.
+- לכל היותר 10 הערות, מהחשובה לפחות חשובה. מונחים טכניים באנגלית השאר באנגלית.
+
+החזר JSON בלבד, במבנה הזה:
+{{
+  "overall": "2 עד 3 משפטים על השיעור באופן כללי",
+  "strengths": ["דבר שעבד טוב", "..."],
+  "items": [{{"start": 0, "category": "language", "quote": "...", "issue": "...", "suggestion": "..."}}]
+}}
+
+התמלול:
+{transcript}
+"""
+
+    def __init__(self, provider: LLMProvider, max_chars: int = 400_000):
+        self.provider = provider
+        self.max_chars = max_chars
+
+    def write(self, segments: list[Segment]) -> LessonFeedback:
+        if not segments:
+            return LessonFeedback("לא זוהה דיבור בהקלטה, ולכן אין משוב.")
+        transcript = LessonSummarizer.format_transcript(segments)[: self.max_chars]
+        data = self.provider.generate_json(self.PROMPT.format(transcript=transcript))
+        duration = segments[-1].end
+        items = []
+        for raw in data.get("items", []) if isinstance(data.get("items"), list) else []:
+            if not isinstance(raw, dict):
+                continue
+            issue = str(raw.get("issue", "")).strip()
+            if not issue:
+                continue
+            try:
+                start = max(0, min(int(float(raw.get("start", 0))), int(duration)))
+            except (TypeError, ValueError):
+                start = 0
+            category = raw.get("category") if raw.get("category") in FEEDBACK_CATEGORIES else "clarity"
+            items.append({
+                "start": start,
+                "category": category,
+                "quote": str(raw.get("quote", "")).strip()[:300],
+                "issue": issue,
+                "suggestion": str(raw.get("suggestion", "")).strip(),
+            })
+        return LessonFeedback(
+            overall=str(data.get("overall", "")).strip(),
+            strengths=[str(s).strip() for s in data.get("strengths", []) if str(s).strip()][:6],
+            items=items[:10],
+        )

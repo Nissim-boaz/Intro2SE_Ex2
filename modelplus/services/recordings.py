@@ -40,6 +40,9 @@ class Recording:
     error: str
     created_at: str
     published: bool = False
+    feedback_status: str = ""          # '' | pending | ready | failed
+    feedback: dict | None = None       # {overall, strengths, items} — רק למרצה הקורס
+    feedback_error: str = ""
 
     @property
     def status_label(self) -> str:
@@ -64,6 +67,7 @@ class Recording:
             r["id"], r["course_id"], r["title"], r["file_path"], r["mime"], r["status"],
             json.loads(r["transcript_json"]), r["summary"], json.loads(r["key_points_json"]),
             json.loads(r["chapters_json"]), r["error"], r["created_at"], bool(r["published"]),
+            r["feedback_status"], json.loads(r["feedback_json"]) if r["feedback_json"] else None, r["feedback_error"],
         )
 
 
@@ -159,6 +163,36 @@ class RecordingService:
         )
         return self.get(recording_id)
 
+    # ---------- private feedback for the lecturer ----------
+    def request_feedback(self, recording_id: int) -> None:
+        """מסמן שהמרצה ביקש משוב. הכתיבה עצמה רצה ברקע (write_feedback)."""
+        rec = self.get(recording_id)
+        if rec.processing or not rec.transcript:
+            raise ValidationError("אפשר לבקש משוב אחרי שהתמלול מסתיים")
+        if rec.feedback_status == "pending":
+            return
+        self._set(recording_id, feedback_status="pending", feedback_error="")
+
+    def pending_feedback_ids(self) -> list[int]:
+        return [r["id"] for r in self.db.execute("SELECT id FROM recordings WHERE feedback_status = 'pending' ORDER BY id")]
+
+    def write_feedback(self, recording_id: int, writer) -> Recording:
+        rec = self.get(recording_id)
+        try:
+            fb = writer.write([Segment(**s) for s in rec.transcript])
+            self._set(
+                recording_id,
+                feedback_status="ready",
+                feedback_json=json.dumps(
+                    {"overall": fb.overall, "strengths": fb.strengths, "items": fb.items}, ensure_ascii=False
+                ),
+                feedback_error="",
+            )
+        except Exception as err:  # LLMError, רשת: לא נשאיר את המשוב תקוע ב״כותב״
+            log.exception("feedback for recording %s failed", recording_id)
+            self._set(recording_id, feedback_status="failed", feedback_error=str(err)[:500])
+        return self.get(recording_id)
+
     def update_transcript(self, recording_id: int, texts: list[str]) -> Recording:
         """מחליף רק את הטקסט של כל קטע. הזמנים נשארים כמו שהתמלול קבע, כדי שהקפיצה בנגן תמשיך לעבוד."""
         rec = self.get(recording_id)
@@ -223,54 +257,69 @@ class RecordingService:
 
 
 class BackgroundJobRunner:
-    """Thread יחיד שמעבד הקלטות לפי הסדר. מודל ה-Whisper נטען פעם אחת ונשאר בזיכרון."""
+    """Thread יחיד שמעבד את העבודות לפי הסדר. מודל ה-Whisper נטען פעם אחת ונשאר בזיכרון.
 
-    def __init__(self, db_path: str, files: FileStore, transcriber: Transcriber, summarizer_factory):
+    שני סוגי עבודות: ("process", id) לתמלול וסיכום, ו-("feedback", id) למשוב האישי למרצה.
+    """
+
+    def __init__(self, db_path: str, files: FileStore, transcriber: Transcriber, provider_factory):
         self.db_path = db_path
         self.files = files
         self.transcriber = transcriber
-        self.summarizer_factory = summarizer_factory  # נבנה מחדש לכל עבודה, כדי לקלוט key חדש מ-.env
-        self.jobs: "queue.Queue[int]" = queue.Queue()
+        self.provider_factory = provider_factory  # נבנה מחדש לכל עבודה, כדי לקלוט key חדש מ-.env
+        self.jobs: "queue.Queue[tuple[str, int]]" = queue.Queue()
         self.thread = threading.Thread(target=self._run, name="recordings", daemon=True)
 
     def start(self) -> None:
         from ..db import connect
 
         conn = connect(self.db_path)
-        try:
-            for rid in RecordingService(conn, self.files).pending_ids():  # מה שנשאר מהרצה קודמת
-                self.jobs.put(rid)
+        try:  # מה שנשאר מהרצה קודמת
+            service = RecordingService(conn, self.files)
+            for rid in service.pending_ids():
+                self.jobs.put(("process", rid))
+            for rid in service.pending_feedback_ids():
+                self.jobs.put(("feedback", rid))
         finally:
             conn.close()
         self.thread.start()
 
     def enqueue(self, recording_id: int) -> None:
-        self.jobs.put(recording_id)
+        self.jobs.put(("process", recording_id))
+
+    def enqueue_feedback(self, recording_id: int) -> None:
+        self.jobs.put(("feedback", recording_id))
 
     def _run(self) -> None:
         from ..db import connect
+        from .llm import LessonFeedbackWriter
 
         while True:
-            rid = self.jobs.get()
+            kind, rid = self.jobs.get()
             conn = connect(self.db_path)
             try:
                 service = RecordingService(conn, self.files)
                 try:
-                    summarizer = self.summarizer_factory()
+                    provider = self.provider_factory()
                 except LLMError as err:
-                    summarizer = _FailingSummarizer(str(err))
-                service.process(rid, self.transcriber, summarizer)
+                    provider = _FailingProvider(str(err))
+                if kind == "feedback":
+                    service.write_feedback(rid, LessonFeedbackWriter(provider))
+                else:
+                    service.process(rid, self.transcriber, LessonSummarizer(provider))
             except NotFound:
                 pass
             finally:
                 conn.close()
 
 
-class _FailingSummarizer:
+class _FailingProvider:
+    """כשאין GEMINI_API_KEY: כל ניסיון מחזיר את אותה הודעה ברורה."""
+
     def __init__(self, message: str):
         self.message = message
 
-    def summarize(self, segments):
+    def generate_json(self, prompt):
         raise LLMError(self.message)
 
 
@@ -289,9 +338,7 @@ def start_runner(app) -> None:
         cfg["DATABASE"],
         FileStore(cfg["UPLOAD_DIR"]),
         WhisperTranscriber(cfg["WHISPER_MODEL"]),
-        lambda: LessonSummarizer(
-            GeminiProvider(cfg["GEMINI_API_KEY"], cfg["GEMINI_MODEL"], cfg["GEMINI_FALLBACK_MODELS"])
-        ),
+        lambda: GeminiProvider(cfg["GEMINI_API_KEY"], cfg["GEMINI_MODEL"], cfg["GEMINI_FALLBACK_MODELS"]),
     )
     runner.start()
     app.extensions["recording_runner"] = runner

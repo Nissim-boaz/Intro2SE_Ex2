@@ -133,5 +133,9 @@ CREATE TABLE IF NOT EXISTS recordings (
     chapters_json   TEXT NOT NULL DEFAULT '[]',
     error           TEXT NOT NULL DEFAULT '',
     published       INTEGER NOT NULL DEFAULT 0,  -- 0: טיוטה שרק המרצה רואה
+    -- משוב אישי למרצה על השיעור. רק מרצה הקורס רואה אותו, גם לא מנהל המערכת
+    feedback_status TEXT NOT NULL DEFAULT '',    -- '' | pending | ready | failed
+    feedback_json   TEXT NOT NULL DEFAULT '',
+    feedback_error  TEXT NOT NULL DEFAULT '',
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );

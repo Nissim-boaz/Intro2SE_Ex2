@@ -893,3 +893,22 @@ body.chat-fullscreen { overflow: hidden; }
 
 /* no chapters column (edit mode, or no chapters yet): use the full width */
 @media (min-width: 960px) { .rec-layout.single { grid-template-columns: minmax(0, 1fr); max-width: 860px; } }
+
+/* ---------- private feedback for the lecturer ---------- */
+.feedback { border: 1px solid color-mix(in srgb, var(--brand) 25%, transparent); }
+.feedback-private { display: inline-flex; align-items: center; gap: 5px; background: var(--brand-soft); color: var(--brand); }
+.feedback-wait { display: flex; align-items: center; gap: 10px; color: var(--ink-2); }
+.feedback-overall { line-height: 1.65; max-width: 65ch; }
+.feedback-sub { font-size: var(--fs-md); margin: 18px 0 8px; }
+.feedback-strengths { margin: 0; padding-inline-start: 20px; display: grid; gap: 4px; }
+.feedback-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.feedback-item { padding: 12px 14px; border-radius: var(--r-md); background: var(--fill); display: grid; gap: 6px; }
+.feedback-item-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.feedback-item blockquote { margin: 0; padding-inline-start: 10px; border-inline-start: 3px solid var(--line); color: var(--ink-2); font-size: 14.5px; }
+.feedback-item p { margin: 0; line-height: 1.55; }
+.feedback-suggestion { color: var(--ok); }
+.feedback-suggestion strong { font-weight: 700; }
+.feedback-cat-language { background: var(--brand-soft); color: var(--brand); }
+.feedback-cat-content { background: var(--danger-soft); color: var(--danger); }
+.feedback-cat-clarity { background: var(--warn-soft); color: var(--warn); }
+.feedback-cat-pace { background: var(--ok-soft); color: var(--ok); }

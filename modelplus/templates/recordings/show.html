@@ -62,6 +62,7 @@
           {% endif %}
         </section>
         {% endif %}
+        {% if is_course_lecturer %}{% include "recordings/_feedback.html" %}{% endif %}
         {% if rec.transcript %}
         <section class="panel">
           <details class="transcript">
@@ -77,6 +78,7 @@
           <strong>העיבוד נכשל.</strong> {{ rec.error }}
           {% if rec.transcript %}<span>התמלול נשמר, כך שבניסיון חוזר רק הסיכום ירוץ שוב.</span>{% endif %}
         </div>
+        {% if is_course_lecturer and rec.transcript %}{% include "recordings/_feedback.html" %}{% endif %}
       {% else %}
         <p class="muted">{{ 'ההקלטה בתמלול. בשיעור של שעה וחצי זה יכול לקחת חצי שעה. העמוד יתעדכן לבד, ובינתיים אפשר כבר לצפות.' if rec.status != 'summarizing' else 'התמלול מוכן, ועכשיו נכתבים הסיכום וראשי הפרקים.' }}</p>
       {% endif %}

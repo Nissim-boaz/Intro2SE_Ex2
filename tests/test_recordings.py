@@ -346,3 +346,80 @@ def test_existing_recordings_stay_published_after_migration(tmp_path):
     conn = connect(path)
     init_schema(conn)
     assert conn.execute("SELECT published FROM recordings WHERE id = 1").fetchone()[0] == 1
+
+
+# ---------- private feedback for the lecturer ----------
+FEEDBACK_JSON = {
+    "overall": "שיעור ברור עם דוגמאות טובות.",
+    "strengths": ["דוגמה טובה של בית וחדרים"],
+    "items": [
+        {"start": 5, "category": "language", "quote": "שלושה מחלקות", "issue": "התאמה במין", "suggestion": "שלוש מחלקות"},
+        {"start": 99999, "category": "content", "quote": "", "issue": "זמן מחוץ להקלטה", "suggestion": ""},
+        {"start": "x", "category": "weird", "quote": "", "issue": "קטגוריה לא מוכרת", "suggestion": ""},
+        {"start": 1, "category": "pace", "quote": "", "issue": "", "suggestion": "בלי בעיה: נזרק"},
+    ],
+}
+
+
+def test_feedback_writer_cleans_items():
+    from modelplus.services.llm import LessonFeedbackWriter
+
+    fb = LessonFeedbackWriter(FakeLLM(response=FEEDBACK_JSON)).write(SEGMENTS)
+    assert fb.overall.startswith("שיעור ברור")
+    assert len(fb.items) == 3  # הפריט בלי issue נזרק
+    assert fb.items[0] == {"start": 5, "category": "language", "quote": "שלושה מחלקות",
+                           "issue": "התאמה במין", "suggestion": "שלוש מחלקות"}
+    assert fb.items[1]["start"] == 330          # הוגבל לאורך ההקלטה
+    assert fb.items[2]["category"] == "clarity"  # קטגוריה לא מוכרת
+    assert fb.items[2]["start"] == 0
+
+
+def test_feedback_flow_pending_ready_and_failure(recs, people):
+    from modelplus.services.llm import LessonFeedbackWriter
+
+    rec = _upload(recs, people["course"].id)
+    with pytest.raises(ValidationError):
+        recs.request_feedback(rec.id)  # עוד אין תמלול
+    recs.process(rec.id, FakeTranscriber(), LessonSummarizer(FakeLLM()))
+    recs.request_feedback(rec.id)
+    assert recs.get(rec.id).feedback_status == "pending"
+    assert recs.pending_feedback_ids() == [rec.id]
+    done = recs.write_feedback(rec.id, LessonFeedbackWriter(FakeLLM(response=FEEDBACK_JSON)))
+    assert done.feedback_status == "ready" and done.feedback["items"][0]["quote"] == "שלושה מחלקות"
+    recs.request_feedback(rec.id)
+    failed = recs.write_feedback(rec.id, LessonFeedbackWriter(FakeLLM(fail=True)))
+    assert failed.feedback_status == "failed" and "המכסה" in failed.feedback_error
+
+
+def test_feedback_visible_only_to_course_lecturer(app, client):
+    from modelplus.services.llm import LessonFeedbackWriter
+
+    conn = connect(app.config["DATABASE"])
+    users = UserService(conn)
+    admin = users.find_by_email("admin@test.ac.il")
+    lect = users.create("l7@test.ac.il", "מרצה", "lecturer")
+    other_lect = users.create("l77@test.ac.il", "מרצה אחר", "lecturer")
+    stud = users.create("s7@test.ac.il", "סטודנט", "student")
+    course = CourseService(conn).create("קורס")
+    EnrollmentService(conn).enroll_many(course.id, [lect, stud])
+    recs = RecordingService(conn, FileStore(app.config["UPLOAD_DIR"]))
+    rec = _upload(recs, course.id)
+    recs.process(rec.id, FakeTranscriber(), LessonSummarizer(FakeLLM()))
+    recs.request_feedback(rec.id)
+    recs.write_feedback(rec.id, LessonFeedbackWriter(FakeLLM(response=FEEDBACK_JSON)))
+    recs.set_published(rec.id, True)
+    conn.close()
+
+    login(client, lect.id)
+    page = client.get(f"/recordings/{rec.id}").get_data(as_text=True)
+    assert "משוב אישי על השיעור" in page and "שלושה מחלקות" in page
+
+    for viewer in (stud, admin):  # גם מנהל המערכת לא רואה
+        login(client, viewer.id)
+        page = client.get(f"/recordings/{rec.id}").get_data(as_text=True)
+        assert "משוב אישי" not in page and "שלושה מחלקות" not in page
+        assert client.get(f"/api/recordings/{rec.id}/feedback-status").status_code == 403
+        assert client.post(f"/recordings/{rec.id}/feedback").status_code == 302  # נדחה עם הודעה
+
+    login(client, other_lect.id)  # מרצה שלא משויך לקורס
+    assert client.get(f"/api/recordings/{rec.id}/feedback-status").status_code == 403

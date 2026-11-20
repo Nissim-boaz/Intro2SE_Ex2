@@ -2,9 +2,11 @@
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, send_file, url_for
 
 from ..db import get_db
+from ..errors import Forbidden
 from ..security import current_user, login_required
 from ..services.content import FileStore
 from ..services.courses import CourseService, EnrollmentService
+from ..services.llm import FEEDBACK_CATEGORIES
 from ..services.recordings import RecordingService
 
 bp = Blueprint("recordings", __name__)
@@ -53,6 +55,11 @@ def _managed(recording_id: int):
     return service, rec
 
 
+def _is_course_lecturer(course_id: int) -> bool:
+    """המשוב האישי שייך רק למרצה של הקורס. גם מנהל המערכת לא רואה אותו."""
+    return EnrollmentService(get_db()).role_in(course_id, current_user()) == "lecturer"
+
+
 @bp.get("/recordings/<int:recording_id>")
 @login_required
 def show(recording_id: int):
@@ -63,8 +70,33 @@ def show(recording_id: int):
         rec=rec,
         course=CourseService(get_db()).get(rec.course_id),
         can_manage=can_manage,
+        is_course_lecturer=_is_course_lecturer(rec.course_id),
+        feedback_labels=FEEDBACK_CATEGORIES,
         editing=can_manage and request.args.get("edit") == "1" and rec.editable,
     )
+
+
+@bp.post("/recordings/<int:recording_id>/feedback")
+@login_required
+def request_feedback(recording_id: int):
+    service = _service()
+    rec = service.get(recording_id)
+    if not _is_course_lecturer(rec.course_id):
+        raise Forbidden("רק המרצה של הקורס יכול לבקש משוב על השיעור")
+    service.request_feedback(recording_id)
+    runner = current_app.extensions.get("recording_runner")
+    if runner:
+        runner.enqueue_feedback(recording_id)
+    return redirect(url_for("recordings.show", recording_id=recording_id) + "#feedback")
+
+
+@bp.get("/api/recordings/<int:recording_id>/feedback-status")
+@login_required
+def feedback_status(recording_id: int):
+    rec = _service().get(recording_id)
+    if not _is_course_lecturer(rec.course_id):
+        raise Forbidden("רק המרצה של הקורס רואה את המשוב")
+    return jsonify(ok=True, status=rec.feedback_status)
 
 
 @bp.post("/recordings/<int:recording_id>/edit")

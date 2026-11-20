@@ -82,6 +82,19 @@
     });
   }
 
+  // private feedback is written in the background: reload once it is ready
+  const fbPending = document.querySelector("[data-feedback-pending]");
+  if (fbPending) {
+    const poll = async () => {
+      try {
+        const d = await Model.api(fbPending.dataset.feedbackUrl);
+        if (d.status !== "pending") { location.hash = "feedback"; location.reload(); return; }
+      } catch (_) {}
+      setTimeout(poll, 4000);
+    };
+    setTimeout(poll, 4000);
+  }
+
   const pending = [...document.querySelectorAll("[data-processing][data-status-url]")];
   if (!pending.length) return;
   async function check() {
