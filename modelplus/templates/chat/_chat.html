@@ -8,7 +8,9 @@
        data-is-admin="{{ 1 if role == 'admin' else 0 }}"
        data-lock-url="{{ url_for('chat.lock', course_id=course.id) }}"
        data-is-student="{{ 1 if role == 'student' else 0 }}"
-       data-locked="{{ 1 if locked else 0 }}">
+       data-locked="{{ 1 if locked else 0 }}"
+       data-search-url="{{ url_for('chat.search', course_id=course.id) }}">
+    <div class="chat-search-results" id="chat-search-results" hidden aria-live="polite"></div>
     <div class="chat-scroll" id="chat-scroll" role="log" aria-label="הודעות">
       <div class="chat-empty" id="chat-empty" hidden>
         <strong>עוד אין הודעות</strong>

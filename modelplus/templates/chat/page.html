@@ -13,6 +13,13 @@
     <strong>{{ course.name }}</strong>
     <span class="xsmall muted">{{ members }} חברים בקורס <span id="chat-status" class="chat-status" aria-live="polite"></span></span>
   </div>
+  <button type="button" class="chat-icon-btn" id="chat-search-open" aria-label="חיפוש הודעות" title="חיפוש הודעות">
+    <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.1"/><path d="m15.5 15.5 5 5" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></svg>
+  </button>
+  <form class="chat-search-bar" id="chat-search-bar" role="search" hidden>
+    <input type="search" id="chat-search-input" placeholder="חיפוש בצ׳אט" aria-label="חיפוש בצ׳אט" autocomplete="off" dir="auto">
+    <button type="button" class="chat-icon-btn" id="chat-search-close" aria-label="סגור חיפוש">✕</button>
+  </form>
   {% if can_manage %}
   <button type="button" class="chat-mute" id="chat-mute" aria-pressed="{{ 'true' if locked else 'false' }}"
           title="כשההשתקה פעילה, רק אתה ומנהל המערכת יכולים לשלוח הודעות">

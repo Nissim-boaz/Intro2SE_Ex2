@@ -51,12 +51,23 @@ def page(course_id: int):
 def messages(course_id: int):
     EnrollmentService(get_db()).require_member(course_id, current_user())
     since = request.args.get("since", type=float)
+    from_id = request.args.get("from_id", type=int)
     now = time.time()
+    if from_id is not None:  # טעינת הודעות ישנות כדי לקפוץ לתוצאת חיפוש
+        items = _chat().list_messages(course_id, current_user(), from_id=from_id, limit=2000)
+        return jsonify(ok=True, messages=items)
     items = _chat().list_messages(course_id, current_user(), since=since)
     # הווים משתנים גם בלי שההודעה עצמה השתנתה, לכן הם נשלחים בכל בקשה
     receipts = ReadReceiptService(get_db()).receipts_for(course_id, current_user())
     locked = _chat().is_locked(course_id)
     return jsonify(ok=True, now=now - OVERLAP_SECONDS, messages=items, receipts=receipts, locked=locked)
+
+
+@bp.get("/courses/<int:course_id>/chat/search")
+@login_required
+def search(course_id: int):
+    EnrollmentService(get_db()).require_member(course_id, current_user())
+    return jsonify(ok=True, results=_chat().search(course_id, current_user(), request.args.get("q", "")))
 
 
 @bp.post("/courses/<int:course_id>/chat/lock")

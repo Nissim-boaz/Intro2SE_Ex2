@@ -779,3 +779,41 @@ body.chat-fullscreen { overflow: hidden; }
   border-top: 1px solid var(--line);
 }
 .chat-locked-bar svg { flex: none; color: var(--warn); }
+
+/* ---------- day separators (sticky, like WhatsApp) ---------- */
+.day-divider { position: sticky; top: 4px; z-index: 2; display: flex; justify-content: center; margin: 10px 0 4px; pointer-events: none; }
+.day-divider span {
+  padding: 4px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; color: var(--ink-2);
+  background: color-mix(in srgb, var(--surface) 92%, transparent); box-shadow: 0 1px 3px rgba(0,0,0,.12);
+  backdrop-filter: blur(8px);
+}
+
+/* ---------- chat search ---------- */
+.chat-icon-btn {
+  flex: none; width: 36px; height: 36px; border-radius: 50%; border: 0; display: grid; place-items: center;
+  background: transparent; color: var(--ink-2); cursor: pointer; font-size: 15px;
+}
+.chat-icon-btn:hover { background: var(--fill); color: var(--ink); }
+.chat-search-bar { flex: 1; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.chat-search-bar input {
+  flex: 1; min-width: 0; height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--bg); font-size: 16px;
+}
+.chat-bar.searching .chat-bar-title, .chat-bar.searching #chat-search-open, .chat-bar.searching .chat-mute { display: none; }
+.chat-page .chat { position: relative; }
+.chat-search-results {
+  position: absolute; inset: 0 0 auto 0; z-index: 6; max-height: 70%; overflow-y: auto;
+  background: var(--surface); border-bottom: 1px solid var(--line); box-shadow: var(--shadow-pop);
+  animation: drop .18s var(--ease);
+}
+.search-count, .search-empty { margin: 0; padding: 10px 16px; font-size: 13px; color: var(--ink-2); }
+.search-empty { padding: 18px 16px; text-align: center; }
+.search-hit {
+  all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 3px; width: 100%;
+  padding: 10px 16px; border-top: 1px solid var(--line);
+}
+.search-hit:hover, .search-hit:focus-visible { background: var(--fill); }
+.search-hit-top { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+.search-hit-top span { color: var(--ink-3); flex: none; }
+.search-hit-text { font-size: 14.5px; color: var(--ink-2); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.search-hit mark { background: color-mix(in srgb, var(--warn) 35%, transparent); color: var(--ink); border-radius: 3px; padding: 0 1px; }

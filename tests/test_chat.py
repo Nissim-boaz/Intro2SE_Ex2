@@ -356,3 +356,42 @@ def test_only_managers_can_lock_via_api(app, client):
     login(client, stud.id)
     res = client.post(f"/api/courses/{course.id}/chat", json={"body": "היי"})
     assert res.status_code == 403 and "מושתק" in res.get_json()["error"]
+
+
+# ---------- search ----------
+def test_search_finds_text_and_poll_questions(db, chat, people):
+    c = people["course"].id
+    chat.send(c, people["s1"], "מתי המבחן ב-UML?")
+    chat.send(c, people["s2"], "משהו אחר לגמרי")
+    PollService(db).create(c, people["lecturer"], "לחזור על UML בשיעור הבא?", ["כן", "לא"])
+    hits = chat.search(c, people["s2"], "uml")
+    assert [h["is_poll"] for h in hits] == [True, False]  # מהחדש לישן
+    assert "המבחן" in hits[1]["text"]
+
+
+def test_search_ignores_deleted_short_and_wildcards(chat, people):
+    c = people["course"].id
+    mid = chat.send(c, people["s1"], "הודעה שתימחק")
+    chat.delete(mid, people["s1"])
+    chat.send(c, people["s1"], "100% בטוח")
+    assert chat.search(c, people["s2"], "תימחק") == []
+    assert chat.search(c, people["s2"], "ב") == []          # פחות משתי אותיות
+    assert len(chat.search(c, people["s2"], "%")) == 0      # % הוא תו רגיל, לא wildcard
+    assert len(chat.search(c, people["s2"], "0%")) == 1
+
+
+def test_search_keeps_anonymity_and_never_matches_names(chat, people):
+    c = people["course"].id
+    chat.send(c, people["s1"], "שאלה על ירושה", anonymous=True)
+    hit = chat.search(c, people["s2"], "ירושה")[0]
+    assert hit["sender_name"] == ANONYMOUS_NAME
+    # חיפוש לפי שם השולח לא מחזיר את ההודעה האנונימית שלו
+    assert chat.search(c, people["s2"], "סטודנט אחד") == []
+    assert "סטודנט אחד" in chat.search(c, people["admin"], "ירושה")[0]["sender_name"]
+
+
+def test_list_from_id_loads_older_messages(chat, people):
+    c = people["course"].id
+    ids = [chat.send(c, people["s1"], f"הודעה {i}") for i in range(5)]
+    got = [m["id"] for m in chat.list_messages(c, people["s2"], from_id=ids[2], limit=2000)]
+    assert got == ids[2:]

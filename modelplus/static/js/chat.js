@@ -129,8 +129,39 @@
     messages.set(m.id, m);
     const html = renderMessage(m);
     const existing = document.getElementById("msg-" + m.id);
-    if (existing) existing.outerHTML = html;
+    if (existing) { existing.outerHTML = html; return; }
+    // keep id order: older messages loaded for a search result go to the right place
+    const after = [...list.querySelectorAll(".msg")].find((el) => Number(el.dataset.id) > m.id);
+    if (after) after.insertAdjacentHTML("beforebegin", html);
     else list.insertAdjacentHTML("beforeend", html);
+  }
+
+  // ---------- day separators: היום / אתמול / weekday / full date, like WhatsApp ----------
+  const dayKey = (ts) => { const d = new Date(ts * 1000); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
+  function dayLabel(ts) {
+    const d = new Date(ts * 1000);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const day = new Date(d); day.setHours(0, 0, 0, 0);
+    const diff = Math.round((today - day) / 86400000);
+    if (diff === 0) return "היום";
+    if (diff === 1) return "אתמול";
+    if (diff > 1 && diff < 7) return d.toLocaleDateString("he-IL", { weekday: "long" });
+    const opts = { day: "numeric", month: "long" };
+    if (d.getFullYear() !== today.getFullYear()) opts.year = "numeric";
+    return d.toLocaleDateString("he-IL", opts);
+  }
+  function renderDays() {
+    list.querySelectorAll(".day-divider").forEach((el) => el.remove());
+    let last = null;
+    list.querySelectorAll(".msg").forEach((el) => {
+      const m = messages.get(Number(el.dataset.id));
+      if (!m) return;
+      const key = dayKey(m.created_at);
+      if (key !== last) {
+        el.insertAdjacentHTML("beforebegin", `<div class="day-divider" role="separator"><span>${dayLabel(m.created_at)}</span></div>`);
+        last = key;
+      }
+    });
   }
 
   function updateTicks() {
@@ -173,6 +204,7 @@
         if (!messages.has(m.id)) added = true;
         upsert(m);
       });
+      if (added || first) renderDays();
       updateTicks();
       empty.hidden = messages.size > 0;
       if (added && stick) scrollToBottom(!first);
@@ -494,6 +526,90 @@
       } catch (err) { Model.toast(err.message, "error"); }
     }
   });
+
+  // ---------- search: on the server, so it finds old messages that are not loaded yet ----------
+  const searchOpen = document.getElementById("chat-search-open");
+  const searchBar = document.getElementById("chat-search-bar");
+  const searchInput = document.getElementById("chat-search-input");
+  const searchResults = document.getElementById("chat-search-results");
+  let searchTimer = null;
+  let searchSeq = 0;
+
+  function highlight(text, q) {
+    const safe = esc(text);
+    if (!q) return safe;
+    const needle = esc(q).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return safe.replace(new RegExp(needle, "gi"), (s) => `<mark>${s}</mark>`);
+  }
+  // show the words around the match, not the start of a long message
+  function snippet(text, q) {
+    const i = text.toLowerCase().indexOf(q.toLowerCase());
+    if (i < 40) return text.slice(0, 140);
+    return "…" + text.slice(i - 30, i - 30 + 140);
+  }
+
+  function openSearch() {
+    if (!searchBar) return;
+    searchBar.hidden = false;
+    searchBar.closest(".chat-bar").classList.add("searching");
+    searchInput.focus();
+  }
+  function closeSearch() {
+    if (!searchBar) return;
+    searchBar.hidden = true;
+    searchBar.closest(".chat-bar").classList.remove("searching");
+    searchInput.value = "";
+    searchResults.hidden = true;
+    searchResults.innerHTML = "";
+  }
+
+  async function runSearch() {
+    const q = searchInput.value.trim();
+    const seq = ++searchSeq;
+    if (q.length < 2) { searchResults.hidden = q.length === 0; searchResults.innerHTML = q ? `<p class="search-empty">הקלד לפחות שתי אותיות</p>` : ""; return; }
+    try {
+      const d = await Model.api(`${root.dataset.searchUrl}?q=${encodeURIComponent(q)}`);
+      if (seq !== searchSeq) return; // a newer search already started
+      searchResults.hidden = false;
+      searchResults.innerHTML = d.results.length
+        ? `<p class="search-count">${d.results.length === 1 ? "תוצאה אחת" : d.results.length + " תוצאות"}</p>` +
+          d.results.map((r) => `
+            <button type="button" class="search-hit" data-hit="${r.id}">
+              <span class="search-hit-top"><strong>${esc(r.mine ? "אתה" : r.sender_name)}</strong><span>${dayLabel(r.created_at)} ${fmtTime(r.created_at)}</span></span>
+              <span class="search-hit-text">${r.is_poll ? "סקר: " : ""}${highlight(snippet(r.text, q), q)}</span>
+            </button>`).join("")
+        : `<p class="search-empty">לא נמצאו הודעות עם ״${esc(q)}״</p>`;
+    } catch (err) { Model.toast(err.message, "error"); }
+  }
+
+  async function jumpTo(id) {
+    if (!document.getElementById("msg-" + id)) {
+      // older than what is loaded: fetch from that message onward
+      try {
+        const d = await Model.api(`${listUrl}?from_id=${id}`);
+        d.messages.forEach(upsert);
+        renderDays();
+        updateTicks();
+      } catch (err) { return Model.toast(err.message, "error"); }
+    }
+    closeSearch();
+    const target = document.getElementById("msg-" + id);
+    if (!target) return Model.toast("ההודעה כבר לא קיימת", "error");
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    target.classList.remove("flash"); void target.offsetWidth; target.classList.add("flash");
+  }
+
+  if (searchOpen) {
+    searchOpen.addEventListener("click", openSearch);
+    document.getElementById("chat-search-close").addEventListener("click", closeSearch);
+    searchBar.addEventListener("submit", (e) => { e.preventDefault(); clearTimeout(searchTimer); runSearch(); });
+    searchInput.addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 250); });
+    searchInput.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSearch(); });
+    searchResults.addEventListener("click", (e) => {
+      const hit = e.target.closest("[data-hit]");
+      if (hit) jumpTo(Number(hit.dataset.hit));
+    });
+  }
 
   // ---------- mute students: only the lecturer and the admin can post ----------
   // the server enforces it; here we only reflect the state (it arrives with every poll)

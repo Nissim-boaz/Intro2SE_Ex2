@@ -66,8 +66,13 @@ class ChatService:
         self.db.commit()
         return cur.lastrowid
 
-    def list_messages(self, course_id: int, viewer: User, since: float | None = None, limit: int = 300) -> list[dict]:
-        """הודעות כפי שהצופה רשאי לראות אותן. זהות השולח לא יוצאת מכאן אם אסור."""
+    def list_messages(self, course_id: int, viewer: User, since: float | None = None, limit: int = 300,
+                      from_id: int | None = None) -> list[dict]:
+        """הודעות כפי שהצופה רשאי לראות אותן. זהות השולח לא יוצאת מכאן אם אסור.
+
+        ברירת המחדל: ההודעות האחרונות. since: רק מה שהשתנה (polling).
+        from_id: כל ההודעות מהודעה מסוימת והלאה, כדי לקפוץ לתוצאת חיפוש ישנה.
+        """
         sql = (
             "SELECT m.*, u.name AS sender_name, u.role AS sender_role FROM messages m "
             "JOIN users u ON u.id = m.sender_id WHERE m.course_id = ?"
@@ -76,15 +81,51 @@ class ChatService:
         if since:
             sql += " AND m.updated_at > ?"
             args.append(since)
-        sql += " ORDER BY m.id DESC LIMIT ?"
-        args.append(limit)
-        rows = list(reversed(self.db.execute(sql, args).fetchall()))
+        if from_id is not None:
+            sql += " AND m.id >= ? ORDER BY m.id ASC LIMIT ?"
+            args += [from_id, limit]
+            rows = self.db.execute(sql, args).fetchall()
+        else:
+            sql += " ORDER BY m.id DESC LIMIT ?"
+            args.append(limit)
+            rows = list(reversed(self.db.execute(sql, args).fetchall()))
         if not rows:
             return []
         ids = [r["id"] for r in rows]
         reactions = self._reactions_for(ids, viewer)
         replies = self._reply_previews([r["reply_to_id"] for r in rows if r["reply_to_id"]], viewer)
         return [self._view(r, viewer, reactions.get(r["id"]), replies.get(r["reply_to_id"])) for r in rows]
+
+    # ---------- search ----------
+    def search(self, course_id: int, viewer: User, query: str, limit: int = 50) -> list[dict]:
+        """חיפוש בטקסט ההודעות ובשאלות הסקרים, מהחדש לישן.
+
+        מחפשים רק בתוכן ולא בשם השולח, כדי שחיפוש לא יחשוף מי כתב הודעה אנונימית.
+        התוצאות עוברות את אותה הסתרה של שולח כמו הצ׳אט עצמו.
+        """
+        query = (query or "").strip()
+        if len(query) < 2:
+            return []
+        pattern = "%" + query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        rows = self.db.execute(
+            "SELECT m.id, m.body, m.created_at, m.sender_id, m.is_anonymous, u.name AS sender_name, p.question "
+            "FROM messages m JOIN users u ON u.id = m.sender_id LEFT JOIN polls p ON p.id = m.poll_id "
+            "WHERE m.course_id = ? AND m.deleted = 0 "
+            "AND (m.body LIKE ? ESCAPE '\\' OR p.question LIKE ? ESCAPE '\\') "
+            "ORDER BY m.id DESC LIMIT ?",
+            (course_id, pattern, pattern, limit),
+        ).fetchall()
+        return [
+            {
+                "id": r["id"],
+                "text": r["body"] or r["question"] or "",
+                "is_poll": bool(r["question"]) and not r["body"],
+                "created_at": r["created_at"],
+                "mine": r["sender_id"] == viewer.id,
+                "sender_name": SenderMask.name_for(viewer, r["sender_id"], r["sender_name"], bool(r["is_anonymous"])),
+            }
+            for r in rows
+        ]
 
     # ---------- mute: only the lecturer and the admin may post ----------
     def is_locked(self, course_id: int) -> bool:
