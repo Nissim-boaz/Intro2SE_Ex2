@@ -6,86 +6,32 @@
   </div>
 
   {% if recordings %}
-  <div class="recordings">
+  <div class="rec-grid">
     {% for rec in recordings %}
-    <details class="recording" {% if loop.first %}open{% endif %} data-recording="{{ rec.id }}"
-             {% if rec.processing %}data-processing="1" data-status-url="{{ url_for('recordings.status', recording_id=rec.id) }}" data-status="{{ rec.status }}"{% endif %}>
-      <summary>
-        <span class="grow">
-          <span class="recording-title">{{ rec.title }}</span>
-          <span class="xsmall muted">{{ rec.created_at[:10] }}</span>
-        </span>
-        {% if rec.status == 'ready' %}
-          {% if rec.chapters %}<span class="pill">{{ rec.chapters|length }} פרקים</span>{% endif %}
-        {% elif rec.status == 'failed' %}
-          <span class="pill pill-danger">{{ rec.status_label }}</span>
+    <a class="rec-card" href="{{ url_for('recordings.show', recording_id=rec.id) }}"
+       {% if rec.processing %}data-processing="1" data-status-url="{{ url_for('recordings.status', recording_id=rec.id) }}" data-status="{{ rec.status }}"{% endif %}>
+      <span class="rec-thumb">
+        {% if rec.is_video %}
+        {# #t=2: the browser shows the frame at 2 seconds as the thumbnail #}
+        <video preload="metadata" muted playsinline tabindex="-1" aria-hidden="true" data-thumb
+               src="{{ url_for('recordings.media', recording_id=rec.id) }}#t=2"></video>
         {% else %}
-          <span class="pill pill-brand"><span class="spinner" aria-hidden="true"></span>{{ rec.status_label }}</span>
+        <audio preload="metadata" data-thumb src="{{ url_for('recordings.media', recording_id=rec.id) }}"></audio>
+        <span class="rec-thumb-audio" aria-hidden="true">♪</span>
         {% endif %}
-      </summary>
-
-      <div class="recording-body">
-        <div class="player">
-          {% if rec.is_video %}
-          <video controls preload="metadata" playsinline src="{{ url_for('recordings.media', recording_id=rec.id) }}"></video>
-          {% else %}
-          <audio controls preload="metadata" src="{{ url_for('recordings.media', recording_id=rec.id) }}"></audio>
-          {% endif %}
-        </div>
-
-        {% if rec.status == 'ready' %}
-        <div class="recording-grid">
-          <div class="stack">
-            {% if rec.summary %}<div><h3>סיכום</h3><p class="recording-summary">{{ rec.summary }}</p></div>{% endif %}
-            {% if rec.key_points %}
-            <div>
-              <h3>נקודות מפתח</h3>
-              <ul class="key-points">{% for p in rec.key_points %}<li>{{ p }}</li>{% endfor %}</ul>
-            </div>
-            {% endif %}
-          </div>
-          {% if rec.chapters %}
-          <nav class="chapters" aria-label="ראשי פרקים">
-            <h3>ראשי פרקים</h3>
-            <ol>
-              {% for ch in rec.chapters %}
-              <li><button type="button" data-seek="{{ ch.start }}"><span class="chapter-time" dir="ltr">{{ ch.start|clock }}</span><span>{{ ch.title }}</span></button></li>
-              {% endfor %}
-            </ol>
-          </nav>
-          {% endif %}
-        </div>
-        {% if rec.transcript %}
-        <details class="transcript">
-          <summary>תמלול מלא</summary>
-          <div class="transcript-lines">
-            {% for s in rec.transcript %}<p><button type="button" data-seek="{{ s.start|int }}" class="chapter-time" dir="ltr">{{ s.start|clock }}</button> {{ s.text }}</p>{% endfor %}
-          </div>
-        </details>
+        <span class="rec-play" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" fill="currentColor"/></svg></span>
+        <span class="rec-duration" data-duration hidden></span>
+        {% if rec.status == 'failed' %}
+          <span class="rec-badge pill pill-danger">{{ rec.status_label }}</span>
+        {% elif rec.processing %}
+          <span class="rec-badge pill pill-brand"><span class="spinner" aria-hidden="true"></span>{{ rec.status_label }}</span>
         {% endif %}
-
-        {% elif rec.status == 'failed' %}
-        <div class="notice notice-warn">
-          <strong>העיבוד נכשל.</strong> {{ rec.error }}
-          {% if rec.transcript %}<span>התמלול נשמר, כך שבניסיון חוזר רק הסיכום ירוץ שוב.</span>{% endif %}
-        </div>
-
-        {% else %}
-        <p class="muted small">{{ 'ההקלטה בתמלול. בשיעור של שעה וחצי זה יכול לקחת חצי שעה. העמוד יתעדכן לבד.' if rec.status != 'summarizing' else 'התמלול מוכן, ועכשיו נכתבים הסיכום וראשי הפרקים.' }}</p>
-        {% endif %}
-
-        {% if can_manage %}
-        <div class="row row-end">
-          {% if rec.status == 'failed' %}
-          <form method="post" action="{{ url_for('recordings.retry', recording_id=rec.id) }}"><button class="btn btn-sm">נסה שוב</button></form>
-          {% endif %}
-          <form method="post" action="{{ url_for('recordings.delete', recording_id=rec.id) }}" data-confirm="למחוק את ההקלטה ואת הסיכום שלה?">
-            <button class="btn btn-sm btn-ghost">מחק הקלטה</button>
-          </form>
-        </div>
-        {% endif %}
-      </div>
-    </details>
+      </span>
+      <span class="rec-info">
+        <span class="rec-title">{{ rec.title }}</span>
+        <span class="rec-meta">{{ rec.created_at|date_he }}{% if rec.status == 'ready' and rec.chapters %}, {{ rec.chapters|length }} פרקים{% endif %}</span>
+      </span>
+    </a>
     {% endfor %}
   </div>
   {% else %}

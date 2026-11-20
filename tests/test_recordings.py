@@ -199,3 +199,35 @@ def test_media_only_for_members_and_upload_only_for_lecturer(app, client):
     res.close()
     login(client, outsider.id)
     assert client.get("/recordings/1/media").status_code == 302
+
+
+def test_course_shows_cards_and_recording_page_has_details(app, client):
+    conn = connect(app.config["DATABASE"])
+    users = UserService(conn)
+    lect = users.create("l9@test.ac.il", "מרצה", "lecturer")
+    stud = users.create("s9@test.ac.il", "סטודנט", "student")
+    course = CourseService(conn).create("קורס")
+    EnrollmentService(conn).enroll_many(course.id, [lect, stud])
+    recs = RecordingService(conn, FileStore(app.config["UPLOAD_DIR"]))
+    rec = _upload(recs, course.id)
+    recs.process(rec.id, FakeTranscriber(), LessonSummarizer(FakeLLM()))
+    conn.close()
+
+    login(client, stud.id)
+    course_page = client.get(f"/courses/{course.id}").get_data(as_text=True)
+    assert f'href="/recordings/{rec.id}"' in course_page and "rec-card" in course_page
+    assert "ראשי פרקים" not in course_page  # הפרטים רק בעמוד ההקלטה
+
+    page = client.get(f"/recordings/{rec.id}").get_data(as_text=True)
+    assert "ראשי פרקים" in page and "Design Patterns" in page and "שיעור על UML" in page
+    assert f'class="back-link" href="/courses/{course.id}#recordings"' in page
+    assert "מחק הקלטה" not in page  # סטודנט לא רואה כפתורי ניהול
+    login(client, lect.id)
+    assert "מחק הקלטה" in client.get(f"/recordings/{rec.id}").get_data(as_text=True)
+
+
+def test_hebrew_date_filter():
+    from modelplus import date_he
+
+    assert date_he("2026-11-20 10:00:00").endswith("בנובמבר 2026")
+    assert date_he("garbage") == "garbage"

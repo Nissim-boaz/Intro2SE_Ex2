@@ -65,6 +65,21 @@ def _start_jobs(app: Flask) -> None:
     start_runner(app)
 
 
+HEBREW_MONTHS = ("ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט",
+                 "ספטמבר", "אוקטובר", "נובמבר", "דצמבר")
+
+
+def date_he(value: str) -> str:
+    """'2026-11-20 07:28:49' (UTC מ-SQLite) -> '20 בנובמבר 2026' בשעון המקומי."""
+    from datetime import datetime, timezone
+
+    try:
+        dt = datetime.fromisoformat(str(value)).replace(tzinfo=timezone.utc).astimezone()
+    except ValueError:
+        return str(value)[:10]
+    return f"{dt.day} ב{HEBREW_MONTHS[dt.month - 1]} {dt.year}"
+
+
 def _wants_json() -> bool:
     return request.path.startswith("/api/") or request.is_json
 
@@ -74,6 +89,7 @@ def _register_handlers(app: Flask) -> None:
 
     app.before_request(load_current_user)
     app.jinja_env.filters["clock"] = fmt_time
+    app.jinja_env.filters["date_he"] = date_he
 
     @app.context_processor
     def inject_user():

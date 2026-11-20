@@ -1,10 +1,10 @@
 """הקלטות: העלאה (מרצה), צפייה עם סיכום ופרקים (חברי הקורס)."""
-from flask import Blueprint, current_app, flash, jsonify, redirect, request, send_file, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, send_file, url_for
 
 from ..db import get_db
 from ..security import current_user, login_required
 from ..services.content import FileStore
-from ..services.courses import EnrollmentService
+from ..services.courses import CourseService, EnrollmentService
 from ..services.recordings import RecordingService
 
 bp = Blueprint("recordings", __name__)
@@ -37,6 +37,21 @@ def upload(course_id: int):
     return _back(course_id)
 
 
+@bp.get("/recordings/<int:recording_id>")
+@login_required
+def show(recording_id: int):
+    """עמוד ההקלטה: נגן, ראשי פרקים, סיכום ותמלול. בעמוד הקורס יש רק כרטיס שמוביל לכאן."""
+    db = get_db()
+    rec = _service().get(recording_id)
+    role = EnrollmentService(db).require_member(rec.course_id, current_user())
+    return render_template(
+        "recordings/show.html",
+        rec=rec,
+        course=CourseService(db).get(rec.course_id),
+        can_manage=role in ("admin", "lecturer"),
+    )
+
+
 @bp.get("/recordings/<int:recording_id>/media")
 @login_required
 def media(recording_id: int):
@@ -63,7 +78,7 @@ def retry(recording_id: int):
     EnrollmentService(get_db()).require_manager(rec.course_id, current_user())
     service.retry(recording_id)
     _enqueue(recording_id)
-    return _back(rec.course_id)
+    return redirect(url_for("recordings.show", recording_id=recording_id))
 
 
 @bp.post("/recordings/<int:recording_id>/delete")

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% set back_url = url_for('courses.show', course_id=course.id) ~ '#recordings' %}{% set back_label = course.name %}
+{% block title %}{{ rec.title }} · {{ course.name }}{% endblock %}
+{% block content %}
+<article class="recording rec-page" data-recording="{{ rec.id }}"
+         {% if rec.processing %}data-processing="1" data-status-url="{{ url_for('recordings.status', recording_id=rec.id) }}" data-status="{{ rec.status }}"{% endif %}>
+  <header class="rec-head">
+    <div>
+      <h1>{{ rec.title }}</h1>
+      <p class="muted">{{ rec.created_at|date_he }}{% if rec.status == 'ready' and rec.chapters %}, {{ rec.chapters|length }} פרקים{% endif %}</p>
+    </div>
+    {% if rec.status == 'failed' %}
+      <span class="pill pill-danger">{{ rec.status_label }}</span>
+    {% elif rec.processing %}
+      <span class="pill pill-brand"><span class="spinner" aria-hidden="true"></span>{{ rec.status_label }}</span>
+    {% endif %}
+  </header>
+
+  <div class="rec-layout">
+    <div class="rec-main">
+      <div class="player">
+        {% if rec.is_video %}
+        <video controls preload="metadata" playsinline src="{{ url_for('recordings.media', recording_id=rec.id) }}"></video>
+        {% else %}
+        <div class="audio-stage" aria-hidden="true">♪</div>
+        <audio controls preload="metadata" src="{{ url_for('recordings.media', recording_id=rec.id) }}"></audio>
+        {% endif %}
+      </div>
+
+      {% if rec.status == 'ready' %}
+        {% if rec.summary %}
+        <section class="panel">
+          <h2 style="margin-bottom:8px">סיכום</h2>
+          <p class="recording-summary">{{ rec.summary }}</p>
+          {% if rec.key_points %}
+          <h3 style="margin:18px 0 8px">נקודות מפתח</h3>
+          <ul class="key-points">{% for p in rec.key_points %}<li>{{ p }}</li>{% endfor %}</ul>
+          {% endif %}
+        </section>
+        {% endif %}
+        {% if rec.transcript %}
+        <section class="panel">
+          <details class="transcript">
+            <summary>תמלול מלא</summary>
+            <div class="transcript-lines">
+              {% for s in rec.transcript %}<p><button type="button" data-seek="{{ s.start|int }}" class="chapter-time" dir="ltr">{{ s.start|clock }}</button> {{ s.text }}</p>{% endfor %}
+            </div>
+          </details>
+        </section>
+        {% endif %}
+      {% elif rec.status == 'failed' %}
+        <div class="notice notice-warn">
+          <strong>העיבוד נכשל.</strong> {{ rec.error }}
+          {% if rec.transcript %}<span>התמלול נשמר, כך שבניסיון חוזר רק הסיכום ירוץ שוב.</span>{% endif %}
+        </div>
+      {% else %}
+        <p class="muted">{{ 'ההקלטה בתמלול. בשיעור של שעה וחצי זה יכול לקחת חצי שעה. העמוד יתעדכן לבד, ובינתיים אפשר כבר לצפות.' if rec.status != 'summarizing' else 'התמלול מוכן, ועכשיו נכתבים הסיכום וראשי הפרקים.' }}</p>
+      {% endif %}
+    </div>
+
+    {% if rec.status == 'ready' and rec.chapters %}
+    <aside class="panel rec-side">
+      <nav class="chapters" aria-label="ראשי פרקים">
+        <h2 style="margin-bottom:8px">ראשי פרקים</h2>
+        <ol>
+          {% for ch in rec.chapters %}
+          <li><button type="button" data-seek="{{ ch.start }}"><span class="chapter-time" dir="ltr">{{ ch.start|clock }}</span><span>{{ ch.title }}</span></button></li>
+          {% endfor %}
+        </ol>
+      </nav>
+    </aside>
+    {% endif %}
+  </div>
+
+  {% if can_manage %}
+  <div class="row row-end" style="margin-top:20px">
+    {% if rec.status == 'failed' %}
+    <form method="post" action="{{ url_for('recordings.retry', recording_id=rec.id) }}"><button class="btn btn-sm">נסה שוב</button></form>
+    {% endif %}
+    <form method="post" action="{{ url_for('recordings.delete', recording_id=rec.id) }}" data-confirm="למחוק את ההקלטה ואת הסיכום שלה?">
+      <button class="btn btn-sm btn-ghost">מחק הקלטה</button>
+    </form>
+  </div>
+  {% endif %}
+</article>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/recordings.js') }}"></script>
+{% endblock %}

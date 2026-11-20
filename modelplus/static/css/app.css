@@ -820,3 +820,48 @@ body.chat-fullscreen { overflow: hidden; }
 
 /* no scrollbar arrows in the composer until the text is taller than the box */
 .composer-field textarea { overflow-y: hidden; scrollbar-width: thin; }
+
+/* ---------- recordings: card grid on the course page ---------- */
+.rec-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.rec-card { display: grid; gap: 10px; color: var(--ink); border-radius: var(--r-md); }
+.rec-card:hover { text-decoration: none; }
+.rec-card:focus-visible { outline-offset: 4px; }
+.rec-thumb {
+  position: relative; display: block; aspect-ratio: 16 / 9; border-radius: var(--r-md); overflow: hidden;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 70%, #000), var(--brand));
+  box-shadow: var(--shadow); transition: transform .18s var(--ease), box-shadow .18s var(--ease);
+}
+.rec-card:hover .rec-thumb { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(0,0,0,.06), 0 16px 34px rgba(0,0,0,.14); }
+.rec-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+.rec-thumb audio { display: none; }
+.rec-thumb-audio { position: absolute; inset: 0; display: grid; place-items: center; font-size: 44px; color: rgba(255,255,255,.85); }
+.rec-play {
+  position: absolute; inset: 0; margin: auto; width: 48px; height: 48px; border-radius: 50%;
+  display: grid; place-items: center; color: #fff; background: rgba(0,0,0,.45); backdrop-filter: blur(6px);
+  opacity: .9; transition: transform .18s var(--ease), background .18s;
+}
+.rec-play svg { transform: translateX(2px); }
+.rec-card:hover .rec-play { transform: scale(1.08); background: var(--brand); }
+.rec-duration {
+  position: absolute; bottom: 8px; left: 8px; padding: 2px 7px; border-radius: 6px; direction: ltr;
+  font-size: 12px; font-weight: 600; color: #fff; background: rgba(0,0,0,.7); font-variant-numeric: tabular-nums;
+}
+.rec-badge { position: absolute; top: 8px; right: 8px; box-shadow: var(--shadow); }
+.rec-info { display: grid; gap: 2px; padding: 0 2px; }
+.rec-title { font-weight: 600; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.rec-meta { font-size: 13px; color: var(--ink-2); }
+
+/* ---------- recording page ---------- */
+.rec-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.rec-head h1 { font-size: clamp(24px, 4vw, 34px); }
+.rec-head p { margin-top: 4px; }
+.rec-layout { display: grid; gap: 16px; align-items: start; }
+@media (min-width: 960px) { .rec-layout { grid-template-columns: minmax(0, 1fr) 320px; } .rec-side { position: sticky; top: 76px; } }
+.rec-main { display: grid; gap: 16px; min-width: 0; }
+.rec-page .player video { border-radius: var(--r-lg); box-shadow: var(--shadow); max-height: 70vh; }
+.audio-stage {
+  aspect-ratio: 16 / 6; border-radius: var(--r-lg); margin-bottom: 10px; display: grid; place-items: center; font-size: 64px; color: #fff;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 70%, #000), var(--brand));
+}
+.rec-side .chapters ol { max-height: 60vh; overflow: auto; }
+.rec-side .chapters button:hover { background: var(--fill); }
