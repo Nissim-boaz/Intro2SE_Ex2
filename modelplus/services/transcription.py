@@ -13,10 +13,24 @@ class Segment:
     text: str
 
 
+# מונחים שנאמרים באנגלית בשיעורי תוכנה. Whisper מקבל אותם כרמז, כדי שיכתוב אותם נכון ולא בתעתיק עברי שבור
+DEFAULT_TERMS = (
+    "UML, class diagram, sequence diagram, use case, object, class, interface, inheritance, "
+    "composition, aggregation, association, polymorphism, encapsulation, abstraction, design patterns, "
+    "Singleton, Factory, Observer, Strategy, MVC, API, database, SQL, Python, Java, Flask, pytest, Git, GitHub"
+)
+
+
+def transcription_hint(course_name: str = "", terms: str = DEFAULT_TERMS) -> str:
+    """משפט פתיחה ש-Whisper ממשיך ממנו. כך הוא מזהה שהשיעור בעברית עם מונחים באנגלית."""
+    course = f"שיעור בקורס {course_name}. " if course_name else ""
+    return f"{course}השיעור בעברית, ומונחים מקצועיים נאמרים באנגלית: {terms}."
+
+
 class Transcriber(ABC):
     @abstractmethod
-    def transcribe(self, media_path: str) -> list[Segment]:
-        ...
+    def transcribe(self, media_path: str, hint: str | None = None) -> list[Segment]:
+        """hint: טקסט קצר עם הקשר ומונחים, שעוזר לזהות נכון מילים באנגלית."""
 
 
 class AudioExtractor:
@@ -52,10 +66,13 @@ class WhisperTranscriber(Transcriber):
             self._model = WhisperModel(self.model_size, device="cpu", compute_type="int8")
         return self._model
 
-    def transcribe(self, media_path: str) -> list[Segment]:
+    def transcribe(self, media_path: str, hint: str | None = None) -> list[Segment]:
         with tempfile.TemporaryDirectory() as tmp:
             audio = self._read_wav(self.extractor.extract(media_path, tmp))
-        segments, _info = self._load().transcribe(audio, language=self.language, vad_filter=True, beam_size=5)
+        segments, _info = self._load().transcribe(
+            audio, language=self.language, vad_filter=True, beam_size=5,
+            initial_prompt=hint or transcription_hint(),
+        )
         return [Segment(round(s.start, 1), round(s.end, 1), s.text.strip()) for s in segments if s.text.strip()]
 
     @staticmethod

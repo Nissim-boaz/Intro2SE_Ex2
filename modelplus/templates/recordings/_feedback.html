@@ -1,17 +1,25 @@
 {# Private feedback for the course lecturer. This file is only ever rendered for them (see is_course_lecturer). #}
 {% set fb = rec.feedback %}
-<section class="panel feedback" id="feedback"
+<details class="panel feedback fold" id="feedback" data-fold="feedback" open
          {% if rec.feedback_status == 'pending' %}data-feedback-pending data-feedback-url="{{ url_for('recordings.feedback_status', recording_id=rec.id) }}"{% endif %}>
-  <div class="panel-head" style="margin-bottom:6px">
+  <summary class="fold-head">
     <h2>משוב אישי על השיעור</h2>
     <span class="pill feedback-private" title="הסטודנטים ומנהל המערכת לא רואים את המשוב">
       <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M7 10V7.5a5 5 0 0 1 10 0V10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><rect x="4.5" y="10" width="15" height="11" rx="3" fill="currentColor"/></svg>
       רק אתה רואה את זה
     </span>
-  </div>
+    <span class="fold-chevron" aria-hidden="true"></span>
+  </summary>
 
+  <div class="fold-body">
   {% if rec.feedback_status == 'pending' %}
-    <p class="feedback-wait"><span class="spinner" aria-hidden="true"></span> כותב משוב על השיעור. זה לוקח בערך דקה, והעמוד יתעדכן לבד.</p>
+    <div class="feedback-wait">
+      <span class="spinner" aria-hidden="true"></span>
+      <span class="grow">כותב משוב על השיעור. זה לוקח בערך דקה, והעמוד יתעדכן לבד.</span>
+      <form method="post" action="{{ url_for('recordings.cancel_feedback', recording_id=rec.id) }}" data-once>
+        <button class="icon-btn" aria-label="בטל את כתיבת המשוב" title="בטל">✕</button>
+      </form>
+    </div>
 
   {% elif rec.feedback_status == 'ready' and fb %}
     {% if fb.overall %}<p class="feedback-overall">{{ fb.overall }}</p>{% endif %}
@@ -40,21 +48,27 @@
     <p class="muted">לא נמצאו דברים לשפר בשיעור הזה.</p>
     {% endif %}
     <p class="xsmall muted" style="margin-top:12px">המשוב נכתב אוטומטית מתוך התמלול, ולפעמים הוא טועה. אם הערה לא נראית לך נכונה, לחץ על הזמן ושמע את הקטע.</p>
-    <form method="post" action="{{ url_for('recordings.request_feedback', recording_id=rec.id) }}" style="margin-top:10px">
-      <button class="btn btn-sm btn-quiet">כתוב משוב מחדש</button>
+    {% if rec.can_request_feedback %}
+    <form method="post" action="{{ url_for('recordings.request_feedback', recording_id=rec.id) }}" data-once style="margin-top:10px">
+      <button class="btn btn-sm btn-quiet">כתוב משוב מחדש לפי התמלול המתוקן</button>
     </form>
+    {% else %}
+    <p class="xsmall muted" style="margin-top:6px">משוב נכתב פעם אחת להקלטה. אם תתקן ותשמור את התמלול, תוכל לכתוב משוב חדש לפיו.</p>
+    {% endif %}
 
   {% else %}
     {% if rec.feedback_status == 'failed' %}
     <div class="notice notice-warn" style="margin-bottom:12px"><strong>כתיבת המשוב נכשלה.</strong> {{ rec.feedback_error }}</div>
     {% endif %}
     <p class="muted">משוב בונה על השיעור: טעויות לשון כמו ״שלושה מחלקות״, משפטים שנאמרו לא מדויק, והסברים שאפשר לעשות ברורים יותר. לכל הערה יש הזמן בהקלטה והצעה לפעם הבאה.</p>
-    {% if rec.transcript %}
-    <form method="post" action="{{ url_for('recordings.request_feedback', recording_id=rec.id) }}" style="margin-top:12px">
+    {% if rec.can_request_feedback %}
+    <form method="post" action="{{ url_for('recordings.request_feedback', recording_id=rec.id) }}" data-once style="margin-top:12px">
       <button class="btn">{{ 'נסה שוב' if rec.feedback_status == 'failed' else 'צור משוב' }}</button>
     </form>
+    <p class="xsmall muted" style="margin-top:8px">נכתב משוב אחד להקלטה. כדאי לעבור על התמלול ולתקן אותו לפני כן.</p>
     {% else %}
     <p class="xsmall muted" style="margin-top:8px">אפשר ליצור משוב אחרי שהתמלול מסתיים.</p>
     {% endif %}
   {% endif %}
-</section>
+  </div>
+</details>

@@ -6,12 +6,13 @@ import logging
 import queue
 import sqlite3
 import threading
+import time
 from dataclasses import dataclass
 
 from ..errors import NotFound, ValidationError
 from .content import FileStore
 from .llm import LessonSummarizer, LLMError
-from .transcription import Segment, Transcriber
+from .transcription import Segment, Transcriber, transcription_hint
 
 log = logging.getLogger(__name__)
 
@@ -43,6 +44,18 @@ class Recording:
     feedback_status: str = ""          # '' | pending | ready | failed
     feedback: dict | None = None       # {overall, strengths, items} — רק למרצה הקורס
     feedback_error: str = ""
+    feedback_job: int = 0
+    feedback_at: float = 0.0
+    transcript_edited_at: float = 0.0
+
+    @property
+    def can_request_feedback(self) -> bool:
+        """משוב אחד להקלטה. משוב חדש מותר רק אם המרצה ערך את התמלול אחרי שהמשוב נכתב."""
+        if self.processing or not self.transcript or self.feedback_status == "pending":
+            return False
+        if self.feedback_status == "ready":
+            return self.transcript_edited_at > self.feedback_at
+        return True  # עוד לא נוצר, נכשל או בוטל
 
     @property
     def status_label(self) -> str:
@@ -68,6 +81,7 @@ class Recording:
             json.loads(r["transcript_json"]), r["summary"], json.loads(r["key_points_json"]),
             json.loads(r["chapters_json"]), r["error"], r["created_at"], bool(r["published"]),
             r["feedback_status"], json.loads(r["feedback_json"]) if r["feedback_json"] else None, r["feedback_error"],
+            r["feedback_job"], r["feedback_at"], r["transcript_edited_at"],
         )
 
 
@@ -164,33 +178,51 @@ class RecordingService:
         return self.get(recording_id)
 
     # ---------- private feedback for the lecturer ----------
-    def request_feedback(self, recording_id: int) -> None:
-        """מסמן שהמרצה ביקש משוב. הכתיבה עצמה רצה ברקע (write_feedback)."""
+    def request_feedback(self, recording_id: int) -> int:
+        """מסמן שהמרצה ביקש משוב ומחזיר מספר בקשה. הכתיבה עצמה רצה ברקע (write_feedback)."""
         rec = self.get(recording_id)
         if rec.processing or not rec.transcript:
             raise ValidationError("אפשר לבקש משוב אחרי שהתמלול מסתיים")
         if rec.feedback_status == "pending":
-            return
-        self._set(recording_id, feedback_status="pending", feedback_error="")
+            return rec.feedback_job  # לחיצה כפולה: לא פותחים בקשה שנייה
+        if not rec.can_request_feedback:
+            raise ValidationError("כבר יש משוב להקלטה הזו. אחרי שתערוך ותשמור את התמלול אפשר לכתוב משוב חדש")
+        job = rec.feedback_job + 1
+        self._set(recording_id, feedback_status="pending", feedback_error="", feedback_job=job)
+        return job
 
-    def pending_feedback_ids(self) -> list[int]:
-        return [r["id"] for r in self.db.execute("SELECT id FROM recordings WHERE feedback_status = 'pending' ORDER BY id")]
-
-    def write_feedback(self, recording_id: int, writer) -> Recording:
+    def cancel_feedback(self, recording_id: int) -> None:
+        """ביטול בזמן הכתיבה. אם כבר היה משוב קודם, חוזרים אליו. התוצאה של הבקשה שבוטלה תיזרק."""
         rec = self.get(recording_id)
+        if rec.feedback_status != "pending":
+            return
+        previous = "ready" if rec.feedback else ""
+        self._set(recording_id, feedback_status=previous, feedback_job=rec.feedback_job + 1)
+
+    def pending_feedback_ids(self) -> list[tuple[int, int]]:
+        rows = self.db.execute("SELECT id, feedback_job FROM recordings WHERE feedback_status = 'pending' ORDER BY id")
+        return [(r["id"], r["feedback_job"]) for r in rows]
+
+    def write_feedback(self, recording_id: int, writer, job: int | None = None) -> Recording:
+        """job: מספר הבקשה. אם בינתיים המרצה ביטל (או ביקש שוב), התוצאה הזו כבר לא רלוונטית ונזרקת."""
+        rec = self.get(recording_id)
+        job = rec.feedback_job if job is None else job
         try:
             fb = writer.write([Segment(**s) for s in rec.transcript])
-            self._set(
-                recording_id,
+            fields = dict(
                 feedback_status="ready",
                 feedback_json=json.dumps(
                     {"overall": fb.overall, "strengths": fb.strengths, "items": fb.items}, ensure_ascii=False
                 ),
                 feedback_error="",
+                feedback_at=time.time(),
             )
         except Exception as err:  # LLMError, רשת: לא נשאיר את המשוב תקוע ב״כותב״
             log.exception("feedback for recording %s failed", recording_id)
-            self._set(recording_id, feedback_status="failed", feedback_error=str(err)[:500])
+            fields = dict(feedback_status="failed", feedback_error=str(err)[:500])
+        current = self.get(recording_id)
+        if current.feedback_status == "pending" and current.feedback_job == job:
+            self._set(recording_id, **fields)
         return self.get(recording_id)
 
     def update_transcript(self, recording_id: int, texts: list[str]) -> Recording:
@@ -201,7 +233,10 @@ class RecordingService:
         if len(texts) != len(rec.transcript):
             raise ValidationError("התמלול השתנה בזמן העריכה. רענן את העמוד ונסה שוב")
         segments = [dict(seg, text=(text or "").strip()) for seg, text in zip(rec.transcript, texts)]
-        self._set(recording_id, transcript_json=json.dumps(segments, ensure_ascii=False))
+        if segments == rec.transcript:
+            return rec  # שמירה בלי שינוי בתמלול לא פותחת משוב חדש
+        self._set(recording_id, transcript_json=json.dumps(segments, ensure_ascii=False),
+                  transcript_edited_at=time.time())
         return self.get(recording_id)
 
     def pending_ids(self) -> list[int]:
@@ -234,7 +269,9 @@ class RecordingService:
         try:
             if not segments:
                 self._set(recording_id, status="transcribing")
-                segments = transcriber.transcribe(str(self.files.path(rec.file_path)))
+                course = self.db.execute("SELECT name FROM courses WHERE id = ?", (rec.course_id,)).fetchone()
+                hint = transcription_hint(course["name"] if course else "")
+                segments = transcriber.transcribe(str(self.files.path(rec.file_path)), hint=hint)
                 self._set(recording_id, transcript_json=json.dumps(
                     [{"start": s.start, "end": s.end, "text": s.text} for s in segments], ensure_ascii=False))
             self._set(recording_id, status="summarizing")
@@ -267,7 +304,7 @@ class BackgroundJobRunner:
         self.files = files
         self.transcriber = transcriber
         self.provider_factory = provider_factory  # נבנה מחדש לכל עבודה, כדי לקלוט key חדש מ-.env
-        self.jobs: "queue.Queue[tuple[str, int]]" = queue.Queue()
+        self.jobs: "queue.Queue[tuple]" = queue.Queue()
         self.thread = threading.Thread(target=self._run, name="recordings", daemon=True)
 
     def start(self) -> None:
@@ -277,25 +314,25 @@ class BackgroundJobRunner:
         try:  # מה שנשאר מהרצה קודמת
             service = RecordingService(conn, self.files)
             for rid in service.pending_ids():
-                self.jobs.put(("process", rid))
-            for rid in service.pending_feedback_ids():
-                self.jobs.put(("feedback", rid))
+                self.jobs.put(("process", rid, None))
+            for rid, job in service.pending_feedback_ids():
+                self.jobs.put(("feedback", rid, job))
         finally:
             conn.close()
         self.thread.start()
 
     def enqueue(self, recording_id: int) -> None:
-        self.jobs.put(("process", recording_id))
+        self.jobs.put(("process", recording_id, None))
 
-    def enqueue_feedback(self, recording_id: int) -> None:
-        self.jobs.put(("feedback", recording_id))
+    def enqueue_feedback(self, recording_id: int, job: int) -> None:
+        self.jobs.put(("feedback", recording_id, job))
 
     def _run(self) -> None:
         from ..db import connect
         from .llm import LessonFeedbackWriter
 
         while True:
-            kind, rid = self.jobs.get()
+            kind, rid, job = self.jobs.get()
             conn = connect(self.db_path)
             try:
                 service = RecordingService(conn, self.files)
@@ -304,7 +341,7 @@ class BackgroundJobRunner:
                 except LLMError as err:
                     provider = _FailingProvider(str(err))
                 if kind == "feedback":
-                    service.write_feedback(rid, LessonFeedbackWriter(provider))
+                    service.write_feedback(rid, LessonFeedbackWriter(provider), job)
                 else:
                     service.process(rid, self.transcriber, LessonSummarizer(provider))
             except NotFound:

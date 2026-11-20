@@ -130,6 +130,28 @@
     sync();
   });
 
+  // ---------- <form data-once>: lock the button on the first click so a double click sends one request ----------
+  document.addEventListener("submit", (e) => {
+    const form = e.target;
+    if (!form.hasAttribute("data-once") || e.defaultPrevented) return;
+    if (form.dataset.sent) { e.preventDefault(); return; }
+    form.dataset.sent = "1";
+    // disable after the browser has read the form, otherwise the click would not submit at all
+    setTimeout(() => form.querySelectorAll("button").forEach((b) => {
+      b.disabled = true;
+      if (!b.classList.contains("icon-btn")) b.innerHTML = '<span class="spinner" aria-hidden="true"></span> ' + b.textContent;
+    }), 0);
+  });
+
+  // ---------- <details data-fold="name">: remember collapsed sections per browser ----------
+  document.querySelectorAll("details[data-fold]").forEach((d) => {
+    const key = "modelplus.fold." + d.dataset.fold;
+    try { if (localStorage.getItem(key) === "closed") d.removeAttribute("open"); } catch (_) {}
+    d.addEventListener("toggle", () => {
+      try { d.open ? localStorage.removeItem(key) : localStorage.setItem(key, "closed"); } catch (_) {}
+    });
+  });
+
   // ---------- theme: auto (follow the device) / light / dark, remembered per browser ----------
   const THEME_KEY = "modelplus.theme";
   function savedTheme() {

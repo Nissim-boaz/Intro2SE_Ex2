@@ -137,5 +137,8 @@ CREATE TABLE IF NOT EXISTS recordings (
     feedback_status TEXT NOT NULL DEFAULT '',    -- '' | pending | ready | failed
     feedback_json   TEXT NOT NULL DEFAULT '',
     feedback_error  TEXT NOT NULL DEFAULT '',
+    feedback_job    INTEGER NOT NULL DEFAULT 0,  -- מונה בקשות: תוצאה של בקשה שבוטלה נזרקת
+    feedback_at     REAL NOT NULL DEFAULT 0,     -- מתי נכתב המשוב
+    transcript_edited_at REAL NOT NULL DEFAULT 0, -- משוב חדש מותר רק אם התמלול נערך אחרי המשוב
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );

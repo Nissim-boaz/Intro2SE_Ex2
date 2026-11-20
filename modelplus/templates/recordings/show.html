@@ -51,16 +51,19 @@
         {% include "recordings/_edit.html" %}
       {% elif rec.status == 'ready' %}
         {% if rec.summary or rec.key_points %}
-        <section class="panel">
-          {% if rec.summary %}
-          <h2 style="margin-bottom:8px">סיכום</h2>
-          <p class="recording-summary">{{ rec.summary }}</p>
-          {% endif %}
-          {% if rec.key_points %}
-          <h3 style="margin:18px 0 8px">נקודות מפתח</h3>
-          <ul class="key-points">{% for p in rec.key_points %}<li>{{ p }}</li>{% endfor %}</ul>
-          {% endif %}
-        </section>
+        <details class="panel fold" data-fold="summary" open>
+          <summary class="fold-head">
+            <h2>סיכום</h2>
+            <span class="fold-chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="fold-body">
+            {% if rec.summary %}<p class="recording-summary">{{ rec.summary }}</p>{% endif %}
+            {% if rec.key_points %}
+            <h3 style="margin:18px 0 8px">נקודות מפתח</h3>
+            <ul class="key-points">{% for p in rec.key_points %}<li>{{ p }}</li>{% endfor %}</ul>
+            {% endif %}
+          </div>
+        </details>
         {% endif %}
         {% if is_course_lecturer %}{% include "recordings/_feedback.html" %}{% endif %}
         {% if rec.transcript %}

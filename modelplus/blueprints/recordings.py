@@ -83,10 +83,22 @@ def request_feedback(recording_id: int):
     rec = service.get(recording_id)
     if not _is_course_lecturer(rec.course_id):
         raise Forbidden("רק המרצה של הקורס יכול לבקש משוב על השיעור")
-    service.request_feedback(recording_id)
+    already_pending = rec.feedback_status == "pending"
+    job = service.request_feedback(recording_id)
     runner = current_app.extensions.get("recording_runner")
-    if runner:
-        runner.enqueue_feedback(recording_id)
+    if runner and not already_pending:  # לחיצה כפולה לא שולחת בקשה שנייה ל-Gemini
+        runner.enqueue_feedback(recording_id, job)
+    return redirect(url_for("recordings.show", recording_id=recording_id) + "#feedback")
+
+
+@bp.post("/recordings/<int:recording_id>/feedback/cancel")
+@login_required
+def cancel_feedback(recording_id: int):
+    service = _service()
+    rec = service.get(recording_id)
+    if not _is_course_lecturer(rec.course_id):
+        raise Forbidden("רק המרצה של הקורס יכול לבטל את המשוב")
+    service.cancel_feedback(recording_id)
     return redirect(url_for("recordings.show", recording_id=recording_id) + "#feedback")
 
 

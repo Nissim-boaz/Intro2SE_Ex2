@@ -912,3 +912,31 @@ body.chat-fullscreen { overflow: hidden; }
 .feedback-cat-content { background: var(--danger-soft); color: var(--danger); }
 .feedback-cat-clarity { background: var(--warn-soft); color: var(--warn); }
 .feedback-cat-pace { background: var(--ok-soft); color: var(--ok); }
+
+/* ---------- collapsible panels (summary, feedback) ---------- */
+details.fold > summary { list-style: none; cursor: pointer; }
+details.fold > summary::-webkit-details-marker { display: none; }
+.fold-head { display: flex; align-items: center; gap: 10px; }
+.fold-head h2 { flex: 1; }
+.fold-chevron {
+  flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--fill); transition: background .15s;
+}
+/* physical borders (not inline-*) so the arrow does not flip in RTL: ∧ when open, ∨ when folded */
+.fold-chevron::before {
+  content: ""; width: 8px; height: 8px; border-right: 2px solid var(--ink-2); border-bottom: 2px solid var(--ink-2);
+  transform: translateY(2px) rotate(-135deg); transition: transform .2s var(--ease);
+}
+details.fold:not([open]) .fold-chevron::before { transform: translateY(-2px) rotate(45deg); }
+.fold-head:hover .fold-chevron { background: var(--fill-2); }
+details.fold:not([open]) > summary { margin-bottom: 0; }
+.fold-body { margin-top: 12px; }
+.feedback-wait { display: flex; align-items: center; gap: 10px; color: var(--ink-2); padding: 10px 12px; border-radius: var(--r-md); background: var(--fill); }
+.feedback-wait .grow { flex: 1; }
+
+/* ---------- the back link stays visible while scrolling ---------- */
+.back-link {
+  position: sticky; top: 62px; z-index: 15; width: fit-content; padding: 6px 14px 6px 10px; border-radius: 999px;
+  background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px); box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 70%, transparent);
+}

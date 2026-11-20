@@ -20,8 +20,9 @@ class FakeTranscriber(Transcriber):
     def __init__(self):
         self.calls = 0
 
-    def transcribe(self, media_path):
+    def transcribe(self, media_path, hint=None):
         self.calls += 1
+        self.hint = hint
         return SEGMENTS
 
 
@@ -91,7 +92,7 @@ def test_summary_failure_keeps_transcript_and_retry_skips_transcription(recs, pe
 
 def test_transcriber_crash_marks_failed(recs, people):
     class Broken(Transcriber):
-        def transcribe(self, media_path):
+        def transcribe(self, media_path, hint=None):
             raise RuntimeError("ffmpeg לא מותקן במחשב")
 
     rec = _upload(recs, people["course"].id)
@@ -383,12 +384,20 @@ def test_feedback_flow_pending_ready_and_failure(recs, people):
     recs.process(rec.id, FakeTranscriber(), LessonSummarizer(FakeLLM()))
     recs.request_feedback(rec.id)
     assert recs.get(rec.id).feedback_status == "pending"
-    assert recs.pending_feedback_ids() == [rec.id]
+    assert recs.pending_feedback_ids() == [(rec.id, 1)]  # (הקלטה, מספר בקשה)
     done = recs.write_feedback(rec.id, LessonFeedbackWriter(FakeLLM(response=FEEDBACK_JSON)))
     assert done.feedback_status == "ready" and done.feedback["items"][0]["quote"] == "שלושה מחלקות"
+
+
+def test_feedback_failure_allows_retry(recs, people):
+    from modelplus.services.llm import LessonFeedbackWriter
+
+    rec = _upload(recs, people["course"].id)
+    recs.process(rec.id, FakeTranscriber(), LessonSummarizer(FakeLLM()))
     recs.request_feedback(rec.id)
     failed = recs.write_feedback(rec.id, LessonFeedbackWriter(FakeLLM(fail=True)))
     assert failed.feedback_status == "failed" and "המכסה" in failed.feedback_error
+    assert failed.can_request_feedback  # עוד לא נוצר משוב, אז מותר לנסות שוב
 
 
 def test_feedback_visible_only_to_course_lecturer(app, client):
@@ -423,3 +432,72 @@ def test_feedback_visible_only_to_course_lecturer(app, client):
 
     login(client, other_lect.id)  # מרצה שלא משויך לקורס
     assert client.get(f"/api/recordings/{rec.id}/feedback-status").status_code == 403
+
+
+
+def test_one_feedback_per_recording_until_transcript_is_edited(recs, people):
+    from modelplus.services.llm import LessonFeedbackWriter
+
+    rec = _upload(recs, people["course"].id)
+    recs.process(rec.id, FakeTranscriber(), LessonSummarizer(FakeLLM()))
+    recs.request_feedback(rec.id)
+    done = recs.write_feedback(rec.id, LessonFeedbackWriter(FakeLLM(response=FEEDBACK_JSON)))
+    assert not done.can_request_feedback
+    with pytest.raises(ValidationError):
+        recs.request_feedback(rec.id)
+    # שמירה בלי שינוי בתמלול לא פותחת משוב חדש
+    same = [s["text"] for s in done.transcript]
+    assert not recs.update_transcript(rec.id, same).can_request_feedback
+    # עריכה אמיתית של התמלול פותחת משוב חדש
+    assert recs.update_transcript(rec.id, ["תוקן", same[1]]).can_request_feedback
+    recs.request_feedback(rec.id)
+    assert recs.get(rec.id).feedback_status == "pending"
+
+
+def test_double_click_does_not_open_a_second_request(recs, people):
+    rec = _upload(recs, people["course"].id)
+    recs.process(rec.id, FakeTranscriber(), LessonSummarizer(FakeLLM()))
+    first = recs.request_feedback(rec.id)
+    assert recs.request_feedback(rec.id) == first
+
+
+def test_cancel_discards_the_late_result(recs, people):
+    from modelplus.services.llm import LessonFeedbackWriter
+
+    rec = _upload(recs, people["course"].id)
+    recs.process(rec.id, FakeTranscriber(), LessonSummarizer(FakeLLM()))
+    job = recs.request_feedback(rec.id)
+    recs.cancel_feedback(rec.id)
+    assert recs.get(rec.id).feedback_status == ""
+    # הכתיבה ברקע מסתיימת אחרי הביטול: התוצאה נזרקת
+    late = recs.write_feedback(rec.id, LessonFeedbackWriter(FakeLLM(response=FEEDBACK_JSON)), job)
+    assert late.feedback_status == "" and late.feedback is None
+    assert late.can_request_feedback  # אחרי ביטול אפשר לבקש שוב
+
+
+def test_transcription_gets_course_hint(recs, people):
+    rec = _upload(recs, people["course"].id)
+    t = FakeTranscriber()
+    recs.process(rec.id, t, LessonSummarizer(FakeLLM()))
+    assert "מבוא להנדסת תוכנה" in t.hint and "composition" in t.hint
+
+
+def test_cancel_route_only_for_course_lecturer(app, client):
+    conn = connect(app.config["DATABASE"])
+    users = UserService(conn)
+    lect = users.create("l6@test.ac.il", "מרצה", "lecturer")
+    stud = users.create("s6@test.ac.il", "סטודנט", "student")
+    course = CourseService(conn).create("קורס")
+    EnrollmentService(conn).enroll_many(course.id, [lect, stud])
+    recs = RecordingService(conn, FileStore(app.config["UPLOAD_DIR"]))
+    rec = _upload(recs, course.id)
+    recs.process(rec.id, FakeTranscriber(), LessonSummarizer(FakeLLM()))
+    recs.request_feedback(rec.id)
+    conn.close()
+    login(client, stud.id)
+    client.post(f"/recordings/{rec.id}/feedback/cancel")
+    conn = connect(app.config["DATABASE"])
+    assert conn.execute("SELECT feedback_status FROM recordings").fetchone()[0] == "pending"
+    login(client, lect.id)
+    client.post(f"/recordings/{rec.id}/feedback/cancel")
+    assert conn.execute("SELECT feedback_status FROM recordings").fetchone()[0] == ""
