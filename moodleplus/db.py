@@ -20,6 +20,12 @@ def connect(path: str) -> sqlite3.Connection:
 def init_schema(conn: sqlite3.Connection) -> None:
     _migrate(conn)
     conn.executescript(SCHEMA.read_text(encoding="utf-8"))
+    # DBs מלפני התיקון: תפקיד בקורס שלא תואם לתפקיד של המשתמש (שונה אחרי השיוך) מתיישר אליו
+    conn.execute(
+        "UPDATE enrollments SET role = (SELECT role FROM users WHERE users.id = enrollments.user_id) "
+        "WHERE role != (SELECT role FROM users WHERE users.id = enrollments.user_id) "
+        "AND (SELECT role FROM users WHERE users.id = enrollments.user_id) IN ('lecturer', 'student')"
+    )
     conn.commit()
 
 

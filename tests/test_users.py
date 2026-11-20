@@ -91,3 +91,24 @@ def test_legacy_db_file_is_moved_to_the_new_name(tmp_path):
     assert new.read_bytes() == b"data" and (tmp_path / "moodleplus.db-wal").read_bytes() == b"wal"
     assert not old.exists()
     assert not move_legacy_db(str(new))  # אין מה להעביר בפעם השנייה
+
+
+def test_role_change_applies_to_existing_courses(db):
+    from moodleplus.services.courses import CourseService, EnrollmentService
+    from moodleplus.db import init_schema
+
+    users = UserService(db)
+    enrollments = EnrollmentService(db)
+    course = CourseService(db).create("קורס", "1", "")
+    u = users.create("t@test.ac.il", "מתרגל", "student")
+    enrollments.enroll(course.id, u)
+    assert enrollments.role_in(course.id, u) == "student"
+
+    u = users.update(u.id, u.name, "lecturer")
+    assert enrollments.role_in(course.id, u) == "lecturer"
+    assert enrollments.can_manage(course.id, u)
+
+    # DB ישן שבו התפקיד בקורס נשאר מאחור מתיישר בהפעלה הבאה
+    db.execute("UPDATE enrollments SET role = 'student' WHERE user_id = ?", (u.id,))
+    init_schema(db)
+    assert enrollments.role_in(course.id, u) == "lecturer"

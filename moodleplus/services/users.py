@@ -57,6 +57,10 @@ class UserService:
         if user.is_admin and role != "admin":
             self._keep_one_admin()
         self.db.execute("UPDATE users SET name = ?, role = ? WHERE id = ?", (name.strip(), role, user_id))
+        # התפקיד בקורסים נגזר מהתפקיד של המשתמש: מי שהפך למרצה הוא מרצה בכל הקורסים שלו, וכן להפך.
+        # מנהל מערכת רואה הכל בכל מקרה, אז השיוכים שלו נשארים כמו שהם (ויחזרו לפעול אם יורד מהתפקיד)
+        if role in ("lecturer", "student"):
+            self.db.execute("UPDATE enrollments SET role = ? WHERE user_id = ?", (role, user_id))
         self.db.commit()
         return self.get(user_id)
 
