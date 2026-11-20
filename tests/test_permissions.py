@@ -116,3 +116,17 @@ def test_back_link_on_report_points_to_course(app, client):
     client.post(f"/courses/{course.id}/attendance/samples", data={"lesson_number": 1})
     html = client.get("/attendance/lessons/1").get_data(as_text=True)
     assert f'class="back-link" href="/courses/{course.id}#attendance"' in html
+
+
+def test_search_fields_on_home_and_admin_lists(app, client):
+    admin, lect, stud, course = _seed(app)
+    login(client, stud.id)
+    home = client.get("/").get_data(as_text=True)
+    assert 'data-filter="#course-grid"' in home and home.count("data-filter-item") == 1
+    login(client, admin.id)
+    users = client.get("/admin/").get_data(as_text=True)
+    assert 'data-filter="#users-list"' in users
+    assert users.count("data-filter-item") == 3  # אדמין, מרצה, סטודנט
+    assert 'data-filter="#courses-list"' in client.get("/admin/courses").get_data(as_text=True)
+    page = client.get(f"/admin/courses/{course.id}").get_data(as_text=True)
+    assert 'id="members-1"' in page and 'id="members-2"' in page

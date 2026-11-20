@@ -130,6 +130,39 @@
     sync();
   });
 
+  // ---------- live list search: <input data-filter="#list"> hides the items that do not match ----------
+  // items are the [data-filter-item] elements (or <option>s) inside the target; data-filter-text adds hidden text
+  // such as an email. A [data-filter-empty] element next to the list shows when nothing matches.
+  const norm = (s) => (s || "").toLowerCase().replace(/[֑-ׇ]/g, "").replace(/\s+/g, " ").trim(); // drop niqqud
+  document.querySelectorAll("input[data-filter]").forEach((input) => {
+    const target = document.querySelector(input.dataset.filter);
+    if (!target) return;
+    // a <select> filters its options; any other list filters its [data-filter-item]s (and not the
+    // options of a dropdown that happens to sit inside a row, like the role picker in the users list)
+    const items = [...target.querySelectorAll(target.tagName === "SELECT" ? "option" : "[data-filter-item]")];
+    const empty = document.querySelector(input.dataset.filterEmpty || "#__none");
+    const count = document.querySelector(input.dataset.filterCount || "#__none");
+    // data-filter-text, when given, is the whole searchable text (so labels like "מרצה" in a dropdown don't match)
+    const text = (el) => norm(el.dataset.filterText !== undefined ? el.dataset.filterText : el.textContent);
+    const run = () => {
+      const words = norm(input.value).split(" ").filter(Boolean);
+      let shown = 0;
+      items.forEach((el) => {
+        const hay = text(el);
+        // a selected option stays visible, so a search never hides what you already picked
+        const match = !words.length || words.every((w) => hay.includes(w)) || (el.tagName === "OPTION" && el.selected);
+        el.hidden = !match;
+        if (match) shown++;
+      });
+      target.querySelectorAll("optgroup").forEach((g) => { g.hidden = ![...g.children].some((o) => !o.hidden); });
+      if (empty) empty.hidden = shown > 0;
+      if (count) count.textContent = words.length ? `${shown} מתוך ${items.length}` : "";
+    };
+    input.addEventListener("input", run);
+    input.addEventListener("keydown", (e) => { if (e.key === "Escape") { input.value = ""; run(); } });
+    run();
+  });
+
   // ---------- <form data-once>: lock the button on the first click so a double click sends one request ----------
   document.addEventListener("submit", (e) => {
     const form = e.target;

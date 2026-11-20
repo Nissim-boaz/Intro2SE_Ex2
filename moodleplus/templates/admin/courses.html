@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_search.html" import search_field %}
 {% block title %}קורסים · Moodle+{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -18,9 +19,13 @@
 <section class="panel">
   <h2 style="margin-bottom:8px">{{ rows|length }} קורסים</h2>
   {% if rows %}
-  <ul class="list">
+  <div class="list-search-row">
+    {{ search_field('#courses-list', 'חיפוש לפי שם, מספר קורס או מרצה', empty='admin-courses-none', count='admin-courses-count') }}
+    <span class="list-search-count" id="admin-courses-count" aria-live="polite"></span>
+  </div>
+  <ul class="list" id="courses-list">
     {% for course, lecturers, n_students in rows %}
-    <li>
+    <li data-filter-item data-filter-text="{{ course.name }} {{ course.code }} {{ lecturers|map(attribute='name')|join(' ') }}">
       <div class="grow">
         <a class="title" href="{{ url_for('admin.course', course_id=course.id) }}">{{ course.name }}</a>
         <div class="xsmall muted">
@@ -35,6 +40,7 @@
     </li>
     {% endfor %}
   </ul>
+  <p class="search-none" id="admin-courses-none" hidden>לא נמצא קורס כזה.</p>
   {% else %}
   <div class="empty"><strong>עוד אין קורסים</strong>צור את הקורס הראשון בטופס שלמעלה.</div>
   {% endif %}

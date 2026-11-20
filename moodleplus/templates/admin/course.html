@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_search.html" import search_field %}
 {% set back_url = url_for('admin.courses') %}{% set back_label = "כל הקורסים" %}
 {% block title %}{{ course.name }} · ניהול{% endblock %}
 {% block content %}
@@ -27,10 +28,17 @@
       <form method="post" action="{{ url_for('admin.add_members', course_id=course.id) }}" class="form-grid" data-live-submit>
         <label>בחר מרצים או סטודנטים
           <span class="field-hint">כדי לבחור כמה, החזק Ctrl ולחץ על השמות</span>
-          <select name="user_id" multiple size="7">
+        </label>
+        <div class="list-search-row" style="margin-bottom:0">
+          {{ search_field('#candidates', 'חיפוש לפי שם או מייל', count='candidates-count', label='חיפוש משתמש לשיוך') }}
+          <span class="list-search-count" id="candidates-count" aria-live="polite"></span>
+        </div>
+        <label>
+          <span class="sr-only">משתמשים לשיוך</span>
+          <select name="user_id" id="candidates" multiple size="7">
             {% for group, label in [('lecturer', 'מרצים'), ('student', 'סטודנטים')] %}
             <optgroup label="{{ label }}">
-              {% for u in candidates if u.role == group %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+              {% for u in candidates if u.role == group %}<option value="{{ u.id }}" data-filter-text="{{ u.name }} {{ u.email }}">{{ u.name }}</option>{% endfor %}
             </optgroup>
             {% endfor %}
           </select>
@@ -56,9 +64,15 @@
   <section class="panel">
     <h2 style="margin-bottom:8px">{{ title }} <span class="muted" style="font-weight:500">{{ people|length }}</span></h2>
     {% if people %}
-    <ul class="list">
+    {% if people|length > 5 %}
+    <div class="list-search-row">
+      {{ search_field('#members-' ~ loop.index, 'חיפוש ב' ~ title, empty='members-none-' ~ loop.index, count='members-count-' ~ loop.index) }}
+      <span class="list-search-count" id="members-count-{{ loop.index }}" aria-live="polite"></span>
+    </div>
+    {% endif %}
+    <ul class="list" id="members-{{ loop.index }}">
       {% for p in people %}
-      <li>
+      <li data-filter-item data-filter-text="{{ p.name }} {{ p.email }}">
         <div class="grow"><div class="title">{{ p.name }}</div><div class="xsmall muted" dir="ltr" style="text-align:right">{{ p.email }}</div></div>
         <form method="post" action="{{ url_for('admin.remove_member', course_id=course.id, user_id=p.id) }}">
           <button class="btn btn-sm btn-ghost">הסר</button>
@@ -66,6 +80,7 @@
       </li>
       {% endfor %}
     </ul>
+    <p class="search-none" id="members-none-{{ loop.index }}" hidden>לא נמצא אף אחד בשם הזה.</p>
     {% else %}<p class="muted small">{{ empty }}.</p>{% endif %}
   </section>
   {% endfor %}

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_search.html" import search_field %}
 {% block title %}הקורסים שלי · Moodle+{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -10,9 +11,13 @@
 </div>
 
 {% if courses %}
-<div class="course-grid">
+<div class="list-search-row">
+  {{ search_field('#course-grid', 'חיפוש קורס לפי שם, מספר או מרצה', empty='courses-none', count='courses-count') }}
+  <span class="list-search-count" id="courses-count" aria-live="polite"></span>
+</div>
+<div class="course-grid" id="course-grid">
   {% for c in courses %}
-  <a class="course-tile" href="{{ url_for('courses.show', course_id=c.id) }}">
+  <a class="course-tile" href="{{ url_for('courses.show', course_id=c.id) }}" data-filter-item>
     <div>
       {% if c.code %}<div class="code" dir="ltr" style="text-align:right">{{ c.code }}</div>{% endif %}
       <h2>{{ c.name }}</h2>
@@ -24,6 +29,7 @@
   </a>
   {% endfor %}
 </div>
+<p class="search-none" id="courses-none" hidden>לא נמצא קורס כזה. נסה שם אחר או מספר קורס.</p>
 {% else %}
 <div class="panel empty">
   <strong>עוד אין לך קורסים</strong>

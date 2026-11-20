@@ -995,3 +995,16 @@ body.nav-stuck .back-link { opacity: 0; pointer-events: none; }
 .pinned-count { flex: none; font-size: 12px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; direction: ltr; }
 .msg-pin { display: inline-flex; color: var(--ink-3); }
 .msg.mine .msg-pin { color: rgba(255,255,255,.75); }
+
+/* ---------- list search (home, admin users / courses / course members) ---------- */
+.list-search { position: relative; display: block; width: 100%; max-width: 420px; }
+.list-search input {
+  width: 100%; height: 42px; padding: 0 40px 0 14px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--surface); font-size: 16px;
+}
+.list-search svg { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--ink-3); pointer-events: none; }
+.list-search-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.list-search-count { font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.search-none { padding: 18px 4px; color: var(--ink-2); text-align: center; }
+.panel-head .list-search { max-width: 260px; }
+.panel-head .list-search input { height: 36px; font-size: 15px; }

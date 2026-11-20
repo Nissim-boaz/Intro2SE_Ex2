@@ -1,0 +1,10 @@
+{# Search field that filters a list live (see "live list search" in ui.js).
+   target: CSS selector of the list. empty/count: optional ids for "no results" and "N of M". #}
+{% macro search_field(target, placeholder, empty=None, count=None, label=None) -%}
+<label class="list-search">
+  <span class="sr-only">{{ label or placeholder }}</span>
+  <input type="search" data-filter="{{ target }}" placeholder="{{ placeholder }}" autocomplete="off" dir="auto"
+         {% if empty %}data-filter-empty="#{{ empty }}"{% endif %} {% if count %}data-filter-count="#{{ count }}"{% endif %}>
+  <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.1"/><path d="m15.5 15.5 5 5" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></svg>
+</label>
+{%- endmacro %}
