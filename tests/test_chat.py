@@ -410,3 +410,57 @@ def test_list_from_id_loads_older_messages(chat, people):
     ids = [chat.send(c, people["s1"], f"הודעה {i}") for i in range(5)]
     got = [m["id"] for m in chat.list_messages(c, people["s2"], from_id=ids[2], limit=2000)]
     assert got == ids[2:]
+
+
+# ---------- pinned messages ----------
+def test_pin_up_to_three_and_oldest_is_replaced(chat, people):
+    import time as _t
+
+    c = people["course"].id
+    ids = [chat.send(c, people["lecturer"], f"חשוב {i}") for i in range(4)]
+    for mid in ids[:3]:
+        assert chat.set_pinned(mid, True) is None
+        _t.sleep(0.01)
+    assert [p["id"] for p in chat.pinned(c, people["s1"])] == [ids[2], ids[1], ids[0]]  # מהחדשה לישנה
+    assert chat.set_pinned(ids[3], True) == ids[0]  # הרביעית מחליפה את הישנה ביותר
+    assert [p["id"] for p in chat.pinned(c, people["s1"])] == [ids[3], ids[2], ids[1]]
+    chat.set_pinned(ids[2], False)
+    assert ids[2] not in [p["id"] for p in chat.pinned(c, people["s1"])]
+    assert _only(chat.list_messages(c, people["s1"]), ids[3])["pinned"] is True
+
+
+def test_deleting_a_pinned_message_unpins_it(chat, people):
+    c = people["course"].id
+    mid = chat.send(c, people["lecturer"], "נעוצה")
+    chat.set_pinned(mid, True)
+    chat.delete(mid, people["lecturer"])
+    assert chat.pinned(c, people["s1"]) == []
+    with pytest.raises(ValidationError):
+        chat.set_pinned(mid, True)
+
+
+def test_pinned_bar_keeps_anonymity(chat, people):
+    c = people["course"].id
+    mid = chat.send(c, people["s1"], "שאלה טובה", anonymous=True)
+    chat.set_pinned(mid, True)
+    assert chat.pinned(c, people["s2"])[0]["sender_name"] == ANONYMOUS_NAME
+    assert chat.pinned(c, people["lecturer"])[0]["sender_name"] == ANONYMOUS_NAME
+
+
+def test_only_course_lecturer_can_pin(app, client):
+    conn = connect(app.config["DATABASE"])
+    users = UserService(conn)
+    admin = users.find_by_email("admin@test.ac.il")
+    lect = users.create("l5@test.ac.il", "מרצה", "lecturer")
+    stud = users.create("s5@test.ac.il", "סטודנט", "student")
+    course = CourseService(conn).create("קורס")
+    EnrollmentService(conn).enroll_many(course.id, [lect, stud])
+    mid = ChatService(conn).send(course.id, lect, "הודעה")
+    conn.close()
+    for user in (stud, admin):
+        login(client, user.id)
+        assert client.post(f"/api/messages/{mid}/pin", json={"pinned": True}).status_code == 403
+    login(client, lect.id)
+    assert client.post(f"/api/messages/{mid}/pin", json={"pinned": True}).get_json()["pinned"] is True
+    login(client, stud.id)
+    assert [p["id"] for p in client.get(f"/api/courses/{course.id}/chat").get_json()["pinned"]] == [mid]

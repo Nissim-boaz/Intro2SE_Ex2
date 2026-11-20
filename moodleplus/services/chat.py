@@ -123,6 +123,47 @@ class ChatService:
         replies = self._reply_previews([r["reply_to_id"] for r in rows if r["reply_to_id"]], viewer)
         return [self._view(r, viewer, reactions.get(r["id"]), replies.get(r["reply_to_id"])) for r in rows]
 
+    # ---------- pinned messages (course lecturer only; the route checks who) ----------
+    MAX_PINS = 3
+
+    def set_pinned(self, message_id: int, pinned: bool) -> int | None:
+        """נועץ או מבטל נעיצה. כשכבר יש 3 נעוצות, הישנה ביותר יוצאת. מחזיר את מזהה ההודעה שיצאה, אם יצאה."""
+        row = self.get_row(message_id)
+        if row["deleted"]:
+            raise ValidationError("אי אפשר לנעוץ הודעה שנמחקה")
+        replaced = None
+        if pinned and not row["pinned_at"]:
+            current = self.db.execute(
+                "SELECT id FROM messages WHERE course_id = ? AND pinned_at > 0 AND deleted = 0 ORDER BY pinned_at",
+                (row["course_id"],),
+            ).fetchall()
+            if len(current) >= self.MAX_PINS:
+                replaced = current[0]["id"]
+                self.db.execute("UPDATE messages SET pinned_at = 0 WHERE id = ?", (replaced,))
+                touch_message(self.db, replaced)
+        self.db.execute("UPDATE messages SET pinned_at = ? WHERE id = ?", (time.time() if pinned else 0, message_id))
+        touch_message(self.db, message_id)
+        self.db.commit()
+        return replaced
+
+    def pinned(self, course_id: int, viewer: User) -> list[dict]:
+        """הנעוצות מהחדשה לישנה, עם אותה הסתרה של שולח אנונימי כמו בצ׳אט."""
+        rows = self.db.execute(
+            "SELECT m.id, m.body, m.sender_id, m.is_anonymous, u.name AS sender_name, p.question "
+            "FROM messages m JOIN users u ON u.id = m.sender_id LEFT JOIN polls p ON p.id = m.poll_id "
+            "WHERE m.course_id = ? AND m.pinned_at > 0 AND m.deleted = 0 ORDER BY m.pinned_at DESC LIMIT ?",
+            (course_id, self.MAX_PINS),
+        ).fetchall()
+        return [
+            {
+                "id": r["id"],
+                "text": ("סקר: " + r["question"]) if r["question"] and not r["body"] else (r["body"] or "")[:200],
+                "mine": r["sender_id"] == viewer.id,
+                "sender_name": SenderMask.name_for(viewer, r["sender_id"], r["sender_name"], bool(r["is_anonymous"])),
+            }
+            for r in rows
+        ]
+
     # ---------- search ----------
     def search(self, course_id: int, viewer: User, query: str, limit: int = 50) -> list[dict]:
         """חיפוש בטקסט ההודעות ובשאלות הסקרים, מהחדש לישן.
@@ -174,7 +215,7 @@ class ChatService:
             raise Forbidden("אפשר למחוק רק הודעות שלך")
         if row["deleted"]:
             return
-        self.db.execute("UPDATE messages SET deleted = 1, body = '' WHERE id = ?", (message_id,))
+        self.db.execute("UPDATE messages SET deleted = 1, body = '', pinned_at = 0 WHERE id = ?", (message_id,))
         self.db.execute("DELETE FROM message_reactions WHERE message_id = ?", (message_id,))
         touch_message(self.db, message_id)
         self.db.commit()
@@ -197,6 +238,7 @@ class ChatService:
             "reactions": {"summary": [], "mine": None} if deleted else (reactions or {"summary": [], "mine": None}),
             "poll": None,
             "can_delete": not deleted and (r["sender_id"] == viewer.id or viewer.is_admin),
+            "pinned": bool(r["pinned_at"]) and not deleted,
         }
         if reveal:
             view["sender_id"] = r["sender_id"]

@@ -27,6 +27,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
     """עמודות שנוספו אחרי שכבר נוצרו DBs. CREATE TABLE IF NOT EXISTS לא מוסיף עמודות לטבלה קיימת."""
     added = {
         ("messages", "deleted"): "INTEGER NOT NULL DEFAULT 0",
+        ("messages", "pinned_at"): "REAL NOT NULL DEFAULT 0",
         ("polls", "anonymous"): "INTEGER NOT NULL DEFAULT 1",
         ("courses", "chat_locked"): "INTEGER NOT NULL DEFAULT 0",
         # הקלטות שכבר היו לפני שנוסף שלב הטיוטה נשארות גלויות לסטודנטים.

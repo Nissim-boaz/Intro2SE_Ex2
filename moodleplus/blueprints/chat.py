@@ -4,7 +4,7 @@ import time
 from flask import Blueprint, jsonify, render_template, request
 
 from ..db import get_db
-from ..errors import ValidationError
+from ..errors import Forbidden, ValidationError
 from ..security import current_user, login_required
 from ..services.chat import ChatService, ReactionService, ReadReceiptService
 from ..services.courses import CourseService, EnrollmentService
@@ -43,6 +43,7 @@ def page(course_id: int):
         can_manage=role in ("admin", "lecturer"),
         members=len(enrollments.members(course_id)),
         locked=ChatService(db).is_locked(course_id),
+        can_pin=role == "lecturer",  # רק המרצה של הקורס נועץ
     )
 
 
@@ -60,7 +61,21 @@ def messages(course_id: int):
     # הווים משתנים גם בלי שההודעה עצמה השתנתה, לכן הם נשלחים בכל בקשה
     receipts = ReadReceiptService(get_db()).receipts_for(course_id, current_user())
     locked = _chat().is_locked(course_id)
-    return jsonify(ok=True, now=now - OVERLAP_SECONDS, messages=items, receipts=receipts, locked=locked)
+    pinned = _chat().pinned(course_id, current_user())  # קטן (עד 3), נשלח בכל בקשה כדי שהפס יתעדכן אצל כולם
+    return jsonify(ok=True, now=now - OVERLAP_SECONDS, messages=items, receipts=receipts, locked=locked,
+                   pinned=pinned)
+
+
+@bp.post("/messages/<int:message_id>/pin")
+@login_required
+def pin(message_id: int):
+    """נעיצה: רק המרצה של הקורס (לא מנהל המערכת ולא סטודנטים)."""
+    row = _require_member_of_message(message_id)
+    if EnrollmentService(get_db()).role_in(row["course_id"], current_user()) != "lecturer":
+        raise Forbidden("רק המרצה של הקורס יכול לנעוץ הודעות")
+    pinned = bool((request.get_json(silent=True) or {}).get("pinned"))
+    replaced = _chat().set_pinned(message_id, pinned)
+    return jsonify(ok=True, pinned=pinned, replaced=replaced)
 
 
 @bp.get("/courses/<int:course_id>/chat/search")

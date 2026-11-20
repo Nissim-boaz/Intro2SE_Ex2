@@ -981,3 +981,17 @@ body.nav-stuck .back-link { opacity: 0; pointer-events: none; }
 
 /* a day bar that the next one already covers at the top fades out */
 .day-divider.covered { visibility: hidden; }
+
+/* ---------- pinned messages ---------- */
+.pinned-bar {
+  flex: none; display: flex; align-items: center; gap: 10px; width: 100%; border: 0; cursor: pointer; font: inherit;
+  padding: 9px 16px; text-align: start; color: var(--ink); background: var(--surface);
+  border-bottom: 1px solid var(--line); box-shadow: 0 4px 10px -8px rgba(0,0,0,.2);
+}
+.pinned-bar:hover { background: var(--fill); }
+.pinned-icon { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); }
+.pinned-text { flex: 1; min-width: 0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pinned-text strong { font-weight: 600; }
+.pinned-count { flex: none; font-size: 12px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; direction: ltr; }
+.msg-pin { display: inline-flex; color: var(--ink-3); }
+.msg.mine .msg-pin { color: rgba(255,255,255,.75); }

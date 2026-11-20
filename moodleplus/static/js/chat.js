@@ -95,7 +95,10 @@
     const who = m.mine
       ? (m.anonymous && !m.deleted ? `<div class="who who-anon">נשלח כאנונימי</div>` : "")
       : `<div class="who${m.anonymous ? " who-anon" : ""}">${esc(m.sender_name)}${m.sender_is_lecturer ? ' <span class="who-badge">מרצה</span>' : ""}</div>`;
-    const meta = `<span class="meta"><span class="time">${fmtTime(m.created_at)}</span>${ticksHtml(m)}</span>`;
+    const pin = m.pinned
+      ? `<span class="msg-pin" title="הודעה נעוצה" aria-label="נעוצה"><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M15.5 3.5 20.5 8.5l-2.2.8-3.4 3.4.4 4.6-1.8 1.8-3.9-3.9L5 20l-1-1 4.8-4.6-3.9-3.9 1.8-1.8 4.6.4 3.4-3.4Z" fill="currentColor"/></svg></span>`
+      : "";
+    const meta = `<span class="meta">${pin}<span class="time">${fmtTime(m.created_at)}</span>${ticksHtml(m)}</span>`;
 
     if (m.deleted) {
       return `<div class="msg ${m.mine ? "mine" : "theirs"} deleted" id="msg-${m.id}" data-id="${m.id}">
@@ -214,6 +217,7 @@
       since = d.now;
       receipts = d.receipts || receipts;
       applyLock(!!d.locked);
+      renderPinned(d.pinned || []);
       let added = false;
       d.messages.forEach((m) => {
         if (!messages.has(m.id)) added = true;
@@ -505,6 +509,9 @@
     confirmBox.hidden = true;
     renderBar(m.reactions.mine);
     menu.querySelector('[data-action="info"]').hidden = !m.mine;
+    const pinItem = menu.querySelector('[data-action="pin"]');
+    pinItem.hidden = root.dataset.canPin !== "1";
+    pinItem.textContent = m.pinned ? "בטל נעיצה" : "נעץ הודעה";
     menu.querySelector('[data-action="delete"]').hidden = !m.can_delete;
     pop.hidden = false;
     msgEl.classList.add("active");
@@ -579,6 +586,13 @@
       setReply(m);
     } else if (btn.dataset.action === "info") {
       showInfo(m);
+    } else if (btn.dataset.action === "pin") {
+      try {
+        const d = await Model.api(`/api/messages/${id}/pin`, { json: { pinned: !m.pinned } });
+        if (d.replaced) Model.toast("אפשר לנעוץ עד 3 הודעות, אז הנעוצה הישנה ביותר הוסרה");
+        else Model.toast(d.pinned ? "ההודעה ננעצה" : "הנעיצה בוטלה");
+        await refresh();
+      } catch (err) { Model.toast(err.message, "error"); }
     } else if (btn.dataset.action === "confirm-delete") {
       try {
         await Model.api(`/api/messages/${id}`, { method: "DELETE" });
@@ -749,6 +763,30 @@
       if (hit) jumpTo(Number(hit.dataset.hit));
     });
   }
+
+  // ---------- pinned messages bar (everyone sees it; only the course lecturer pins) ----------
+  const pinnedBar = document.getElementById("pinned-bar");
+  let pinnedList = [];
+  let pinnedIndex = 0;
+  function renderPinned(list) {
+    const ids = list.map((p) => p.id).join(",");
+    if (ids !== pinnedList.map((p) => p.id).join(",")) pinnedIndex = 0; // the set changed: start from the newest
+    pinnedList = list;
+    pinnedBar.hidden = !list.length;
+    if (!list.length) return;
+    pinnedIndex = Math.min(pinnedIndex, list.length - 1);
+    const p = list[pinnedIndex];
+    document.getElementById("pinned-who").textContent = (p.mine ? "אתה" : p.sender_name) + ": ";
+    document.getElementById("pinned-body").textContent = p.text;
+    document.getElementById("pinned-count").textContent = list.length > 1 ? `${pinnedIndex + 1}/${list.length}` : "";
+  }
+  pinnedBar.addEventListener("click", async () => {
+    if (!pinnedList.length) return;
+    const p = pinnedList[pinnedIndex];
+    await jumpTo(p.id);
+    // like WhatsApp: the next tap shows the next pinned message
+    if (pinnedList.length > 1) { pinnedIndex = (pinnedIndex + 1) % pinnedList.length; renderPinned(pinnedList); }
+  });
 
   // ---------- mute students: only the lecturer and the admin can post ----------
   // the server enforces it; here we only reflect the state (it arrives with every poll)

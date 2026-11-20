@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS messages (
     is_anonymous INTEGER NOT NULL DEFAULT 0,
     poll_id      INTEGER REFERENCES polls(id) ON DELETE CASCADE,
     deleted      INTEGER NOT NULL DEFAULT 0,
+    pinned_at    REAL NOT NULL DEFAULT 0,        -- 0: לא נעוצה. רק מרצה הקורס נועץ, עד 3 הודעות
     created_at   REAL NOT NULL,
     updated_at   REAL NOT NULL
 );
