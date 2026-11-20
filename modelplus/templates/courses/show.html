@@ -1,7 +1,5 @@
 {% extends "base.html" %}
 {% set back_url = url_for('courses.index') %}{% set back_label = "הקורסים שלי" %}
-{# the tab row below is the sticky bar on this page, so the back link does not float as well #}
-{% set back_static = True %}
 {% block title %}{{ course.name }} · Model+{% endblock %}
 {% block content %}
 <header class="course-hero">

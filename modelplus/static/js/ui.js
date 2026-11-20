@@ -152,12 +152,24 @@
     });
   });
 
-  // ---------- sticky rows: mark them "stuck" once they reach the top (shows the compact back arrow) ----------
+  // ---------- back link: full text at the top, a small floating arrow as soon as you scroll ----------
+  const backLink = document.querySelector(".back-link");
+  if (backLink) {
+    // a class toggle is cheap enough to run on every scroll event; no frame throttling needed
+    const syncBack = () => backLink.classList.toggle("compact", window.scrollY > 24);
+    window.addEventListener("scroll", syncBack, { passive: true });
+    syncBack();
+  }
+
+  // ---------- sticky tab row: when it reaches the top, its own arrow takes over from the floating one ----------
   document.querySelectorAll("[data-stuck-watch]").forEach((bar) => {
     const sentinel = bar.previousElementSibling;
     if (!sentinel || !sentinel.classList.contains("nav-sentinel")) return;
-    new IntersectionObserver(([entry]) => bar.classList.toggle("stuck", !entry.isIntersecting),
-      { rootMargin: "-60px 0px 0px 0px" }).observe(sentinel);
+    new IntersectionObserver(([entry]) => {
+      const stuck = !entry.isIntersecting;
+      bar.classList.toggle("stuck", stuck);
+      document.body.classList.toggle("nav-stuck", stuck);
+    }, { rootMargin: "-60px 0px 0px 0px" }).observe(sentinel);
   });
 
   // ---------- theme: auto (follow the device) / light / dark, remembered per browser ----------

@@ -942,7 +942,6 @@ details.fold:not([open]) > summary { margin-bottom: 0; }
 }
 
 /* course page: one sticky row only. The back link stays put, and a compact arrow joins the tab row once it sticks */
-.back-link.static { position: static; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; padding-inline: 2px; }
 .nav-sentinel { display: block; height: 1px; }
 .course-nav .nav-back {
   display: none; place-items: center; width: 36px; padding: 0; color: var(--brand); background: var(--brand-soft);
@@ -950,3 +949,12 @@ details.fold:not([open]) > summary { margin-bottom: 0; }
 }
 .course-nav.stuck .nav-back { display: inline-grid; }
 .course-nav.stuck { box-shadow: 0 8px 12px -12px rgba(0,0,0,.25); }
+
+/* back link: full label at the top; once you scroll it shrinks to a round arrow bubble and keeps floating */
+.back-link { transition: padding .22s var(--ease), gap .22s var(--ease), box-shadow .2s; }
+.back-link span { display: inline-block; max-width: 70vw; transition: max-width .25s var(--ease), opacity .18s; }
+.back-link.compact { gap: 0; padding: 8px 12px; box-shadow: var(--shadow); }
+.back-link.compact span { max-width: 0; opacity: 0; }
+/* on the course page the sticky tab row has its own arrow, so the floating one steps aside */
+body.nav-stuck .back-link { opacity: 0; pointer-events: none; }
+.back-link { transition: padding .22s var(--ease), gap .22s var(--ease), box-shadow .2s, opacity .15s; }
