@@ -1,10 +1,10 @@
-{# Private feedback for the course lecturer. This file is only ever rendered for them (see is_course_lecturer). #}
+{# Private feedback for the lecturer who uploaded the recording. Only ever rendered for them (see owns_feedback). #}
 {% set fb = rec.feedback %}
 <details class="panel feedback fold" id="feedback" data-fold="feedback" open
          {% if rec.feedback_status == 'pending' %}data-feedback-pending data-feedback-url="{{ url_for('recordings.feedback_status', recording_id=rec.id) }}"{% endif %}>
   <summary class="fold-head">
     <h2>משוב אישי על השיעור</h2>
-    <span class="pill feedback-private" title="הסטודנטים ומנהל המערכת לא רואים את המשוב">
+    <span class="pill feedback-private" title="המשוב גלוי רק למרצה שהעלה את ההקלטה. מרצים אחרים בקורס, הסטודנטים ומנהל המערכת לא רואים אותו">
       <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M7 10V7.5a5 5 0 0 1 10 0V10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><rect x="4.5" y="10" width="15" height="11" rx="3" fill="currentColor"/></svg>
       רק אתה רואה את זה
     </span>

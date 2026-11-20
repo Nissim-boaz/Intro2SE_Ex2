@@ -39,6 +39,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
         # הקלטות שכבר היו לפני שנוסף שלב הטיוטה נשארות גלויות לסטודנטים.
         # הקלטות חדשות נשמרות כטיוטה כי RecordingService.create מכניס published=0 במפורש
         ("recordings", "published"): "INTEGER NOT NULL DEFAULT 1",
+        # הקלטות ישנות בלי מעלה: המשוב פתוח לכל מרצי הקורס, כמו שהיה
+        ("recordings", "uploaded_by"): "INTEGER REFERENCES users(id) ON DELETE SET NULL",
         ("recordings", "feedback_status"): "TEXT NOT NULL DEFAULT ''",
         ("recordings", "feedback_json"): "TEXT NOT NULL DEFAULT ''",
         ("recordings", "feedback_error"): "TEXT NOT NULL DEFAULT ''",

@@ -501,3 +501,39 @@ def test_cancel_route_only_for_course_lecturer(app, client):
     login(client, lect.id)
     client.post(f"/recordings/{rec.id}/feedback/cancel")
     assert conn.execute("SELECT feedback_status FROM recordings").fetchone()[0] == ""
+
+
+def test_feedback_belongs_to_the_lecturer_who_uploaded(app, client):
+    from moodleplus.services.llm import LessonFeedbackWriter
+
+    conn = connect(app.config["DATABASE"])
+    users = UserService(conn)
+    uploader = users.create("up@test.ac.il", "מעלה", "lecturer")
+    colleague = users.create("co@test.ac.il", "עמית", "lecturer")
+    course = CourseService(conn).create("קורס")
+    enrollments = EnrollmentService(conn)
+    enrollments.enroll_many(course.id, [uploader, colleague])
+    conn.close()
+
+    login(client, uploader.id)
+    client.post(f"/courses/{course.id}/recordings", data={"title": "שיעור", "file": (io.BytesIO(b"v"), "a.mp4")},
+                content_type="multipart/form-data")
+    conn = connect(app.config["DATABASE"])
+    recs = RecordingService(conn, FileStore(app.config["UPLOAD_DIR"]))
+    rec = recs.get(1)
+    assert rec.uploaded_by == uploader.id
+    recs.process(rec.id, FakeTranscriber(), LessonSummarizer(FakeLLM()))
+    recs.request_feedback(rec.id)
+    recs.write_feedback(rec.id, LessonFeedbackWriter(FakeLLM(response=FEEDBACK_JSON)))
+
+    assert "שלושה מחלקות" in client.get(f"/recordings/{rec.id}").get_data(as_text=True)
+    login(client, colleague.id)  # מרצה אחר באותו קורס: לא רואה ביקורת על עמית
+    assert "משוב אישי" not in client.get(f"/recordings/{rec.id}").get_data(as_text=True)
+    assert client.get(f"/api/recordings/{rec.id}/feedback-status").status_code == 403
+    client.post(f"/recordings/{rec.id}/feedback/cancel")
+    assert recs.get(rec.id).feedback_status == "ready"
+
+    # המעלה הוסר מהקורס: המשוב עובר למרצים שנשארו, כדי שלא יישאר יתום
+    EnrollmentService(conn).unenroll(course.id, uploader.id)
+    assert "שלושה מחלקות" in client.get(f"/recordings/{rec.id}").get_data(as_text=True)
+    conn.close()

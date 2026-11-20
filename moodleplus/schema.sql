@@ -141,5 +141,6 @@ CREATE TABLE IF NOT EXISTS recordings (
     feedback_job    INTEGER NOT NULL DEFAULT 0,  -- מונה בקשות: תוצאה של בקשה שבוטלה נזרקת
     feedback_at     REAL NOT NULL DEFAULT 0,     -- מתי נכתב המשוב
     transcript_edited_at REAL NOT NULL DEFAULT 0, -- משוב חדש מותר רק אם התמלול נערך אחרי המשוב
+    uploaded_by     INTEGER REFERENCES users(id) ON DELETE SET NULL, -- המשוב האישי שייך לו
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );

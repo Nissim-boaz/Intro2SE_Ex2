@@ -47,6 +47,7 @@ class Recording:
     feedback_job: int = 0
     feedback_at: float = 0.0
     transcript_edited_at: float = 0.0
+    uploaded_by: int | None = None     # מי שהעלה. רק הוא מקבל את המשוב האישי
 
     @property
     def can_request_feedback(self) -> bool:
@@ -81,7 +82,7 @@ class Recording:
             json.loads(r["transcript_json"]), r["summary"], json.loads(r["key_points_json"]),
             json.loads(r["chapters_json"]), r["error"], r["created_at"], bool(r["published"]),
             r["feedback_status"], json.loads(r["feedback_json"]) if r["feedback_json"] else None, r["feedback_error"],
-            r["feedback_job"], r["feedback_at"], r["transcript_edited_at"],
+            r["feedback_job"], r["feedback_at"], r["transcript_edited_at"], r["uploaded_by"],
         )
 
 
@@ -106,7 +107,8 @@ class RecordingService:
         self.db = db
         self.files = files
 
-    def create(self, course_id: int, title: str, filename: str, mime: str, upload) -> Recording:
+    def create(self, course_id: int, title: str, filename: str, mime: str, upload,
+               uploaded_by: int | None = None) -> Recording:
         if not filename:
             raise ValidationError("בחר קובץ וידאו או אודיו")
         if not filename.lower().endswith(MEDIA_EXTENSIONS):
@@ -115,11 +117,25 @@ class RecordingService:
         if not mime.startswith(("video/", "audio/")):
             mime = "video/mp4" if filename.lower().endswith((".mp4", ".mov", ".m4v", ".webm", ".mkv")) else "audio/mpeg"
         cur = self.db.execute(  # published=0: מתחיל כטיוטה שרק המרצה רואה
-            "INSERT INTO recordings (course_id, title, file_path, mime, published) VALUES (?, ?, ?, ?, 0)",
-            (course_id, title.strip() or filename, rel, mime),
+            "INSERT INTO recordings (course_id, title, file_path, mime, published, uploaded_by) VALUES (?, ?, ?, ?, 0, ?)",
+            (course_id, title.strip() or filename, rel, mime, uploaded_by),
         )
         self.db.commit()
         return self.get(cur.lastrowid)
+
+    @staticmethod
+    def feedback_owner_ok(rec: Recording, user, enrollments) -> bool:
+        """המשוב האישי הוא ביקורת על מי שהעביר את השיעור, אז רק המרצה שהעלה את ההקלטה רואה אותו.
+        כשמי שהעלה כבר לא מרצה בקורס (מנהל מערכת העלה, הוסר מהקורס, או הקלטה ישנה בלי מעלה)
+        המשוב פתוח לכל מרצי הקורס, כדי שלא יישאר יתום. מנהל המערכת לא רואה אותו אף פעם."""
+        if enrollments.role_in(rec.course_id, user) != "lecturer":
+            return False
+        if rec.uploaded_by == user.id:
+            return True
+        uploader = enrollments.db.execute(
+            "SELECT role FROM enrollments WHERE course_id = ? AND user_id = ?", (rec.course_id, rec.uploaded_by)
+        ).fetchone()
+        return uploader is None or uploader["role"] != "lecturer"
 
     def get(self, recording_id: int) -> Recording:
         row = self.db.execute("SELECT * FROM recordings WHERE id = ?", (recording_id,)).fetchone()

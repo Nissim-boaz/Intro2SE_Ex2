@@ -32,7 +32,8 @@ def upload(course_id: int):
     EnrollmentService(get_db()).require_manager(course_id, current_user())
     file = request.files.get("file")
     rec = _service().create(
-        course_id, request.form.get("title", ""), file.filename if file else "", file.mimetype if file else "", file
+        course_id, request.form.get("title", ""), file.filename if file else "", file.mimetype if file else "", file,
+        uploaded_by=current_user().id,
     )
     _enqueue(rec.id)
     flash("ההקלטה הועלתה כטיוטה. אחרי התמלול והסיכום תוכל לעבור עליה ולפרסם לסטודנטים", "success")
@@ -55,9 +56,9 @@ def _managed(recording_id: int):
     return service, rec
 
 
-def _is_course_lecturer(course_id: int) -> bool:
-    """המשוב האישי שייך רק למרצה של הקורס. גם מנהל המערכת לא רואה אותו."""
-    return EnrollmentService(get_db()).role_in(course_id, current_user()) == "lecturer"
+def _owns_feedback(rec) -> bool:
+    """המשוב האישי שייך רק למרצה שהעלה את ההקלטה (ראה RecordingService.feedback_owner_ok)."""
+    return RecordingService.feedback_owner_ok(rec, current_user(), EnrollmentService(get_db()))
 
 
 @bp.get("/recordings/<int:recording_id>")
@@ -70,7 +71,7 @@ def show(recording_id: int):
         rec=rec,
         course=CourseService(get_db()).get(rec.course_id),
         can_manage=can_manage,
-        is_course_lecturer=_is_course_lecturer(rec.course_id),
+        owns_feedback=_owns_feedback(rec),
         feedback_labels=FEEDBACK_CATEGORIES,
         editing=can_manage and request.args.get("edit") == "1" and rec.editable,
     )
@@ -81,8 +82,8 @@ def show(recording_id: int):
 def request_feedback(recording_id: int):
     service = _service()
     rec = service.get(recording_id)
-    if not _is_course_lecturer(rec.course_id):
-        raise Forbidden("רק המרצה של הקורס יכול לבקש משוב על השיעור")
+    if not _owns_feedback(rec):
+        raise Forbidden("רק המרצה שהעלה את ההקלטה יכול לבקש עליה משוב")
     already_pending = rec.feedback_status == "pending"
     job = service.request_feedback(recording_id)
     runner = current_app.extensions.get("recording_runner")
@@ -96,8 +97,8 @@ def request_feedback(recording_id: int):
 def cancel_feedback(recording_id: int):
     service = _service()
     rec = service.get(recording_id)
-    if not _is_course_lecturer(rec.course_id):
-        raise Forbidden("רק המרצה של הקורס יכול לבטל את המשוב")
+    if not _owns_feedback(rec):
+        raise Forbidden("רק המרצה שהעלה את ההקלטה יכול לבטל את המשוב")
     service.cancel_feedback(recording_id)
     return redirect(url_for("recordings.show", recording_id=recording_id) + "#feedback")
 
@@ -106,8 +107,8 @@ def cancel_feedback(recording_id: int):
 @login_required
 def feedback_status(recording_id: int):
     rec = _service().get(recording_id)
-    if not _is_course_lecturer(rec.course_id):
-        raise Forbidden("רק המרצה של הקורס רואה את המשוב")
+    if not _owns_feedback(rec):
+        raise Forbidden("רק המרצה שהעלה את ההקלטה רואה את המשוב")
     return jsonify(ok=True, status=rec.feedback_status)
 
 
