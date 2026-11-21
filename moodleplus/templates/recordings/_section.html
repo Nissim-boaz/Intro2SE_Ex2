@@ -1,4 +1,3 @@
-{% if recordings or can_manage %}
 <section class="panel section" id="recordings">
   <div class="panel-head">
     <h2>הקלטות</h2>
@@ -36,7 +35,11 @@
     {% endfor %}
   </div>
   {% else %}
-  <div class="empty"><strong>עוד אין הקלטות</strong>העלה קובץ וידאו או אודיו של שיעור, ותקבל תמלול, סיכום וראשי פרקים.</div>
+  <div class="empty">
+    <strong>עוד אין הקלטות</strong>
+    {% if can_manage %}העלה קובץ וידאו או אודיו של שיעור, ותקבל תמלול, סיכום וראשי פרקים.
+    {% else %}כשהמרצה יפרסם הקלטה של שיעור, היא תופיע כאן עם סיכום וראשי פרקים.{% endif %}
+  </div>
   {% endif %}
 </section>
 
@@ -53,5 +56,4 @@
     </div>
   </form>
 </dialog>
-{% endif %}
 {% endif %}

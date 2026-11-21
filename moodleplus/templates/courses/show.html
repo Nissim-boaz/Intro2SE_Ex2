@@ -11,7 +11,7 @@
   {% if course.description %}<p class="muted" style="max-width:62ch">{{ course.description }}</p>{% endif %}
 </header>
 
-{% set rail = False %}{% set show_recordings = recordings is defined and (recordings or can_manage) %}
+{% set rail = False %}
 {% include "courses/_tabbar.html" %}
 
 <div class="stack-lg">

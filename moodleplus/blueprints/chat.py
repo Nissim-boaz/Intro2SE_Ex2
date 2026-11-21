@@ -23,15 +23,6 @@ def _chat() -> ChatService:
     return ChatService(db, poll_reader=PollService(db))
 
 
-def _recordings():
-    from flask import current_app
-
-    from ..services.content import FileStore
-    from ..services.recordings import RecordingService
-
-    return RecordingService(get_db(), FileStore(current_app.config["UPLOAD_DIR"]))
-
-
 def _require_member_of_message(message_id: int):
     row = _chat().get_row(message_id)
     EnrollmentService(get_db()).require_member(row["course_id"], current_user())
@@ -53,8 +44,6 @@ def page(course_id: int):
         members=len(enrollments.members(course_id)),
         locked=ChatService(db).is_locked(course_id),
         can_pin=role == "lecturer",  # רק המרצה של הקורס נועץ
-        # בשביל הסרגל הצדדי במחשב: לשונית ההקלטות מופיעה רק אם יש מה לראות בה, כמו בעמוד הקורס
-        show_recordings=role in ("admin", "lecturer") or bool(_recordings().list(course_id, include_drafts=False)),
     )
 
 

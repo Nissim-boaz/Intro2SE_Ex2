@@ -537,3 +537,17 @@ def test_feedback_belongs_to_the_lecturer_who_uploaded(app, client):
     EnrollmentService(conn).unenroll(course.id, uploader.id)
     assert "שלושה מחלקות" in client.get(f"/recordings/{rec.id}").get_data(as_text=True)
     conn.close()
+
+
+def test_recordings_tab_shows_even_without_recordings(app, client):
+    conn = connect(app.config["DATABASE"])
+    users = UserService(conn)
+    stud = users.create("tab@test.ac.il", "סטודנט", "student")
+    course = CourseService(conn).create("קורס ריק")
+    EnrollmentService(conn).enroll_many(course.id, [stud])
+    conn.close()
+    login(client, stud.id)
+    page = client.get(f"/courses/{course.id}").get_data(as_text=True)
+    assert 'data-tab="recordings"' in page and "כשהמרצה יפרסם הקלטה" in page
+    chat = client.get(f"/courses/{course.id}/chat").get_data(as_text=True)
+    assert f"/courses/{course.id}#recordings" in chat  # the side strip in the chat too
