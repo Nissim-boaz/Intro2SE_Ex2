@@ -203,6 +203,9 @@
     const all = [...tabbar.querySelectorAll("a")];
     document.body.classList.add("has-tabbar");
     tabbar.style.setProperty("--tab-n", all.length);
+    // the last tab per course, for this browser tab: "back" from the chat lands where you were, not on "content"
+    const lastTabKey = "moodleplus.tab." + location.pathname;
+    const lastTab = () => { try { return sessionStorage.getItem(lastTabKey) || ""; } catch (_) { return ""; } };
     const show = (id) => {
       if (!ids.includes(id)) id = ids[0];
       ids.forEach((x) => document.getElementById(x).classList.toggle("tab-on", x === id));
@@ -212,6 +215,7 @@
         if (on) t.setAttribute("aria-current", "page"); else t.removeAttribute("aria-current");
       });
       tabbar.style.setProperty("--tab-i", all.indexOf(tabs.find((t) => t.dataset.tab === id)));
+      try { sessionStorage.setItem(lastTabKey, id); } catch (_) {}
     };
     tabs.forEach((t) => t.addEventListener("click", (e) => {
       e.preventDefault();
@@ -222,7 +226,9 @@
     }));
     window.addEventListener("hashchange", () => show(location.hash.slice(1)));
     if (ids.length) {
-      show(location.hash.slice(1));
+      const start = location.hash.slice(1) || lastTab();
+      show(start);
+      if (start && !location.hash) history.replaceState(null, "", "#" + start);
       document.body.classList.add("tabbed");
     }
     // coming back from the chat with the phone's back button shows the cached page with the old count
