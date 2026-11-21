@@ -29,14 +29,20 @@
       {% if user %}
       <nav class="topnav">
         <a href="{{ url_for('courses.index') }}">הקורסים שלי</a>
-        {% if user.is_admin %}<a href="{{ url_for('admin.users') }}">ניהול</a>{% endif %}
+        {% if user.is_admin %}<a href="{{ url_for('requests.inbox') if requests_badge else url_for('admin.users') }}">ניהול{% if requests_badge %} <b class="nav-badge" aria-label="{{ requests_badge }} פניות חדשות">{{ requests_badge }}</b>{% endif %}</a>{% endif %}
       </nav>
       <details class="account">
-        <summary><span class="avatar" aria-hidden="true">{{ user.name[:1] }}</span><span class="sr-only">חשבון</span></summary>
+        <summary><span class="avatar" aria-hidden="true">{{ user.name[:1] }}</span><span class="sr-only">חשבון</span>{% if requests_badge and not user.is_admin %}<b class="avatar-dot" aria-label="יש תשובה חדשה לפנייה שלך"></b>{% endif %}</summary>
         <div class="account-menu">
           <strong>{{ user.name }}</strong>
           <span class="muted" dir="ltr">{{ user.email }}</span>
           <span class="pill">{{ user.role_label }}</span>
+          {% if not user.is_admin %}
+          <a class="account-link" href="{{ url_for('requests.index') }}">
+            <span>פנייה למנהלי המערכת</span>
+            {% if requests_badge %}<b class="nav-badge">{{ requests_badge }}</b>{% endif %}
+          </a>
+          {% endif %}
           <div class="theme-pick">
             <span class="xsmall muted">מצב תצוגה</span>
             <div class="segmented" role="radiogroup" aria-label="מצב תצוגה">

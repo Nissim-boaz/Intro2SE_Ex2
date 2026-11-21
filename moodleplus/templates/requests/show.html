@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "requests/_bits.html" import status_pill, deletes_note %}
+{% block title %}{{ req.subject }} · פניות{% endblock %}
+{% block content %}
+<article class="req-page stack">
+  <header class="asg-head">
+    <div>
+      <h1>{{ req.subject }}</h1>
+      <p class="muted">
+        {% if user.is_admin %}{{ req.user_name }} · {{ 'מרצה' if req.user_role == 'lecturer' else 'סטודנט' }} · {% endif %}נפתחה {{ req.created_at|when_he(now) }}
+      </p>
+    </div>
+    {{ status_pill(req.status, req.status_label) }}
+  </header>
+
+  {% if user.is_admin %}
+  <form method="post" action="{{ url_for('requests.set_status', request_id=req.id) }}" class="req-status" aria-label="עדכון סטטוס">
+    <span class="xsmall muted">סטטוס</span>
+    <div class="segmented">
+      {% for key, label in statuses.items() %}
+      <button name="status" value="{{ key }}" class="{{ 'on' if key == req.status else '' }}" {% if key == req.status %}aria-pressed="true" disabled{% endif %}>{{ label }}</button>
+      {% endfor %}
+    </div>
+  </form>
+  {% endif %}
+
+  <section class="panel req-thread">
+    {% for e in thread %}
+      {% if e.status %}
+      <div class="req-event" title="{{ e.author_name }}">הסטטוס: {{ e.status_label }} · {{ e.created_at|when_he(now) }}</div>
+      {% else %}
+      <div class="req-msg{% if e.mine %} mine{% endif %}{% if e.author_is_admin %} from-admin{% endif %}">
+        <div class="req-msg-head">
+          <strong>{{ 'אתה' if e.mine else e.author_name }}</strong>
+          {% if e.author_is_admin %}<span class="pill pill-brand">מנהל מערכת</span>{% endif %}
+          <span class="xsmall muted">{{ e.created_at|when_he(now) }}</span>
+        </div>
+        <div class="req-msg-body" dir="auto">{{ e.body }}</div>
+      </div>
+      {% endif %}
+    {% endfor %}
+  </section>
+
+  {% if req.closed %}
+  <p class="req-closed muted small">הפנייה {{ req.status_label }}. {{ deletes_note(req, now) }}.{% if not user.is_admin %} אם צריך עוד משהו, פתח פנייה חדשה.{% elif user.is_admin %} כדי להמשיך לכתוב, החזר אותה לסטטוס ״בטיפול״.{% endif %}</p>
+  {% else %}
+  <form method="post" action="{{ url_for('requests.reply', request_id=req.id) }}" class="panel stack" id="reply" data-once>
+    <label>{{ 'תשובה לפונה' if user.is_admin else 'הוסף הודעה' }}<textarea name="body" rows="4" required maxlength="4000"></textarea></label>
+    <button class="btn" style="justify-self:start">שלח</button>
+  </form>
+  {% endif %}
+</article>
+{% endblock %}

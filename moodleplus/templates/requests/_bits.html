@@ -1,0 +1,26 @@
+{# Small pieces shared by the request screens. #}
+{% macro status_pill(status, label) -%}
+<span class="pill {{ {'new': 'pill-brand', 'in_progress': 'pill-warn', 'resolved': 'pill-ok', 'rejected': 'pill-danger'}[status] }}">{{ label }}</span>
+{%- endmacro %}
+
+{% macro deletes_note(req, now) -%}
+{% set days = ((req.deletes_at - now) / 86400)|round(0, 'ceil')|int %}
+{% if days <= 1 %}תימחק מחר{% elif days == 2 %}תימחק בעוד יומיים{% else %}תימחק בעוד {{ days }} ימים{% endif %}
+{%- endmacro %}
+
+{% macro request_row(r, now, show_author=False) -%}
+<li data-filter-item data-filter-text="{{ r.subject }} {{ r.user_name if show_author else '' }}">
+  <a class="req-row{% if r.closed %} is-closed{% endif %}" href="{{ url_for('requests.show', request_id=r.id) }}">
+    <span class="req-text">
+      <span class="req-subject">
+        {% if not show_author and r.requester_unseen %}<span class="req-dot" aria-label="עדכון חדש"></span>{% endif %}
+        {{ r.subject }}
+      </span>
+      <span class="req-meta">
+        {% if show_author %}{{ r.user_name }} · {{ 'מרצה' if r.user_role == 'lecturer' else 'סטודנט' }} · {% endif %}{{ r.updated_at|when_he(now) }}{% if r.closed %} · {{ deletes_note(r, now) }}{% endif %}
+      </span>
+    </span>
+    {{ status_pill(r.status, r.status_label) }}
+  </a>
+</li>
+{%- endmacro %}

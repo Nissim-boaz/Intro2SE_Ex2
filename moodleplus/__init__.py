@@ -45,7 +45,7 @@ def _register_blueprints(app: Flask) -> None:
     for module in (auth, admin, courses):
         app.register_blueprint(module.bp)
 
-    for name in ("content", "assignments", "attendance", "chat", "polls", "recordings", "debug"):
+    for name in ("content", "assignments", "requests", "attendance", "chat", "polls", "recordings", "debug"):
         try:
             module = __import__(f"moodleplus.blueprints.{name}", fromlist=["bp"])
         except ModuleNotFoundError:

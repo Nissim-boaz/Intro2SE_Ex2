@@ -170,3 +170,26 @@ CREATE TABLE IF NOT EXISTS submissions (
     graded_at     REAL NOT NULL DEFAULT 0,
     UNIQUE (assignment_id, student_id)
 );
+
+-- פניות למנהלי המערכת. פנייה שנסגרה (resolved/rejected) נמחקת 7 ימים אחרי closed_at
+CREATE TABLE IF NOT EXISTS requests (
+    id               INTEGER PRIMARY KEY,
+    user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    subject          TEXT NOT NULL,
+    status           TEXT NOT NULL DEFAULT 'new'
+                     CHECK (status IN ('new', 'in_progress', 'resolved', 'rejected')),
+    created_at       REAL NOT NULL,
+    updated_at       REAL NOT NULL,
+    closed_at        REAL NOT NULL DEFAULT 0,
+    requester_unseen INTEGER NOT NULL DEFAULT 0   -- 1: יש תשובה או שינוי סטטוס שהפונה עוד לא ראה
+);
+
+-- השרשור של פנייה: הודעות, ושינויי סטטוס (status לא ריק, body ריק)
+CREATE TABLE IF NOT EXISTS request_messages (
+    id          INTEGER PRIMARY KEY,
+    request_id  INTEGER NOT NULL REFERENCES requests(id) ON DELETE CASCADE,
+    author_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body        TEXT NOT NULL DEFAULT '',
+    status      TEXT NOT NULL DEFAULT '',
+    created_at  REAL NOT NULL
+);

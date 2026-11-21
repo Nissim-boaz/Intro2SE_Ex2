@@ -14,6 +14,8 @@ A user's role applies in every course they are assigned to: a lecturer is a lect
 
 Sign-in is with a Google account, and the server verifies the ID token. Anyone not listed in the users table can't get in. For development and demos there is a `MOCK_AUTH` mode with a role and user picker.
 
+Students and lecturers can send a request to the admins from the account menu (for example, a missing course or an attendance mistake). Each request is a conversation: the admins reply and set its status (new, in progress, resolved or rejected), and the requester gets a red dot in the menu when there is an update. A resolved or rejected request is deleted 7 days after it was closed.
+
 The home page and the admin lists (users, courses, course members) have a live search field that filters as you type.
 
 The course page has a floating tab bar at the bottom (content, assignments, attendance, recordings, chat), with an unread count on the chat icon.
@@ -69,6 +71,7 @@ moodleplus/
     attendance.py    AttendanceService, AttendanceReport
     chat.py          ChatService, SenderMask, ReactionService, ReadReceiptService
     polls.py         PollService
+    requests.py      RequestService (requests to the admins)
     recordings.py    RecordingService, BackgroundJobRunner
     transcription.py Transcriber, WhisperTranscriber, AudioExtractor
     llm.py           LLMProvider, GeminiProvider, LessonSummarizer, LessonFeedbackWriter

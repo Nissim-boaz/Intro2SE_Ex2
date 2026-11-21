@@ -41,7 +41,7 @@
     {% if mine %}
     <div class="sub-file">
       <a class="file-chip" href="{{ url_for('assignments.submission_file', submission_id=mine.id) }}"><span dir="auto">{{ mine.file_name }}</span></a>
-      <span class="xsmall muted">הוגש ב-{{ mine.submitted_at|when_he(now) }}</span>
+      <span class="xsmall muted">הוגש {{ mine.submitted_at|when_he(now) }}</span>
       {% if mine.late %}<span class="pill pill-warn">באיחור</span>{% endif %}
     </div>
     {% if mine.graded %}

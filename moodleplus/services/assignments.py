@@ -9,7 +9,7 @@ from typing import Callable
 
 from ..errors import NotFound, ValidationError
 from .content import FileStore
-from .users import User
+from ..models import User
 
 MAX_GRADE = 100
 HEBREW_MONTHS = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
@@ -25,10 +25,14 @@ def parse_due(value: str) -> float:
 
 
 def when_he(ts: float, now: float | None = None) -> str:
-    """חותמת זמן -> '25 בנובמבר, 23:59'. השנה מופיעה רק כשהיא לא השנה הנוכחית."""
+    """חותמת זמן -> 'היום, 14:05', 'מחר, 23:59' או '25 בנובמבר, 23:59'. השנה מופיעה רק כשהיא לא השנה הנוכחית."""
     dt = datetime.fromtimestamp(ts)
-    year = datetime.fromtimestamp(now if now is not None else time.time()).year
-    date = f"{dt.day} ב{HEBREW_MONTHS[dt.month - 1]}" + (f" {dt.year}" if dt.year != year else "")
+    today = datetime.fromtimestamp(now if now is not None else time.time()).date()
+    days = (dt.date() - today).days
+    named = {0: "היום", -1: "אתמול", 1: "מחר"}
+    if days in named:
+        return f"{named[days]}, {dt:%H:%M}"
+    date = f"{dt.day} ב{HEBREW_MONTHS[dt.month - 1]}" + (f" {dt.year}" if dt.year != today.year else "")
     return f"{date}, {dt:%H:%M}"
 
 

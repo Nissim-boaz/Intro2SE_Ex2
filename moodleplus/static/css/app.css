@@ -1170,3 +1170,59 @@ body.tabbed .tab-on { animation: tab-in .24s var(--ease); }
 }
 /* the hover tools beside a bubble may poke past the edge on a narrow screen; never scroll sideways for them */
 .chat-scroll { overflow-x: hidden; }
+
+/* ---------- requests to the admins ---------- */
+.nav-badge {
+  display: inline-block; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; margin-inline-start: 4px;
+  background: #FF3B30; color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+  font-variant-numeric: tabular-nums; vertical-align: 1px;
+}
+.account summary { position: relative; }
+.avatar-dot {
+  position: absolute; top: -1px; left: -1px; width: 11px; height: 11px; border-radius: 50%;
+  background: #FF3B30; box-shadow: 0 0 0 2px var(--surface);
+}
+.account-link {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; padding: 10px 12px;
+  border-radius: var(--r-sm); background: var(--fill); color: var(--ink); font-size: var(--fs-sm); font-weight: 500;
+}
+.account-link:hover { text-decoration: none; background: var(--fill-2); }
+
+.req-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.req-row {
+  display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-radius: var(--r-md);
+  background: var(--fill); color: var(--ink); transition: background .15s;
+}
+.req-row:hover { text-decoration: none; background: var(--fill-2); }
+.req-row.is-closed { opacity: .72; }
+.req-row .pill { flex: none; white-space: nowrap; }
+.req-text { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.req-subject { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.req-meta { font-size: var(--fs-xs); color: var(--ink-2); }
+.req-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #FF3B30; margin-inline-end: 6px; vertical-align: 1px; }
+.req-foot { margin-top: 14px; text-align: center; }
+
+.req-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+.req-filters a {
+  padding: 6px 12px; border-radius: 999px; font-size: var(--fs-sm); color: var(--ink-2); background: var(--fill);
+}
+.req-filters a:hover { text-decoration: none; color: var(--ink); }
+.req-filters a.on { background: var(--chip-on); color: var(--chip-on-ink); }
+.req-filters a span { font-variant-numeric: tabular-nums; opacity: .75; }
+
+.req-status { display: grid; gap: 6px; }
+.req-status .segmented { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--fill); width: fit-content; max-width: 100%; flex-wrap: wrap; }
+.req-status .segmented button {
+  border: 0; background: transparent; color: var(--ink-2); font: inherit; font-size: var(--fs-sm); font-weight: 500;
+  padding: 7px 14px; border-radius: 999px; cursor: pointer;
+}
+.req-status .segmented button:hover { color: var(--ink); background: var(--fill); }
+.req-status .segmented button.on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); cursor: default; opacity: 1; }
+
+.req-thread { display: grid; gap: 12px; }
+.req-msg { padding: 12px 14px; border-radius: var(--r-md); background: var(--fill); max-width: 88%; justify-self: end; }
+.req-msg.mine { justify-self: start; background: var(--brand-soft); }
+.req-msg-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; font-size: var(--fs-sm); }
+.req-msg-body { white-space: pre-line; line-height: 1.55; }
+.req-event { justify-self: center; font-size: var(--fs-xs); color: var(--ink-2); background: var(--fill); padding: 4px 12px; border-radius: 999px; text-align: center; }
+.req-closed { text-align: center; }

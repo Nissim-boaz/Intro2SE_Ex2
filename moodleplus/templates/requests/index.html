@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "requests/_bits.html" import request_row %}
+{% set back_url = url_for('courses.index') %}{% set back_label = "הקורסים שלי" %}
+{% block title %}הפניות שלי · Moodle+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>פניות</h1>
+    <p class="muted">בעיה בגישה לקורס, טעות בנוכחות או כל דבר אחר שצריך את מנהלי המערכת.</p>
+  </div>
+  <button class="btn" type="button" data-open-dialog="new-request">פנייה חדשה</button>
+</div>
+
+<section class="panel">
+  {% if items %}
+  <ul class="req-list">
+    {% for r in items %}{{ request_row(r, now) }}{% endfor %}
+  </ul>
+  <p class="xsmall muted req-foot">פנייה שטופלה או נדחתה נמחקת {{ keep_days }} ימים אחרי שנסגרה.</p>
+  {% else %}
+  <div class="empty">
+    <strong>אין לך פניות פתוחות</strong>
+    כשתשלח פנייה, תוכל לעקוב כאן אחרי התשובות והסטטוס.
+  </div>
+  {% endif %}
+</section>
+
+<dialog id="new-request">
+  <form method="post" action="{{ url_for('requests.create') }}" class="dialog-body" data-once>
+    <h2>פנייה חדשה</h2>
+    <label>נושא<input type="text" name="subject" required maxlength="200" placeholder="לא רואה את הקורס מבני נתונים"></label>
+    <label>מה קרה?<textarea name="body" rows="6" required maxlength="4000" placeholder="פרט כמה שיותר: באיזה קורס, מה ניסית לעשות ומה ראית"></textarea></label>
+    <p class="xsmall muted">רק מנהלי המערכת רואים את הפנייה. תקבל סימון בתפריט כשתגיע תשובה.</p>
+    <div class="dialog-actions">
+      <button class="btn btn-quiet" type="button" data-close-dialog>ביטול</button>
+      <button class="btn">שלח</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}
