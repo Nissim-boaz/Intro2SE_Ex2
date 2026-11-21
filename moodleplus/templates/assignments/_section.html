@@ -1,0 +1,48 @@
+{% from "assignments/_status.html" import student_status, lecturer_status %}
+<section class="panel section" id="assignments">
+  <div class="panel-head">
+    <h2>מטלות</h2>
+    {% if can_manage %}<button class="btn btn-sm" type="button" data-open-dialog="new-assignment">מטלה חדשה</button>{% endif %}
+  </div>
+
+  {% if assignments %}
+  <ul class="asg-list">
+    {% for a in assignments %}
+    {% set past = now > a.due_at %}
+    <li>
+      <a class="asg-row{% if past %} is-past{% endif %}" href="{{ url_for('assignments.show', assignment_id=a.id) }}">
+        <span class="asg-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path d="M7 4.5H6A1.5 1.5 0 0 0 4.5 6v13.5A1.5 1.5 0 0 0 6 21h12a1.5 1.5 0 0 0 1.5-1.5V6A1.5 1.5 0 0 0 18 4.5h-1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="8" y="3" width="8" height="3.5" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8.5 13.2l2.4 2.4 4.6-4.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="asg-text">
+          <span class="asg-title">{{ a.title }}</span>
+          <span class="asg-due">עד {{ a.due_at|when_he(now) }}</span>
+        </span>
+        <span class="asg-status">
+          {% if can_manage %}{{ lecturer_status(a, assignment_counts, student_count, now) }}
+          {% else %}{{ student_status(a, my_submissions.get(a.id), now) }}{% endif %}
+        </span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="empty">
+    <strong>עוד אין מטלות</strong>
+    {% if can_manage %}פרסם מטלה עם תאריך הגשה, והסטודנטים יוכלו להגיש אותה כאן.{% else %}כשהמרצה יפרסם מטלה, היא תופיע כאן.{% endif %}
+  </div>
+  {% endif %}
+</section>
+
+{% if can_manage %}
+<dialog id="new-assignment">
+  <form method="post" action="{{ url_for('assignments.create', course_id=course.id) }}" enctype="multipart/form-data" class="dialog-body" data-once>
+    <h2>מטלה חדשה</h2>
+    {% include "assignments/_fields.html" %}
+    <div class="dialog-actions">
+      <button class="btn btn-quiet" type="button" data-close-dialog>ביטול</button>
+      <button class="btn">פרסם</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}

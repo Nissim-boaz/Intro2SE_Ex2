@@ -1,0 +1,11 @@
+{# The assignment form fields, for "new" and "edit". With `a` set, the fields start from that assignment. #}
+<label>שם המטלה<input type="text" name="title" required maxlength="200" value="{{ a.title if a is defined else '' }}" placeholder="מטלה 3: דיאגרמת מחלקות"></label>
+<label>הנחיות<textarea name="description" rows="5" placeholder="מה צריך להגיש, באיזה פורמט, ובזוגות או לבד">{{ a.description if a is defined else '' }}</textarea></label>
+<label>להגשה עד<input type="datetime-local" name="due" required value="{{ a.due_input if a is defined else '' }}"></label>
+<label>קובץ מצורף (לא חובה)<input type="file" name="file"></label>
+{% if a is defined and a.file_name %}
+<label class="switch">
+  <input type="checkbox" name="remove_file" value="1"><span class="switch-track" aria-hidden="true"></span>
+  הסר את הקובץ הנוכחי ({{ a.file_name }})
+</label>
+{% endif %}

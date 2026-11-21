@@ -45,7 +45,7 @@ def _register_blueprints(app: Flask) -> None:
     for module in (auth, admin, courses):
         app.register_blueprint(module.bp)
 
-    for name in ("content", "attendance", "chat", "polls", "recordings", "debug"):
+    for name in ("content", "assignments", "attendance", "chat", "polls", "recordings", "debug"):
         try:
             module = __import__(f"moodleplus.blueprints.{name}", fromlist=["bp"])
         except ModuleNotFoundError:
@@ -90,6 +90,9 @@ def _register_handlers(app: Flask) -> None:
     app.before_request(load_current_user)
     app.jinja_env.filters["clock"] = fmt_time
     app.jinja_env.filters["date_he"] = date_he
+    from .services.assignments import left_he, when_he
+    app.jinja_env.filters["when_he"] = when_he
+    app.jinja_env.filters["left_he"] = left_he
 
     @app.context_processor
     def inject_user():

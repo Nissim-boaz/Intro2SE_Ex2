@@ -1096,3 +1096,60 @@ body.tabbed .tab-on { animation: tab-in .24s var(--ease); }
 .tabbar a { padding: 11px 4px; }
 .tabbar svg { width: 27px; height: 27px; }
 .tab-badge { top: 4px; }
+
+/* ---------- assignments ---------- */
+.asg-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.asg-row {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--r-md);
+  background: var(--fill); color: var(--ink); transition: background .15s, transform .15s var(--ease);
+}
+.asg-row:hover { text-decoration: none; background: var(--fill-2); }
+.asg-row:active { transform: scale(.99); }
+.asg-icon {
+  flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+  background: var(--brand-soft); color: var(--brand);
+}
+.asg-row.is-past .asg-icon { background: var(--fill-2); color: var(--ink-2); }
+.asg-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.asg-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.asg-due { font-size: var(--fs-xs); color: var(--ink-2); }
+.asg-status { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.asg-status .pill, .roster .pill { white-space: nowrap; }
+
+.asg-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.asg-head h1 { font-size: clamp(26px, 6vw, 38px); letter-spacing: -.02em; }
+.asg-h2 { margin-bottom: 12px; }
+.asg-desc { white-space: pre-line; line-height: 1.6; }
+.asg-desc + .file-chip { margin-top: 14px; }
+.file-chip {
+  display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 8px 14px; border-radius: 999px;
+  background: var(--brand-soft); color: var(--brand); font-weight: 500; font-size: var(--fs-sm);
+}
+.file-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-chip:hover { text-decoration: none; filter: brightness(.97); }
+.sub-file { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.submit-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.submit-form .btn { justify-self: start; }
+.note-warn { padding: 10px 14px; border-radius: var(--r-sm); background: var(--warn-soft); color: var(--warn-ink); font-size: var(--fs-sm); }
+
+.grade-card {
+  margin-top: 14px; display: flex; gap: 16px; align-items: flex-start; padding: 16px; border-radius: var(--r-md);
+  background: var(--ok-soft);
+}
+.grade-num { flex: none; color: var(--ok); line-height: 1; }
+.grade-num strong { font-size: 40px; font-weight: 700; letter-spacing: -.02em; }
+.grade-num span { font-size: var(--fs-sm); opacity: .8; }
+.grade-note { white-space: pre-line; line-height: 1.55; }
+
+/* grading: the pill opens a small form inside the row */
+.roster > li { flex-wrap: wrap; }
+.grade-box { flex: none; }
+.grade-box > summary { cursor: pointer; list-style: none; }
+.grade-box > summary::-webkit-details-marker { display: none; }
+.grade-box[open] { flex-basis: 100%; order: 5; }
+.grade-box[open] > summary { margin-bottom: 10px; }
+.grade-form { display: grid; gap: 10px; padding: 14px; border-radius: var(--r-md); background: var(--fill); }
+.grade-form input[type="number"] { max-width: 120px; }
+.grade-form .btn { justify-self: start; }
+/* names can be long ("מטלה 2: עיצוב ומימוש..."): two lines before the ellipsis */
+.asg-title { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.35; }

@@ -144,3 +144,29 @@ CREATE TABLE IF NOT EXISTS recordings (
     uploaded_by     INTEGER REFERENCES users(id) ON DELETE SET NULL, -- המשוב האישי שייך לו
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- מטלות. due_at היא חותמת זמן (שניות), כדי שהשוואה לזמן ההגשה תהיה פשוטה
+CREATE TABLE IF NOT EXISTS assignments (
+    id          INTEGER PRIMARY KEY,
+    course_id   INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    title       TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    due_at      REAL NOT NULL,
+    file_path   TEXT NOT NULL DEFAULT '',   -- קובץ מצורף מהמרצה (לא חובה)
+    file_name   TEXT NOT NULL DEFAULT '',
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- הגשה אחת לכל סטודנט במטלה. הגשה חוזרת מחליפה את הקובץ
+CREATE TABLE IF NOT EXISTS submissions (
+    id            INTEGER PRIMARY KEY,
+    assignment_id INTEGER NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+    student_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    file_path     TEXT NOT NULL,
+    file_name     TEXT NOT NULL,
+    submitted_at  REAL NOT NULL,
+    grade         INTEGER CHECK (grade IS NULL OR grade BETWEEN 0 AND 100),
+    feedback      TEXT NOT NULL DEFAULT '',  -- הערת המרצה. רק הסטודנט והמרצים רואים
+    graded_at     REAL NOT NULL DEFAULT 0,
+    UNIQUE (assignment_id, student_id)
+);

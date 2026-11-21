@@ -1,8 +1,11 @@
 """רשימת הקורסים ועמוד הקורס."""
+import time
+
 from flask import Blueprint, current_app, render_template
 
 from ..db import get_db
 from ..security import current_user, login_required
+from ..services.assignments import AssignmentService
 from ..services.content import ContentService, FileStore
 from ..services.chat import ChatService, ReadReceiptService
 from ..services.courses import CourseService, EnrollmentService
@@ -39,6 +42,14 @@ def show(course_id: int):
     context["recordings"] = RecordingService(db, FileStore(current_app.config["UPLOAD_DIR"])).list(
         course_id, include_drafts=role in ("admin", "lecturer")  # טיוטות רק למרצה ולמנהל
     )
+    assignments = AssignmentService(db, FileStore(current_app.config["UPLOAD_DIR"]))
+    context["assignments"] = assignments.list(course_id)
+    if role == "student":
+        context["my_submissions"] = assignments.my_submissions(course_id, current_user().id)
+    else:
+        context["assignment_counts"] = assignments.counts(course_id)
+        context["student_count"] = len(enrollments.members(course_id, "student"))
+    context["now"] = time.time()
     return render_template(
         "courses/show.html",
         **context,

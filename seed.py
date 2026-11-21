@@ -1,7 +1,7 @@
 """נתוני דמו: python seed.py --reset
 
 יוצר אדמין, מרצה, את כל הסטודנטים מ-data/students.csv, קורס עם תכנים,
-שיעור קודם עם נוכחות, הודעות בצ׳אט וסקר.
+שיעור קודם עם נוכחות, מטלות עם הגשות, הודעות בצ׳אט וסקר.
 """
 import argparse
 import random
@@ -14,6 +14,7 @@ load_dotenv()  # לפני ה-import של Config, כדי שיקרא את הערכ
 
 from moodleplus.config import Config  # noqa: E402
 from moodleplus.db import connect, init_schema
+from moodleplus.services.assignments import AssignmentService
 from moodleplus.services.chat import ChatService, ReactionService
 from moodleplus.services.content import ContentService, FileStore
 from moodleplus.services.courses import CourseService, EnrollmentService
@@ -55,13 +56,12 @@ def seed(db_path: str, reset: bool) -> None:
     content.add(oop.id, "text", title="ברוכים הבאים",
                 body="שיעורים בימי ראשון 10:00 עד 13:00 בבניין 3.\nשעות קבלה: יום שני 12:00, בתיאום מראש במייל.")
     content.add(oop.id, "link", title="סילבוס הקורס", url="https://www.ariel.ac.il", body="נושאים, ציון ומועדים")
-    content.add(oop.id, "text", title="מטלה 2",
-                body="עיצוב ומימוש של מערכת קורסים. הגשה בזוגות עד 25/11, כולל דיאגרמת מחלקות ודיאגרמת רצף.")
     content.add(oop.id, "file", title="מצגת שיעור 1: מבוא ל-UML", file_name="lesson1_uml.txt",
                 file_data="מצגת לדוגמה. כאן תהיה המצגת האמיתית.".encode("utf-8"))
 
     _seed_attendance(db, oop.id, lecturer, students)
     _seed_chat(db, oop.id, lecturer, students)
+    _seed_assignments(db, oop.id, students)
     print(f"נוצרו: אדמין ({admin.email}), מרצה, {len(students)} סטודנטים ו-2 קורסים.")
     print("להתחברות בדמו: MOCK_AUTH=1 ואז בחר תפקיד ומשתמש בעמוד ההתחברות.")
 
@@ -90,6 +90,45 @@ def _seed_attendance(db, course_id, lecturer, students) -> None:
                 (sample_id, st.id, opened + rnd.uniform(5, 100), method, status, reasons),
             )
     db.commit()
+
+
+def _seed_assignments(db, course_id, students) -> None:
+    """מטלה שהמועד שלה עבר (עם הגשות, חלקן בדוקות) ומטלה פתוחה."""
+    import io
+    from datetime import datetime, timedelta
+
+    from werkzeug.datastructures import FileStorage
+
+    def pdf(name):
+        return FileStorage(io.BytesIO(b"%PDF-1.4 demo"), name)
+
+    def local(dt):
+        return dt.strftime("%Y-%m-%dT%H:%M")
+
+    now = datetime.now()
+    clock = [time.time()]
+    service = AssignmentService(db, FileStore(Config.UPLOAD_DIR), clock=lambda: clock[0])
+    first = service.create(
+        course_id, "מטלה 1: דרישות ו-Use Cases",
+        "כתבו מסמך דרישות קצר ודיאגרמת Use Case למערכת קורסים.\nהגשה בזוגות, קובץ PDF אחד.",
+        local((now - timedelta(days=6)).replace(hour=23, minute=59)),
+    )
+    second = service.create(
+        course_id, "מטלה 2: עיצוב ומימוש מערכת קורסים",
+        "עיצוב ומימוש של מערכת קורסים.\nצרפו דיאגרמת מחלקות ודיאגרמת רצף, וקישור לקוד ב-GitHub.",
+        local((now + timedelta(days=4)).replace(hour=23, minute=59)),
+        "assignment2.pdf", pdf("assignment2.pdf"),
+    )
+    rng = random.Random(7)
+    for i, student in enumerate(students[:70]):
+        late = i % 9 == 0
+        clock[0] = first.due_at + (3600 if late else -86400 * rng.uniform(.2, 3))
+        sub = service.submit(first.id, student, f"hw1_{i + 1}.pdf", pdf(f"hw1_{i + 1}.pdf"))
+        if i < 45:
+            service.grade(sub.id, str(rng.randint(72, 100)), "עבודה טובה. כדאי לפרט יותר את התרחישים החלופיים." if i % 4 == 0 else "")
+    for i, student in enumerate(students[1:25]):
+        clock[0] = time.time() - 3600 * rng.uniform(1, 40)
+        service.submit(second.id, student, f"hw2_{i + 1}.pdf", pdf(f"hw2_{i + 1}.pdf"))
 
 
 def _seed_chat(db, course_id, lecturer, students) -> None:

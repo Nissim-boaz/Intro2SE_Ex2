@@ -1,20 +1,26 @@
 # Moodle+
 
-A course website built for assignment 2 of Introduction to Software Engineering. Every course has a page with content, in-class attendance sampling, lesson recordings with an AI summary and chapters, and a group chat with polls. The interface is in Hebrew (right to left) and designed for phones first.
+A course website built for assignment 2 of Introduction to Software Engineering. Every course has a page with content, assignments, in-class attendance sampling, lesson recordings with an AI summary and chapters, and a group chat with polls. The interface is in Hebrew (right to left) and designed for phones first.
 
 ## What's in the system
 
 There are three roles:
 
 - **Admin** creates users and courses and assigns lecturers and students to courses. Students can be imported from a CSV or XLSX file, including a Moodle participants export as is.
-- **Lecturer** edits the course page content, opens attendance samples, uploads recordings and creates polls in the chat.
-- **Student** sees their courses, checks in to attendance, writes in the chat (optionally anonymously) and votes in polls.
+- **Lecturer** edits the course page content, publishes and grades assignments, opens attendance samples, uploads recordings and creates polls in the chat.
+- **Student** sees their courses, submits assignments, checks in to attendance, writes in the chat (optionally anonymously) and votes in polls.
 
 A user's role applies in every course they are assigned to: a lecturer is a lecturer in all of their courses. Changing a user's role updates the courses they are already in.
 
 Sign-in is with a Google account, and the server verifies the ID token. Anyone not listed in the users table can't get in. For development and demos there is a `MOCK_AUTH` mode with a role and user picker.
 
 The home page and the admin lists (users, courses, course members) have a live search field that filters as you type.
+
+The course page has a floating tab bar at the bottom (content, assignments, attendance, recordings, chat), with an unread count on the chat icon.
+
+### Assignments
+
+The lecturer publishes an assignment with instructions, a due date and an optional attached file. Each student submits one file and can replace it until the lecturer grades it. Submitting after the due date is allowed and marked as late; moving the due date updates the late mark on work already sent. The lecturer sees who submitted and who didn't, downloads each submission, and gives a grade (0 to 100) and a note that only that student sees.
 
 ### Attendance
 
@@ -57,6 +63,7 @@ moodleplus/
     users.py         UserService, StudentImporter
     courses.py       CourseService, EnrollmentService (course-level permissions)
     content.py       ContentService, FileStore
+    assignments.py   AssignmentService
     tokens.py        TokenClock, QrTokenService, AudioTokenService
     network.py       CampusNetworkPolicy
     attendance.py    AttendanceService, AttendanceReport
@@ -82,7 +89,7 @@ python -m venv venv
 venv\Scripts\activate            # on Mac or Linux: source venv/bin/activate
 pip install -r requirements.txt
 copy .env.example .env           # on Mac or Linux: cp
-python seed.py --reset           # demo data: a lecturer, 105 students, a course with content, chat and a poll
+python seed.py --reset           # demo data: a lecturer, 105 students, a course with content, assignments, chat and a poll
 python run.py
 ```
 
@@ -132,4 +139,4 @@ Even if the audio doesn't work in the hall, the demo goes on: attendance is reco
 pytest -q
 ```
 
-The tests need no network and no models. They use a fake clock and fake transcription and LLM implementations, and cover, among other things, the 5-sample limit, QR and audio token expiry, the fallback path, unique votes, one reaction per user, anonymity by role, feedback privacy and permissions.
+The tests need no network and no models. They use a fake clock and fake transcription and LLM implementations, and cover, among other things, the 5-sample limit, QR and audio token expiry, the fallback path, unique votes, one reaction per user, anonymity by role, feedback privacy, late and graded submissions, and permissions.
