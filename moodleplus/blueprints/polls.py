@@ -30,7 +30,7 @@ def create(course_id: int):
 def vote(poll_id: int):
     polls = PollService(get_db())
     poll = polls.get(poll_id)
-    EnrollmentService(get_db()).require_student(poll["course_id"], current_user())
+    EnrollmentService(get_db()).require_member(poll["course_id"], current_user())
     try:
         option_id = int((request.get_json(silent=True) or {}).get("option_id"))
     except (TypeError, ValueError):

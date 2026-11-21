@@ -153,7 +153,7 @@
             <form method="post" action="{{ url_for('assignments.resolve_appeal', submission_id=sub.id) }}" class="grade-form appeal-resolve">
               <p class="appeal-text" dir="auto"><strong>הערעור:</strong> {{ sub.appeal_text }}</p>
               <label>ציון חדש (אם מקבלים)<input type="number" name="grade" min="0" max="100" inputmode="numeric" value="{{ sub.grade }}"></label>
-              <label>תשובה לסטודנט<textarea name="reply" rows="3" placeholder="חובה כשדוחים. רק הסטודנט רואה"></textarea></label>
+              <label>תשובה לסטודנט<textarea name="reply" rows="3" placeholder="לא חובה. רק הסטודנט רואה"></textarea></label>
               <div class="row">
                 <button class="btn btn-sm" name="decision" value="accept">קבל ועדכן ציון</button>
                 <button class="btn btn-sm btn-danger" name="decision" value="reject">דחה</button>

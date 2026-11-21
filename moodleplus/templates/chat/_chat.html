@@ -4,7 +4,6 @@
        data-send-url="{{ url_for('chat.send', course_id=course.id) }}"
        data-read-url="{{ url_for('chat.mark_read', course_id=course.id) }}"
        data-poll-url="{{ url_for('polls.create', course_id=course.id) }}"
-       data-can-vote="{{ 1 if role == 'student' else 0 }}"
        data-is-admin="{{ 1 if role == 'admin' else 0 }}"
        data-lock-url="{{ url_for('chat.lock', course_id=course.id) }}"
        data-is-student="{{ 1 if role == 'student' else 0 }}"

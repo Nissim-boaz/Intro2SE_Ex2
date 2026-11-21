@@ -11,7 +11,6 @@
   const sendUrl = root.dataset.sendUrl;
   const readUrl = root.dataset.readUrl;
   const pollUrl = root.dataset.pollUrl;
-  const canVote = root.dataset.canVote === "1";
   const POLL_MS = 2500;
 
   const scroller = document.getElementById("chat-scroll");
@@ -66,6 +65,7 @@
 
   function renderPoll(p) {
     const total = p.total || 0;
+    const canVote = p.can_vote; // everyone in the course, except whoever created the poll
     const rows = p.options.map((o) => {
       const pct = total ? Math.round((o.votes / total) * 100) : 0;
       const chosen = p.my_vote === o.id;

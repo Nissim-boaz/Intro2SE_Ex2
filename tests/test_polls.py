@@ -110,11 +110,11 @@ def test_only_lecturer_creates_polls(app, client):
     assert client.post(f"/api/courses/{course.id}/polls", json={"question": "ש", "options": ["א", "ב"]}).status_code == 200
 
 
-def test_only_students_vote(app, client):
+def test_creator_does_not_vote_in_own_poll(app, client):
     lect, stud, course = _setup(app)
     login(client, lect.id)
     client.post(f"/api/courses/{course.id}/polls", json={"question": "ש", "options": ["א", "ב"]})
-    assert client.post("/api/polls/1/vote", json={"option_id": 1}).status_code == 403
+    assert client.post("/api/polls/1/vote", json={"option_id": 1}).status_code == 400
     login(client, stud.id)
     res = client.post("/api/polls/1/vote", json={"option_id": 1})
     assert res.status_code == 200 and res.get_json()["poll"]["total"] == 1
@@ -145,3 +145,21 @@ def test_api_creates_open_poll_only_when_asked(app, client):
     client.post(f"/api/courses/{course.id}/polls", json={"question": "2", "options": ["א", "ב"], "anonymous": False})
     conn = connect(app.config["DATABASE"])
     assert [r[0] for r in conn.execute("SELECT anonymous FROM polls ORDER BY id")] == [1, 0]
+
+
+def test_lecturers_and_admins_vote_but_not_the_creator(db, people):
+    from moodleplus.errors import ValidationError as VE
+    from moodleplus.services.users import UserService
+
+    polls = PollService(db)
+    other = UserService(db).create("lect2@test.ac.il", "מרצה שני", "lecturer")
+    EnrollmentService(db).enroll_many(people["course"].id, [other])
+    poll_id = _poll_id(db, polls.create(people["course"].id, people["lecturer"], "שאלה?", ["א", "ב"]))
+    opts = [o["id"] for o in polls.results(poll_id, people["s1"])["options"]]
+    polls.vote(poll_id, other, opts[0])
+    polls.vote(poll_id, people["admin"], opts[1])
+    with pytest.raises(VE):
+        polls.vote(poll_id, people["lecturer"], opts[0])
+    assert polls.results(poll_id, people["s1"])["total"] == 2
+    assert polls.results(poll_id, people["lecturer"])["can_vote"] is False
+    assert polls.results(poll_id, other)["can_vote"] is True

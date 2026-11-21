@@ -1320,3 +1320,5 @@ body.tabbed .tab-on { animation: tab-in .24s var(--ease); }
 .att-appeals .appeal-text { margin: 4px 0 10px; }
 .att-resolve { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .att-resolve input { flex: 1; min-width: 200px; }
+
+.att-appeals { margin-bottom: 20px; }

@@ -203,9 +203,7 @@ def test_appeal_once_then_accept_or_reject(asg, people):
     assert (done.appeal_status, done.grade, done.original_grade) == ("accepted", 85, 70)
 
     asg.appeal(s2.id, people["s2"], "בבקשה")
-    with pytest.raises(ValidationError):
-        asg.resolve_appeal(s2.id, False, "")  # a rejection needs a reason
-    rejected = asg.resolve_appeal(s2.id, False, "הציון נשאר, חסרה דיאגרמת רצף")
+    rejected = asg.resolve_appeal(s2.id, False, "")  # a reason is optional
     assert (rejected.appeal_status, rejected.grade) == ("rejected", 60)
     with pytest.raises(ValidationError):
         asg.resolve_appeal(s2.id, True, "", "90")  # already decided

@@ -33,7 +33,7 @@
         <div class="title">{{ ap.student_name }} <span class="muted small" style="font-weight:400">· דגימה {{ ap.seq }}</span></div>
         <p class="appeal-text" dir="auto">{{ ap.text }}</p>
         <form method="post" action="{{ url_for('attendance.resolve_appeal', appeal_id=ap.id) }}" class="att-resolve">
-          <input type="text" name="reply" maxlength="1000" placeholder="תשובה לסטודנט (חובה כשדוחים)" aria-label="תשובה ל{{ ap.student_name }}">
+          <input type="text" name="reply" maxlength="1000" placeholder="תשובה לסטודנט (לא חובה)" aria-label="תשובה ל{{ ap.student_name }}">
           <button class="btn btn-sm" name="decision" value="accept">קבל וסמן נוכח</button>
           <button class="btn btn-sm btn-danger" name="decision" value="reject">דחה</button>
         </form>

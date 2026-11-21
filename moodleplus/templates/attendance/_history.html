@@ -16,7 +16,7 @@
           <li>
             <span class="att-sample-name">דגימה {{ c.sample.seq }}</span>
             {% if c.record %}
-              <span class="pill pill-ok">{{ 'נוכח, סומן ידנית' if c.record.manual else 'נוכח' }}</span>
+              <span class="pill pill-ok">נוכח</span>
             {% elif c.appeal %}
               <span class="pill {{ {'pending': 'pill-warn', 'accepted': 'pill-ok', 'rejected': 'pill-danger'}[c.appeal.status] }}">ערעור {{ c.appeal.status_label }}</span>
             {% else %}

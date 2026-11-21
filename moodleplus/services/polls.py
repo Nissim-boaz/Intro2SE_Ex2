@@ -47,8 +47,9 @@ class PollService:
         return row
 
     def vote(self, poll_id: int, user: User, option_id: int) -> None:
-        """הצבעה אחת לכל משתמש. הצבעה חוזרת מחליפה את הקודמת."""
-        self.get(poll_id)
+        """הצבעה אחת לכל משתמש. הצבעה חוזרת מחליפה את הקודמת. כל חבר בקורס מצביע, חוץ ממי שיצר את הסקר."""
+        if self.get(poll_id)["created_by"] == user.id:
+            raise ValidationError("מי שיצר את הסקר לא מצביע בו")
         option = self.db.execute(
             "SELECT id FROM poll_options WHERE id = ? AND poll_id = ?", (option_id, poll_id)
         ).fetchone()
@@ -83,6 +84,7 @@ class PollService:
             "options": [{"id": o["id"], "text": o["text"], "votes": o["votes"]} for o in options],
             "total": sum(o["votes"] for o in options),
             "my_vote": mine["option_id"] if mine else None,
+            "can_vote": poll["created_by"] != viewer.id,
         }
         if not anonymous:
             voters: dict[int, list[str]] = {}

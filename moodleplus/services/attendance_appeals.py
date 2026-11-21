@@ -138,13 +138,11 @@ class AttendanceAppealService:
         return {lesson_id: n for lesson_id, n in rows}
 
     def resolve(self, appeal_id: int, lecturer: User, accept: bool, reply: str) -> AttendanceAppeal:
-        """קבלה רושמת לסטודנט נוכחות ידנית בדגימה. דחייה צריכה הסבר, שהסטודנט יראה."""
+        """קבלה רושמת לסטודנט נוכחות ידנית בדגימה. תשובה לסטודנט לא חובה, גם בדחייה."""
         appeal = self.get(appeal_id)
         if appeal.status != "pending":
             raise ValidationError("כבר ענית על הערעור הזה")
         reply = (reply or "").strip()
-        if not accept and not reply:
-            raise ValidationError("כתוב לסטודנט למה הערעור נדחה")
         if accept and not self.attendance.record_for(appeal.sample_id, appeal.student_id):
             self.attendance.mark_manual(appeal.sample_id, appeal.student_id, lecturer)
         self.db.execute(

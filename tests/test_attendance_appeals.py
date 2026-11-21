@@ -41,9 +41,7 @@ def test_accept_marks_present_and_reject_needs_a_reason(setup, people):
     assert appeals.pending_counts(people["course"].id) == {sample.lesson_id: 2}
     done = appeals.resolve(a1.id, people["lecturer"], True, "")
     assert done.status == "accepted" and attendance.record_for(sample.id, people["s1"].id).manual
-    with pytest.raises(ValidationError):
-        appeals.resolve(a2.id, people["lecturer"], False, "")
-    appeals.resolve(a2.id, people["lecturer"], False, "לא נראית בכיתה")
+    appeals.resolve(a2.id, people["lecturer"], False, "")  # a reason is optional
     assert attendance.record_for(sample.id, people["s2"].id) is None
     with pytest.raises(ValidationError):
         appeals.resolve(a2.id, people["lecturer"], True, "")
@@ -92,4 +90,5 @@ def test_routes(app, client):
     client.post("/attendance/appeals/1/resolve", data={"decision": "accept"})
     login(client, stud.id)
     page = client.get(f"/courses/{course.id}").get_data(as_text=True)
-    assert "נוכח, סומן ידנית" in page
+    assert "ערעור" not in page.split("הנוכחות שלי")[1].split("</section>")[0].replace("ערעורים", "")  # now just present
+    assert "סומן ידנית" not in page and "המרצה סימן" not in page  # students don't see manual marks

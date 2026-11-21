@@ -296,7 +296,7 @@ class AssignmentService:
         return self.get_submission(submission_id)
 
     def resolve_appeal(self, submission_id: int, accept: bool, reply: str, new_grade: str = "") -> Submission:
-        """קבלה מחייבת ציון חדש (הציון הקודם נשמר להשוואה). דחייה משאירה את הציון."""
+        """קבלה מחייבת ציון חדש (הציון הקודם נשמר להשוואה). דחייה משאירה את הציון, והתשובה לא חובה."""
         sub = self.get_submission(submission_id)
         if sub.appeal_status != "pending":
             raise ValidationError("אין ערעור פתוח על ההגשה הזו")
@@ -309,8 +309,6 @@ class AssignmentService:
                 "UPDATE submissions SET appeal_status = 'accepted', appeal_reply = ?, original_grade = grade, "
                 "grade = ?, graded_at = ? WHERE id = ?", (reply, number, self.clock(), submission_id))
         else:
-            if not reply:
-                raise ValidationError("כתוב לסטודנט למה הערעור נדחה")
             self.db.execute("UPDATE submissions SET appeal_status = 'rejected', appeal_reply = ? WHERE id = ?",
                             (reply, submission_id))
         self.db.commit()
