@@ -47,6 +47,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
         ("recordings", "feedback_job"): "INTEGER NOT NULL DEFAULT 0",
         ("recordings", "feedback_at"): "REAL NOT NULL DEFAULT 0",
         ("recordings", "transcript_edited_at"): "REAL NOT NULL DEFAULT 0",
+        ("request_messages", "as_team"): "INTEGER NOT NULL DEFAULT 0",
     }
     for (table, column), ddl in added.items():
         cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}

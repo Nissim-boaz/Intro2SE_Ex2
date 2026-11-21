@@ -131,3 +131,38 @@ def test_routes(app, client):
     page = client.get("/requests/1").get_data(as_text=True)
     assert "תיקנתי" in page and "טופלה" in page and "תימחק בעוד 7 ימים" in page
     assert "יש תשובה חדשה" not in client.get("/").get_data(as_text=True)
+
+
+def test_admin_can_reply_without_a_name(reqs, people, db):
+    s1 = people["s1"]
+    users = UserService(db)
+    other_admin = users.create("admin2@test.ac.il", "מנהלת שנייה", "admin")
+    admin = users.update(people["admin"].id, "נועם המנהל", "admin")
+    r = reqs.create(s1, "נושא", "גוף")
+    reqs.reply(r.id, admin, "תשובה בלי שם", as_team=True)
+    reqs.reply(r.id, admin, "תשובה עם שם")
+    reqs.reply(r.id, s1, "student cannot hide", as_team=True)  # ignored for non-admins
+
+    seen_by_student = [e for e in reqs.thread(r.id, s1) if e.body.startswith("תשובה")]
+    assert [e.author_name for e in seen_by_student] == ["מנהל המערכת", "נועם המנהל"]
+    seen_by_admin = [e for e in reqs.thread(r.id, other_admin) if e.body.startswith("תשובה")]
+    assert [(e.author_name, e.as_team) for e in seen_by_admin] == [("נועם המנהל", True), ("נועם המנהל", False)]
+    assert not [e for e in reqs.thread(r.id, s1) if e.body == "student cannot hide"][0].as_team
+
+
+def test_hidden_admin_name_never_reaches_the_requester_page(app, client):
+    conn = connect(app.config["DATABASE"])
+    users = UserService(conn)
+    admin = users.update(users.find_by_email("admin@test.ac.il").id, "נועם המנהל", "admin")
+    stud = users.create("s@test.ac.il", "סטודנטית", "student")
+    conn.close()
+    login(client, stud.id)
+    client.post("/requests", data={"subject": "נושא", "body": "גוף"})
+    login(client, admin.id)
+    client.post("/requests/1/reply", data={"body": "בטיפול אצלנו", "as_team": "1"})
+    client.post("/requests/1/status", data={"status": "resolved"})
+    assert "נועם המנהל" in client.get("/requests/1").get_data(as_text=True)
+    login(client, stud.id)
+    page = client.get("/requests/1").get_data(as_text=True)
+    assert "בטיפול אצלנו" in page and "מנהל המערכת" in page
+    assert "נועם המנהל" not in page  # not in the text, a tooltip, or anywhere in the HTML

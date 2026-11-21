@@ -191,5 +191,6 @@ CREATE TABLE IF NOT EXISTS request_messages (
     author_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     body        TEXT NOT NULL DEFAULT '',
     status      TEXT NOT NULL DEFAULT '',
+    as_team     INTEGER NOT NULL DEFAULT 0,  -- 1: הפונה רואה ״מנהל המערכת״ בלי שם. מנהלים אחרים רואים מי כתב
     created_at  REAL NOT NULL
 );

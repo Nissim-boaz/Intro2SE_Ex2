@@ -1226,3 +1226,5 @@ body.tabbed .tab-on { animation: tab-in .24s var(--ease); }
 .req-msg-body { white-space: pre-line; line-height: 1.55; }
 .req-event { justify-self: center; font-size: var(--fs-xs); color: var(--ink-2); background: var(--fill); padding: 4px 12px; border-radius: 999px; text-align: center; }
 .req-closed { text-align: center; }
+
+.req-send-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }

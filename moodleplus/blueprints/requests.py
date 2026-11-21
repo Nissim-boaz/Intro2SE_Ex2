@@ -71,7 +71,8 @@ def show(request_id: int):
 @bp.post("/requests/<int:request_id>/reply")
 @login_required
 def reply(request_id: int):
-    _service().reply(request_id, current_user(), request.form.get("body", ""))
+    _service().reply(request_id, current_user(), request.form.get("body", ""),
+                     as_team=request.form.get("as_team") == "1")
     return redirect(url_for("requests.show", request_id=request_id) + "#reply")
 
 

@@ -259,5 +259,13 @@
     radio.addEventListener("change", () => applyTheme(radio.value));
   });
 
+  // ---------- <input type=checkbox data-remember="key">: keep the last choice per browser ----------
+  document.querySelectorAll("input[type=checkbox][data-remember]").forEach((box) => {
+    try { box.checked = localStorage.getItem(box.dataset.remember) === "1"; } catch (_) {}
+    box.addEventListener("change", () => {
+      try { localStorage.setItem(box.dataset.remember, box.checked ? "1" : "0"); } catch (_) {}
+    });
+  });
+
   setTimeout(() => document.querySelectorAll(".toasts .toast").forEach((t) => t.classList.add("hide")), 4200);
 })();

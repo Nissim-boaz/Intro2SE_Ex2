@@ -20,6 +20,7 @@ STATUSES = {
 }
 CLOSED = ("resolved", "rejected")
 KEEP_CLOSED_DAYS = 7
+TEAM_NAME = "מנהל המערכת"  # מה שהפונה רואה כשמנהל עונה בלי שם
 MAX_BODY = 4000
 
 
@@ -56,7 +57,11 @@ class SupportRequest:
 
 @dataclass(frozen=True)
 class RequestEntry:
-    """שורה בשרשור: הודעה, או שינוי סטטוס (status לא ריק)."""
+    """שורה בשרשור: הודעה, או שינוי סטטוס (status לא ריק).
+
+    author_name הוא מה שהצופה רשאי לראות. כשמנהל ענה בלי שם, הפונה מקבל ״מנהל המערכת״,
+    ומנהלים רואים את השם האמיתי ואת as_team.
+    """
     id: int
     author_name: str
     author_is_admin: bool
@@ -64,6 +69,7 @@ class RequestEntry:
     body: str
     status: str
     created_at: float
+    as_team: bool = False
 
     @property
     def status_label(self) -> str:
@@ -132,11 +138,18 @@ class RequestService:
         rows = self.db.execute(
             "SELECT m.*, u.name AS author_name, u.role AS author_role FROM request_messages m "
             "JOIN users u ON u.id = m.author_id WHERE m.request_id = ? ORDER BY m.id", (request_id,))
-        return [RequestEntry(r["id"], r["author_name"], r["author_role"] == "admin", r["author_id"] == viewer.id,
-                             r["body"], r["status"], r["created_at"]) for r in rows]
+        entries = []
+        for r in rows:
+            as_team = bool(r["as_team"])
+            # השם מוחלף כאן, בשרת, כך שהוא לא מגיע לדפדפן של הפונה בשום צורה
+            name = TEAM_NAME if as_team and not viewer.is_admin else r["author_name"]
+            entries.append(RequestEntry(r["id"], name, r["author_role"] == "admin", r["author_id"] == viewer.id,
+                                        r["body"], r["status"], r["created_at"], as_team))
+        return entries
 
     # ---------- replying and status ----------
-    def reply(self, request_id: int, author: User, body: str) -> None:
+    def reply(self, request_id: int, author: User, body: str, as_team: bool = False) -> None:
+        """as_team (רק למנהל): הפונה יראה ״מנהל המערכת״ במקום השם."""
         req = self.get_visible(request_id, author)
         if req.closed:
             raise ValidationError("הפנייה נסגרה. אם צריך עוד משהו, פתח פנייה חדשה")
@@ -145,7 +158,7 @@ class RequestService:
         # תשובה ראשונה של מנהל מעבירה פנייה חדשה לטיפול. שינוי הסטטוס נרשם לפני התשובה, כמו שזה קרה
         if author.is_admin and req.status == "new":
             self._add_entry(request_id, author.id, "", "in_progress", now)
-        self._add_entry(request_id, author.id, body, "", now)
+        self._add_entry(request_id, author.id, body, "", now, as_team=as_team and author.is_admin)
         if author.is_admin:
             self.db.execute(
                 "UPDATE requests SET updated_at = ?, requester_unseen = 1, "
@@ -192,10 +205,12 @@ class RequestService:
             self.db.commit()
         return cur.rowcount
 
-    def _add_entry(self, request_id: int, author_id: int, body: str, status: str, at: float) -> None:
+    def _add_entry(self, request_id: int, author_id: int, body: str, status: str, at: float,
+                   as_team: bool = False) -> None:
         self.db.execute(
-            "INSERT INTO request_messages (request_id, author_id, body, status, created_at) VALUES (?, ?, ?, ?, ?)",
-            (request_id, author_id, body, status, at))
+            "INSERT INTO request_messages (request_id, author_id, body, status, as_team, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (request_id, author_id, body, status, int(as_team), at))
 
     @staticmethod
     def _body(body: str) -> str:

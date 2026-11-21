@@ -27,12 +27,13 @@
   <section class="panel req-thread">
     {% for e in thread %}
       {% if e.status %}
-      <div class="req-event" title="{{ e.author_name }}">הסטטוס: {{ e.status_label }} · {{ e.created_at|when_he(now) }}</div>
+      <div class="req-event"{% if user.is_admin %} title="{{ e.author_name }}"{% endif %}>הסטטוס: {{ e.status_label }} · {{ e.created_at|when_he(now) }}</div>
       {% else %}
       <div class="req-msg{% if e.mine %} mine{% endif %}{% if e.author_is_admin %} from-admin{% endif %}">
         <div class="req-msg-head">
           <strong>{{ 'אתה' if e.mine else e.author_name }}</strong>
-          {% if e.author_is_admin %}<span class="pill pill-brand">מנהל מערכת</span>{% endif %}
+          {% if e.author_is_admin and (user.is_admin or not e.as_team) %}<span class="pill pill-brand">מנהל מערכת</span>{% endif %}
+          {% if e.as_team and user.is_admin %}<span class="pill" title="הפונה רואה ״מנהל המערכת״ בלי שם">נשלח בלי שם</span>{% endif %}
           <span class="xsmall muted">{{ e.created_at|when_he(now) }}</span>
         </div>
         <div class="req-msg-body" dir="auto">{{ e.body }}</div>
@@ -46,7 +47,15 @@
   {% else %}
   <form method="post" action="{{ url_for('requests.reply', request_id=req.id) }}" class="panel stack" id="reply" data-once>
     <label>{{ 'תשובה לפונה' if user.is_admin else 'הוסף הודעה' }}<textarea name="body" rows="4" required maxlength="4000"></textarea></label>
-    <button class="btn" style="justify-self:start">שלח</button>
+    <div class="req-send-row">
+      <button class="btn">שלח</button>
+      {% if user.is_admin %}
+      <label class="switch" title="מנהלים אחרים עדיין יראו שאתה כתבת">
+        <input type="checkbox" name="as_team" value="1" data-remember="moodleplus.requests.asTeam"><span class="switch-track" aria-hidden="true"></span>
+        שלח בשם ״מנהל המערכת״, בלי השם שלי
+      </label>
+      {% endif %}
+    </div>
   </form>
   {% endif %}
 </article>
