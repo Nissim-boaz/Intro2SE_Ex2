@@ -1091,3 +1091,8 @@ body.tabbed .tab-on { animation: tab-in .24s var(--ease); }
   .emoji-toggle, .emoji-panel { display: none !important; }
   .composer-field textarea { padding-inline-start: 16px; }
 }
+
+/* icons only: the label stays for screen readers (sr-only) and as a tooltip (title) */
+.tabbar a { padding: 11px 4px; }
+.tabbar svg { width: 27px; height: 27px; }
+.tab-badge { top: 4px; }
