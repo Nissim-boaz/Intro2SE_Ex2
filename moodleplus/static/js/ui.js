@@ -194,16 +194,39 @@
     syncBack();
   }
 
-  // ---------- sticky tab row: when it reaches the top, its own arrow takes over from the floating one ----------
-  document.querySelectorAll("[data-stuck-watch]").forEach((bar) => {
-    const sentinel = bar.previousElementSibling;
-    if (!sentinel || !sentinel.classList.contains("nav-sentinel")) return;
-    new IntersectionObserver(([entry]) => {
-      const stuck = !entry.isIntersecting;
-      bar.classList.toggle("stuck", stuck);
-      document.body.classList.toggle("nav-stuck", stuck);
-    }, { rootMargin: "-60px 0px 0px 0px" }).observe(sentinel);
-  });
+  // ---------- bottom tab bar: each tab shows its own section, like switching screens in an app ----------
+  // the hash keeps the tab (#attendance after a form redirects back here); tapping the current tab scrolls to top
+  const tabbar = document.querySelector("[data-tabbar]");
+  if (tabbar) {
+    const tabs = [...tabbar.querySelectorAll("a[data-tab]")].filter((t) => document.getElementById(t.dataset.tab));
+    const ids = tabs.map((t) => t.dataset.tab);
+    const all = [...tabbar.querySelectorAll("a")];
+    document.body.classList.add("has-tabbar");
+    tabbar.style.setProperty("--tab-n", all.length);
+    const show = (id) => {
+      if (!ids.includes(id)) id = ids[0];
+      ids.forEach((x) => document.getElementById(x).classList.toggle("tab-on", x === id));
+      tabs.forEach((t) => {
+        const on = t.dataset.tab === id;
+        t.classList.toggle("on", on);
+        if (on) t.setAttribute("aria-current", "page"); else t.removeAttribute("aria-current");
+      });
+      tabbar.style.setProperty("--tab-i", all.indexOf(tabs.find((t) => t.dataset.tab === id)));
+    };
+    tabs.forEach((t) => t.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (t.classList.contains("on")) { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+      history.replaceState(null, "", "#" + t.dataset.tab); // tabs are not history steps: "back" leaves the course
+      show(t.dataset.tab);
+      window.scrollTo(0, 0);
+    }));
+    window.addEventListener("hashchange", () => show(location.hash.slice(1)));
+    if (ids.length) {
+      show(location.hash.slice(1));
+      document.body.classList.add("tabbed");
+    }
+    requestAnimationFrame(() => tabbar.classList.add("ready")); // the glow slides only after the first paint
+  }
 
   // ---------- theme: auto (follow the device) / light / dark, remembered per browser ----------
   const THEME_KEY = "moodleplus.theme";

@@ -11,16 +11,31 @@
   {% if course.description %}<p class="muted" style="max-width:62ch">{{ course.description }}</p>{% endif %}
 </header>
 
-<span class="nav-sentinel" aria-hidden="true"></span>
-<nav class="course-nav" aria-label="חלקי הקורס" data-stuck-watch>
-  {# appears only once the row sticks to the top while scrolling #}
-  <a class="nav-back" href="{{ url_for('courses.index') }}" aria-label="חזרה להקורסים שלי" title="הקורסים שלי">
-    <svg viewBox="0 0 12 20" width="9" height="15" aria-hidden="true"><path d="M2 2l8 8-8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+{# bottom tab bar, iOS style. Each tab shows its own section (ui.js, "tab bar"); without JS all sections show #}
+<nav class="tabbar" aria-label="חלקי הקורס" data-tabbar>
+  <span class="tabbar-glow" aria-hidden="true"></span>
+  <a href="#content" data-tab="content">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H14l5 5v11.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19.5Z"/><path d="M14 3v5h5M8.5 12.5h7M8.5 16h5"/></svg>
+    <span>תכנים</span>
   </a>
-  <a href="#content">תכנים</a>
-  {% if attendance is defined %}<a href="#attendance">נוכחות</a>{% endif %}
-  {% if recordings is defined and (recordings or can_manage) %}<a href="#recordings">הקלטות</a>{% endif %}
-  {% if chat_enabled is defined %}<a href="{{ url_for('chat_page.page', course_id=course.id) }}">צ׳אט</a>{% endif %}
+  {% if attendance is defined %}
+  <a href="#attendance" data-tab="attendance">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><path d="M14 17.2l2.2 2.2 4-4.4"/></svg>
+    <span>נוכחות</span>
+  </a>
+  {% endif %}
+  {% if recordings is defined and (recordings or can_manage) %}
+  <a href="#recordings" data-tab="recordings">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="3.5"/><path d="M10 9.2v5.6l4.6-2.8Z" class="fill"/></svg>
+    <span>הקלטות</span>
+  </a>
+  {% endif %}
+  {% if chat_enabled is defined %}
+  <a href="{{ url_for('chat_page.page', course_id=course.id) }}">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A3 3 0 0 1 7 3.5h10a3 3 0 0 1 3 3v6.5a3 3 0 0 1-3 3h-6.2L6.5 19.6c-.6.5-1.5 0-1.5-.7V16A3 3 0 0 1 4 13Z"/></svg>
+    <span>צ׳אט</span>
+  </a>
+  {% endif %}
 </nav>
 
 <div class="stack-lg">

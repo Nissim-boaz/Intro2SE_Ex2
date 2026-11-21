@@ -941,22 +941,11 @@ details.fold:not([open]) > summary { margin-bottom: 0; }
   -webkit-backdrop-filter: saturate(180%) blur(14px); box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 70%, transparent);
 }
 
-/* course page: one sticky row only. The back link stays put, and a compact arrow joins the tab row once it sticks */
-.nav-sentinel { display: block; height: 1px; }
-.course-nav .nav-back {
-  display: none; place-items: center; width: 36px; padding: 0; color: var(--brand); background: var(--brand-soft);
-  box-shadow: none; animation: pop .16s var(--ease);
-}
-.course-nav.stuck .nav-back { display: inline-grid; }
-.course-nav.stuck { box-shadow: 0 8px 12px -12px rgba(0,0,0,.25); }
-
 /* back link: full label at the top; once you scroll it shrinks to a round arrow bubble and keeps floating */
 .back-link { transition: padding .22s var(--ease), gap .22s var(--ease), box-shadow .2s; }
 .back-link span { display: inline-block; max-width: 70vw; transition: max-width .25s var(--ease), opacity .18s; }
 .back-link.compact { gap: 0; padding: 8px 12px; box-shadow: var(--shadow); }
 .back-link.compact span { max-width: 0; opacity: 0; }
-/* on the course page the sticky tab row has its own arrow, so the floating one steps aside */
-body.nav-stuck .back-link { opacity: 0; pointer-events: none; }
 .back-link { transition: padding .22s var(--ease), gap .22s var(--ease), box-shadow .2s, opacity .15s; }
 
 /* ---------- reactions: "+" for any emoji ---------- */
@@ -1008,3 +997,82 @@ body.nav-stuck .back-link { opacity: 0; pointer-events: none; }
 .search-none { padding: 18px 4px; color: var(--ink-2); text-align: center; }
 .panel-head .list-search { max-width: 260px; }
 .panel-head .list-search input { height: 36px; font-size: 15px; }
+
+/* ---------- course page: bottom tab bar with iOS-style frosted glass ---------- */
+:root {
+  --glass: rgba(255, 255, 255, .62);
+  --glass-edge: rgba(255, 255, 255, .75);
+  --glass-line: rgba(0, 0, 0, .08);
+  --glass-glow: rgba(59, 75, 216, .11);
+  --glass-shadow: 0 10px 34px rgba(29, 29, 31, .16), 0 2px 6px rgba(29, 29, 31, .06);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --glass: rgba(42, 42, 48, .58);
+    --glass-edge: rgba(255, 255, 255, .13);
+    --glass-line: rgba(255, 255, 255, .05);
+    --glass-glow: rgba(94, 108, 245, .26);
+    --glass-shadow: 0 10px 34px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .3);
+  }
+}
+:root[data-theme="dark"] {
+  --glass: rgba(42, 42, 48, .58);
+  --glass-edge: rgba(255, 255, 255, .13);
+  --glass-line: rgba(255, 255, 255, .05);
+  --glass-glow: rgba(94, 108, 245, .26);
+  --glass-shadow: 0 10px 34px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .3);
+}
+
+.tabbar {
+  position: fixed; z-index: 40; left: 50%; transform: translateX(-50%);
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  width: min(calc(100% - 28px), 420px);
+  display: flex; padding: 5px; border-radius: 999px; isolation: isolate;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(24px) saturate(190%); backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-shadow), 0 0 0 .5px var(--glass-line), inset 0 1px 0 rgba(255, 255, 255, .35);
+}
+.tabbar a {
+  flex: 1 1 0; min-width: 0; display: grid; justify-items: center; gap: 2px;
+  padding: 7px 4px 6px; border-radius: 999px; color: var(--ink-2);
+  font-size: 11px; font-weight: 500; letter-spacing: .01em; -webkit-tap-highlight-color: transparent;
+  transition: color .2s var(--ease), transform .15s var(--ease);
+}
+.tabbar a:hover { text-decoration: none; color: var(--ink); }
+.tabbar a:active { transform: scale(.92); }
+.tabbar a.on { color: var(--brand); font-weight: 600; }
+.tabbar svg {
+  width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.tabbar svg .fill { fill: currentColor; stroke: none; }
+/* the current tab's icon fills in softly, like iOS */
+.tabbar a.on svg > :first-child { fill: color-mix(in srgb, currentColor 16%, transparent); }
+.tabbar a span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.tabbar a:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+/* the lit pill behind the current tab; slides between tabs (RTL: tab 0 is on the right) */
+.tabbar-glow {
+  position: absolute; z-index: -1; top: 5px; bottom: 5px; right: 5px;
+  width: calc((100% - 10px) / var(--tab-n, 4)); border-radius: 999px;
+  background: var(--glass-glow); box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--brand) 22%, transparent);
+  transform: translateX(calc(var(--tab-i, 0) * -100%));
+  opacity: 0;
+}
+body.tabbed .tabbar-glow { opacity: 1; }
+.tabbar.ready .tabbar-glow { transition: transform .38s cubic-bezier(.3, 1.3, .5, 1), opacity .2s; }
+
+/* room for the bar under the last section */
+body.has-tabbar main { padding-bottom: calc(104px + env(safe-area-inset-bottom)); }
+/* with JS each tab is its own screen; the chat card is replaced by the chat tab */
+body.tabbed .stack-lg > .section:not(.tab-on) { display: none; }
+body.tabbed .tab-on { animation: tab-in .24s var(--ease); }
+@keyframes tab-in { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) {
+  body.tabbed .tab-on { animation: none; }
+  .tabbar.ready .tabbar-glow { transition: none; }
+}
+/* browsers without backdrop-filter get a solid bar instead of an unreadable see-through one */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tabbar { background: var(--surface); }
+}
