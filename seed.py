@@ -67,7 +67,7 @@ def seed(db_path: str, reset: bool) -> None:
 
 
 def _seed_attendance(db, course_id, lecturer, students) -> None:
-    """שיעור 1 שכבר עבר: שתי דגימות, רוב הכיתה נוכחת וכמה רשומות חשודות."""
+    """שיעור 1 שכבר עבר: שתי דגימות, רוב הכיתה נוכחת וכמה סטודנטים שהמרצה סימן ידנית."""
     rnd = random.Random(7)
     start = time.time() - 7 * 24 * 3600
     lesson_id = db.execute("INSERT INTO lessons (course_id, number) VALUES (?, 1)", (course_id,)).lastrowid
@@ -81,13 +81,10 @@ def _seed_attendance(db, course_id, lecturer, students) -> None:
             roll = rnd.random()
             if roll < 0.12:
                 continue  # לא הגיע
-            status, method, reasons = ("ok", "qr_audio", "")
-            if roll > 0.95:
-                status, method, reasons = ("suspicious", "qr_only", "no_audio")
+            method, marked_by = ("manual", lecturer.id) if roll > 0.95 else ("audio", None)
             db.execute(
-                "INSERT INTO attendance_records (sample_id, student_id, at, ip, method, status, reasons) "
-                "VALUES (?, ?, ?, '10.0.0.1', ?, ?, ?)",
-                (sample_id, st.id, opened + rnd.uniform(5, 100), method, status, reasons),
+                "INSERT INTO attendance_records (sample_id, student_id, at, method, marked_by) VALUES (?, ?, ?, ?, ?)",
+                (sample_id, st.id, opened + rnd.uniform(5, 100), method, marked_by),
             )
     db.commit()
 

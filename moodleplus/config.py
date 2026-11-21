@@ -21,14 +21,12 @@ class Config:
     GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
     ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@example.com")
 
-    CAMPUS_CIDRS_FILE = os.environ.get("CAMPUS_CIDRS_FILE", str(ROOT / "data" / "campus_ips.txt"))
     TRUST_PROXY = _flag("TRUST_PROXY", "1")  # מאחורי cloudflared
 
-    TOKEN_WINDOW_SECONDS = 6
+    # הקוד הקולי מתחלף כל 4 שניות ומתקבל עד סוף החלון שאחריו (8 שניות לכל היותר)
+    TOKEN_WINDOW_SECONDS = 4
     MAX_SAMPLES_PER_LESSON = 5
     DEFAULT_SAMPLE_SECONDS = 120
-    # כמה זמן אחרי סריקת ה-QR אפשר להשלים את הרישום (האזנה לאות, ואולי גם התחברות)
-    CHECKIN_GRACE_SECONDS = 90
 
     GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
     GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")

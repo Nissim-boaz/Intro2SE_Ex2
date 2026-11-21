@@ -1,49 +1,91 @@
-// Student check-in: listen for the audio code (10s max), then submit.
-// If the mic is missing, denied, or decoding fails, we still submit with QR only
-// (the server marks it "suspicious" and the lecturer approves it by hand).
+// Student check-in on the course page.
+// - Every few seconds we reload the attendance panel, so the "check in" button shows up as soon as
+//   the lecturer opens a sample (and goes away when it closes), without refreshing the page.
+// - "Check in" asks for the microphone (the browser remembers the answer), listens for the audio
+//   code for up to 10 seconds and sends it. No valid code means no check-in; the student can retry.
 (function () {
-  const root = document.getElementById("attend");
-  const submitUrl = root.dataset.submitUrl;
-  const TIMEOUT = 10000;
-  let submitted = false;
+  const wrap = document.getElementById("attend-student");
+  if (!wrap) return;
+  const panelUrl = wrap.dataset.panelUrl;
+  const LISTEN_MS = 10000;
+  const REFRESH_MS = 3000;
+  let busy = false; // listening or sending: don't swap the panel under the student's finger
+  let listener = null;
   let countdown = null;
 
+  const FAIL_TEXT = {
+    denied: "צריך לאשר גישה למיקרופון. אפשר לשנות את זה בהגדרות האתר בדפדפן, ואז לנסות שוב",
+    unsupported: window.isSecureContext
+      ? "הדפדפן לא מאפשר גישה למיקרופון. נסה Chrome או Safari מעודכן"
+      : "המיקרופון עובד רק בחיבור מאובטח (https). פתח את האתר בכתובת המאובטחת",
+    low_rate: "המיקרופון של המכשיר לא קולט את הצליל. נסה מטלפון אחר או פנה למרצה",
+    timeout: "לא נקלט צליל מהכיתה. התקרב לרמקול, ודא שהמרצה הפעיל את הצליל, ונסה שוב",
+  };
+
+  const panel = () => wrap.firstElementChild;
+
   function show(step) {
-    root.querySelectorAll("[data-step]").forEach((el) => (el.hidden = el.dataset.step !== step));
+    panel().querySelectorAll("[data-step]").forEach((el) => (el.hidden = el.dataset.step !== step));
   }
 
-  const listener = new AudioTokenListener({ timeoutMs: TIMEOUT });
-  listener.onLevel = (info) => {
-    const pct = Math.min(100, (info.snr / 40) * 100);
-    document.getElementById("level-bar").style.transform = `scaleX(${pct / 100})`;
-  };
-  listener.onCode = (code) => submit({ audio_code: code });
-  listener.onFail = () => submit({ audio_failed: true });
-
-  async function submit(body) {
-    if (submitted) return;
-    submitted = true;
+  function fail(text) {
+    busy = false;
     clearInterval(countdown);
-    listener.stop();
-    show("sending");
+    panel().querySelector("[data-fail-msg]").textContent = text;
+    show("failed");
+  }
+
+  async function refresh() {
+    if (busy || document.hidden) return;
     try {
-      const d = await Model.api(submitUrl, { json: body });
-      document.getElementById("done-note").textContent =
-        d.status === "ok" ? "הנוכחות נקלטה" : "הנוכחות נשמרה, והמרצה יאשר אותה (" + d.reasons.join(", ") + ")";
-      show("done");
+      const res = await fetch(panelUrl, { credentials: "same-origin" });
+      if (!res.ok) return;
+      const tpl = document.createElement("template");
+      tpl.innerHTML = (await res.text()).trim();
+      const next = tpl.content.firstElementChild;
+      // a failed attempt stays on screen until the student retries or the sample changes
+      const sameSample = next && panel() && next.dataset.key === panel().dataset.key;
+      if (!busy && next && !sameSample) wrap.replaceChildren(next);
+    } catch (_) {}
+  }
+
+  async function submit(code) {
+    clearInterval(countdown);
+    show("sending");
+    const url = panel().dataset.submitUrl;
+    try {
+      await Model.api(url, { json: { audio_code: code } });
       navigator.vibrate?.(40);
+      busy = false;
+      await refresh(); // the server now shows "you're checked in"
     } catch (err) {
-      document.getElementById("fail-msg").textContent = err.message;
-      show("failed");
+      fail(err.message);
+      // closed, already checked in or blocked: the panel itself should change
+      if ([409, 410, 429].includes(err.status)) setTimeout(() => { busy = false; refresh(); }, 2500);
     }
   }
 
-  document.getElementById("listen-btn").addEventListener("click", async () => {
+  async function listen() {
+    if (busy) return;
+    busy = true;
     show("listening");
-    let left = TIMEOUT / 1000;
-    const leftEl = document.getElementById("listen-left");
+    const leftEl = panel().querySelector("[data-left]");
+    const levelEl = panel().querySelector("[data-level]");
+    let left = LISTEN_MS / 1000;
+    leftEl.textContent = left;
     countdown = setInterval(() => { left = Math.max(0, left - 1); leftEl.textContent = left; }, 1000);
-    await listener.start();
+
+    listener = new AudioTokenListener({ timeoutMs: LISTEN_MS });
+    listener.onLevel = (info) => { levelEl.style.transform = `scaleX(${Math.min(1, info.snr / 40)})`; };
+    listener.onCode = (code) => submit(code);
+    listener.onFail = (reason) => fail(FAIL_TEXT[reason] || FAIL_TEXT.timeout);
+    await listener.start(); // the permission prompt appears here the first time
+  }
+
+  wrap.addEventListener("click", (e) => {
+    if (e.target.closest('[data-action="listen"]')) listen();
   });
-  document.getElementById("skip-btn").addEventListener("click", () => submit({ audio_failed: true }));
+
+  setInterval(refresh, REFRESH_MS);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
 })();

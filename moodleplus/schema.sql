@@ -59,13 +59,19 @@ CREATE TABLE IF NOT EXISTS attendance_records (
     sample_id   INTEGER NOT NULL REFERENCES attendance_samples(id) ON DELETE CASCADE,
     student_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     at          REAL NOT NULL,
-    ip          TEXT NOT NULL DEFAULT '',
-    method      TEXT NOT NULL CHECK (method IN ('qr_audio', 'qr_only')),
-    status      TEXT NOT NULL CHECK (status IN ('ok', 'suspicious', 'approved', 'rejected')),
-    reasons     TEXT NOT NULL DEFAULT ''
+    method      TEXT NOT NULL CHECK (method IN ('audio', 'manual')),  -- audio: הטלפון קלט את הקוד הקולי. manual: המרצה סימן
+    marked_by   INTEGER REFERENCES users(id) ON DELETE SET NULL      -- מי סימן ידנית
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ux_record_sample_student
     ON attendance_records (sample_id, student_id);
+
+-- קודים שגויים ששלח סטודנט בדגימה. אחרי כמה ניסיונות הוא נחסם, כדי שאי אפשר יהיה לנחש את הקוד
+CREATE TABLE IF NOT EXISTS attendance_attempts (
+    sample_id   INTEGER NOT NULL REFERENCES attendance_samples(id) ON DELETE CASCADE,
+    student_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    wrong       INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (sample_id, student_id)
+);
 
 CREATE TABLE IF NOT EXISTS polls (
     id          INTEGER PRIMARY KEY,

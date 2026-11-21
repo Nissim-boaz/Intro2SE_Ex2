@@ -1,18 +1,14 @@
 import pytest
 
-from moodleplus.db import connect
+from moodleplus.db import connect, init_schema
 from moodleplus.errors import ValidationError
-from moodleplus.services.attendance import (AlreadyCheckedIn, AttendanceReport, AttendanceService, SampleClosed,
-                                           SampleLimitReached)
+from moodleplus.services.attendance import (MAX_WRONG_CODES, AlreadyCheckedIn, AttendanceReport, AttendanceService,
+                                           SampleClosed, SampleLimitReached, TooManyAttempts, WrongCode)
 from moodleplus.services.courses import CourseService, EnrollmentService
-from moodleplus.services.network import CampusNetworkPolicy
-from moodleplus.services.tokens import AudioTokenService, QrTokenService
+from moodleplus.services.tokens import AudioTokenService
 from moodleplus.services.users import UserService
 from tests.conftest import login
 from tests.fakes import FakeClock
-
-CAMPUS_IP = "10.1.2.3"
-HOME_IP = "84.95.1.1"
 
 
 @pytest.fixture
@@ -22,13 +18,17 @@ def clock():
 
 @pytest.fixture
 def svc(db, clock):
-    return AttendanceService(
-        db, QrTokenService("s", clock), AudioTokenService("s", clock), CampusNetworkPolicy(["10.0.0.0/8"]), clock
-    )
+    return AttendanceService(db, AudioTokenService("s", clock), clock)
 
 
 def _open(svc, people, lesson=1, seconds=120):
     return svc.open_sample(people["course"].id, lesson, seconds, people["lecturer"])
+
+
+def _wrong(svc, sample_id):
+    """קוד שלא תקף עכשיו (לא בחלון הנוכחי ולא בקודם)."""
+    valid = {svc.audio.code(sample_id, svc.clock.window() - b) for b in range(2)}
+    return next(c for c in range(4096) if c not in valid)
 
 
 # ---------- samples ----------
@@ -75,104 +75,155 @@ def test_duration_validation(svc, people):
         _open(svc, people, lesson=0)
 
 
-# ---------- scan & check-in ----------
-def test_scan_rejects_old_token(svc, people, clock):
+# ---------- check-in by audio ----------
+def test_check_in_with_current_code(svc, people):
     s = _open(svc, people)
-    token = svc.qr.token(s.id)
-    svc.scan(s.id, token)
-    clock.advance(12)
-    with pytest.raises(ValidationError):
-        svc.scan(s.id, token)
+    r = svc.check_in(s.id, people["s1"], svc.audio.code(s.id))
+    assert r.method == "audio" and not r.manual
 
 
-def test_scan_rejects_closed_sample(svc, people):
+def test_code_heard_a_few_seconds_ago_still_counts(svc, people, clock):
+    """השהיה של פענוח בטלפון ושל הרשת: הקוד מהחלון הקודם עוד מתקבל."""
     s = _open(svc, people)
-    token = svc.qr.token(s.id)
-    svc.close_sample(s.id)
+    code = svc.audio.code(s.id)
+    clock.advance(5)
+    assert svc.check_in(s.id, people["s1"], code).method == "audio"
+
+
+def test_replayed_recording_is_rejected(svc, people, clock):
+    """הקלטה שנשלחה בוואטסאפ והושמעה אחרי יותר מ-8 שניות: הקוד כבר לא תקף."""
+    s = _open(svc, people)
+    code = svc.audio.code(s.id)
+    clock.advance(9)
+    with pytest.raises(WrongCode):
+        svc.check_in(s.id, people["s1"], code)
+    assert svc.record_for(s.id, people["s1"].id) is None
+
+
+def test_missing_or_garbage_code_is_rejected(svc, people):
+    s = _open(svc, people)
+    for bad in (None, "", "abc"):
+        with pytest.raises(WrongCode):
+            svc.check_in(s.id, people["s1"], bad)
+    assert svc.count(s.id) == 0
+
+
+def test_code_of_another_sample_is_rejected(svc, people):
+    a = _open(svc, people)
+    other = AudioTokenService("s", svc.clock).code(a.id + 1)
+    if other == svc.audio.code(a.id):
+        pytest.skip("צירוף מקרים של 1 ל-4096")
+    with pytest.raises(WrongCode):
+        svc.check_in(a.id, people["s1"], other)
+
+
+def test_wrong_codes_lock_the_student_out(svc, people):
+    s = _open(svc, people)
+    for i in range(MAX_WRONG_CODES):
+        with pytest.raises(WrongCode):
+            svc.check_in(s.id, people["s1"], _wrong(svc, s.id))
+    assert svc.attempts_left(s.id, people["s1"].id) == 0
+    # גם הקוד הנכון כבר לא עוזר, כך שאי אפשר לנחש
+    with pytest.raises(TooManyAttempts):
+        svc.check_in(s.id, people["s1"], svc.audio.code(s.id))
+    # סטודנט אחר לא מושפע
+    assert svc.check_in(s.id, people["s2"], svc.audio.code(s.id))
+
+
+def test_closed_sample_rejects_check_in(svc, people, clock):
+    s = _open(svc, people, seconds=60)
+    clock.advance(61 + svc.clock.window_seconds)
     with pytest.raises(SampleClosed):
-        svc.scan(s.id, token)
+        svc.check_in(s.id, people["s1"], svc.audio.code(s.id))
 
 
-def test_check_in_with_audio_is_ok(svc, people):
-    s = _open(svc, people)
-    r = svc.check_in(s.id, people["s1"], CAMPUS_IP, svc.audio.code(s.id))
-    assert (r.status, r.method, r.reasons) == ("ok", "qr_audio", [])
-
-
-def test_audio_fallback_marks_suspicious(svc, people):
-    s = _open(svc, people)
-    r = svc.check_in(s.id, people["s1"], CAMPUS_IP, audio_code=None)
-    assert (r.status, r.method, r.reasons) == ("suspicious", "qr_only", ["no_audio"])
-
-
-def test_wrong_audio_code_marks_suspicious(svc, people):
-    s = _open(svc, people)
-    wrong = (svc.audio.code(s.id) + 1) % 4096
-    r = svc.check_in(s.id, people["s1"], CAMPUS_IP, wrong)
-    assert r.status == "suspicious" and r.reasons == ["audio_mismatch"]
-
-
-def test_off_campus_marks_suspicious_even_with_audio(svc, people):
-    s = _open(svc, people)
-    r = svc.check_in(s.id, people["s1"], HOME_IP, svc.audio.code(s.id))
-    assert r.status == "suspicious" and r.method == "qr_audio" and r.reasons == ["off_campus"]
-
-
-def test_no_campus_list_means_no_ip_check():
-    assert CampusNetworkPolicy([]).is_campus("8.8.8.8")
-    assert not CampusNetworkPolicy(["10.0.0.0/8"]).is_campus("not-an-ip")
-
-
-def test_campus_policy_reads_file_with_comments(tmp_path):
-    f = tmp_path / "c.txt"
-    f.write_text("# comment\n132.64.0.0/16  # Ariel\n\n", encoding="utf-8")
-    p = CampusNetworkPolicy.from_file(str(f))
-    assert p.is_campus("132.64.5.5") and not p.is_campus("1.1.1.1")
+def test_code_caught_just_before_closing_still_counts(svc, people, clock):
+    """הטלפון פענח שנייה לפני הסגירה והבקשה הגיעה שנייה אחריה."""
+    s = _open(svc, people, seconds=60)
+    clock.advance(59)
+    code = svc.audio.code(s.id)
+    clock.advance(2)
+    assert svc.check_in(s.id, people["s1"], code)
 
 
 def test_duplicate_check_in_blocked(svc, people):
     s = _open(svc, people)
-    svc.check_in(s.id, people["s1"], CAMPUS_IP, svc.audio.code(s.id))
+    svc.check_in(s.id, people["s1"], svc.audio.code(s.id))
     with pytest.raises(AlreadyCheckedIn):
-        svc.check_in(s.id, people["s1"], CAMPUS_IP, svc.audio.code(s.id))
+        svc.check_in(s.id, people["s1"], svc.audio.code(s.id))
     assert svc.count(s.id) == 1
 
 
-def test_manual_approval(svc, people):
+def test_attendees_newest_first(svc, people, clock):
     s = _open(svc, people)
-    r = svc.check_in(s.id, people["s1"], HOME_IP)
-    assert not r.counts
-    assert svc.set_status(r.id, "approved").counts
-    with pytest.raises(ValidationError):
-        svc.set_status(r.id, "ok")
+    svc.check_in(s.id, people["s1"], svc.audio.code(s.id))
+    clock.advance(1)
+    svc.check_in(s.id, people["s2"], svc.audio.code(s.id))
+    assert [a.name for a in svc.attendees(s.id)] == ["סטודנט שתיים", "סטודנט אחד"]
+
+
+# ---------- lecturer corrections ----------
+def test_manual_mark_and_remove(svc, people):
+    s = _open(svc, people)
+    svc.close_sample(s.id)  # אפשר לתקן גם אחרי שהדגימה נסגרה
+    r = svc.mark_manual(s.id, people["s1"].id, people["lecturer"])
+    assert r.manual and r.marked_by == people["lecturer"].id
+    with pytest.raises(AlreadyCheckedIn):
+        svc.mark_manual(s.id, people["s1"].id, people["lecturer"])
+    svc.remove_record(r.id)
+    assert svc.record_for(s.id, people["s1"].id) is None
 
 
 # ---------- report ----------
 def test_report_matrix_and_percent(svc, people):
     students = [people["s1"], people["s2"]]
     a = _open(svc, people)
-    svc.check_in(a.id, people["s1"], CAMPUS_IP, svc.audio.code(a.id))
-    svc.check_in(a.id, people["s2"], HOME_IP)  # חשוד, לא נספר עד אישור
+    svc.check_in(a.id, people["s1"], svc.audio.code(a.id))
+    svc.mark_manual(a.id, people["s2"].id, people["lecturer"])
     svc.close_sample(a.id)
     b = _open(svc, people)
-    svc.check_in(b.id, people["s1"], CAMPUS_IP, svc.audio.code(b.id))
+    svc.check_in(b.id, people["s1"], svc.audio.code(b.id))
 
     samples, rows = AttendanceReport(svc).build(a.lesson_id, students)
     assert [s.seq for s in samples] == [1, 2]
-    by_name = {r.student.id: r for r in rows}
-    assert by_name[people["s1"].id].percent == 100
-    assert by_name[people["s2"].id].percent == 0
-    assert by_name[people["s2"].id].cells[0].status == "suspicious"
-    assert by_name[people["s2"].id].cells[1] is None
+    by_id = {r.student.id: r for r in rows}
+    assert by_id[people["s1"].id].percent == 100
+    assert by_id[people["s2"].id].percent == 50
+    assert by_id[people["s2"].id].cells[0].manual
+    assert by_id[people["s2"].id].cells[1] is None
 
 
 def test_csv_has_bom_and_hebrew(svc, people):
     a = _open(svc, people)
-    svc.check_in(a.id, people["s1"], CAMPUS_IP, svc.audio.code(a.id))
+    svc.check_in(a.id, people["s1"], svc.audio.code(a.id))
+    svc.mark_manual(a.id, people["s2"].id, people["lecturer"])
     data = AttendanceReport(svc).to_csv(svc.get_lesson(a.lesson_id), [people["s1"], people["s2"]])
     assert data.startswith(b"\xef\xbb\xbf")
     text = data.decode("utf-8-sig")
-    assert "סטודנט אחד" in text and "נוכח" in text and "100%" in text and "חסר" in text
+    assert "סטודנט אחד" in text and "נוכח" in text and "סימון ידני" in text and "100%" in text
+
+
+# ---------- migration from the QR era ----------
+def test_legacy_records_are_migrated(tmp_path):
+    conn = connect(str(tmp_path / "old.db"))
+    conn.executescript("""
+        CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, name TEXT, role TEXT);
+        CREATE TABLE attendance_records (
+            id INTEGER PRIMARY KEY, sample_id INTEGER, student_id INTEGER, at REAL,
+            ip TEXT NOT NULL DEFAULT '', method TEXT NOT NULL CHECK (method IN ('qr_audio', 'qr_only')),
+            status TEXT NOT NULL, reasons TEXT NOT NULL DEFAULT '');
+        CREATE UNIQUE INDEX ux_record_sample_student ON attendance_records (sample_id, student_id);
+        INSERT INTO attendance_records (id, sample_id, student_id, at, method, status) VALUES
+            (1, 1, 1, 1.0, 'qr_audio', 'ok'), (2, 1, 2, 1.0, 'qr_only', 'approved'),
+            (3, 1, 3, 1.0, 'qr_only', 'suspicious'), (4, 1, 4, 1.0, 'qr_only', 'rejected');
+    """)
+    conn.execute("PRAGMA foreign_keys=OFF")  # בטבלה הישנה אין דגימות אמיתיות
+    init_schema(conn)
+    rows = conn.execute("SELECT id, method FROM attendance_records ORDER BY id").fetchall()
+    assert [tuple(r) for r in rows] == [(1, "audio"), (2, "manual")]
+    indexes = {r[1] for r in conn.execute("PRAGMA index_list(attendance_records)")}
+    assert "ux_record_sample_student" in indexes
+    conn.close()
 
 
 # ---------- HTTP flow ----------
@@ -183,65 +234,72 @@ def _http_setup(app):
     users = UserService(conn)
     lect = users.create("l@test.ac.il", "מרצה", "lecturer")
     stud = users.create("s@test.ac.il", "סטודנט", "student")
+    other = users.create("o@test.ac.il", "סטודנטית", "student")
     course = CourseService(conn).create("קורס")
-    EnrollmentService(conn).enroll_many(course.id, [lect, stud])
+    EnrollmentService(conn).enroll_many(course.id, [lect, stud, other])
     conn.close()
     return clock, lect, stud, course
 
 
-def test_full_check_in_flow_with_audio(app, client):
+def test_full_check_in_flow(app, client):
     clock, lect, stud, course = _http_setup(app)
+    login(client, stud.id)
+    assert "אין דגימה פתוחה" in client.get(f"/api/courses/{course.id}/attendance/panel").get_data(as_text=True)
+
     login(client, lect.id)
     client.post(f"/courses/{course.id}/attendance/samples", data={"lesson_number": 1, "minutes": 2})
     live = client.get("/api/attendance/samples/1/live").get_json()
-    assert live["open"] and "<svg" in live["qr_svg"] and len(live["audio_symbols"]) == 5
+    assert live["open"] and len(live["audio_symbols"]) == 5 and live["attendees"] == []
+    assert "qr_svg" not in live and "token" not in live
 
+    # הכפתור מופיע אצל הסטודנט בלי לרענן את העמוד
     login(client, stud.id)
-    res = client.get(f"/attend/1?t={live['token']}")
-    assert res.status_code == 302
-    clock.advance(5)
+    assert "בצע נוכחות" in client.get(f"/api/courses/{course.id}/attendance/panel").get_data(as_text=True)
+    clock.advance(2)
     code = AudioTokenService.decode(live["audio_symbols"])
-    res = client.post("/api/attend/1", json={"audio_code": code}, environ_base={"REMOTE_ADDR": "10.0.0.5"})
-    assert res.get_json()["status"] == "ok"
-    # בפעם השנייה: כבר רשום
-    client.get(f"/attend/1?t={live['token']}")
-    res = client.post("/api/attend/1", json={"audio_code": code}, environ_base={"REMOTE_ADDR": "10.0.0.5"})
-    assert res.status_code == 409
+    res = client.post("/api/attend/1", json={"audio_code": code})
+    assert res.status_code == 200 and res.get_json()["ok"]
+    assert "נרשמת" in client.get(f"/api/courses/{course.id}/attendance/panel").get_data(as_text=True)
+    assert client.post("/api/attend/1", json={"audio_code": code}).status_code == 409
+
+    # השם מופיע ברשימה החיה של המרצה
+    login(client, lect.id)
+    live = client.get("/api/attendance/samples/1/live").get_json()
+    assert [a["name"] for a in live["attendees"]] == ["סטודנט"] and live["count"] == 1
 
 
-def test_flow_without_audio_is_suspicious_not_blocked(app, client):
+def test_wrong_code_returns_message_and_does_not_register(app, client):
     clock, lect, stud, course = _http_setup(app)
     login(client, lect.id)
     client.post(f"/courses/{course.id}/attendance/samples", data={"lesson_number": 1})
-    token = client.get("/api/attendance/samples/1/live").get_json()["token"]
+    code = AudioTokenService.decode(client.get("/api/attendance/samples/1/live").get_json()["audio_symbols"])
+    clock.advance(10)  # כמו הקלטה שהושמעה מאוחר
     login(client, stud.id)
-    client.get(f"/attend/1?t={token}")
-    res = client.post("/api/attend/1", json={"audio_failed": True}, environ_base={"REMOTE_ADDR": "10.0.0.5"})
-    body = res.get_json()
-    assert res.status_code == 200 and body["status"] == "suspicious"
+    res = client.post("/api/attend/1", json={"audio_code": code})
+    assert res.status_code == 422 and "לא תאם" in res.get_json()["error"]
+    login(client, lect.id)
+    assert client.get("/api/attendance/samples/1/live").get_json()["count"] == 0
 
 
-def test_check_in_without_scan_rejected(app, client):
+def test_lecturer_marks_and_unmarks_in_report(app, client):
     clock, lect, stud, course = _http_setup(app)
     login(client, lect.id)
     client.post(f"/courses/{course.id}/attendance/samples", data={"lesson_number": 1})
-    login(client, stud.id)
-    res = client.post("/api/attend/1", json={"audio_failed": True})
-    assert res.status_code == 400
+    res = client.post(f"/attendance/samples/1/students/{stud.id}/mark")
+    assert res.status_code == 302 and f"#st-{stud.id}" in res.headers["Location"]
+    page = client.get("/attendance/lessons/1").get_data(as_text=True)
+    assert "ידני" in page
+    live = client.get("/api/attendance/samples/1/live").get_json()
+    assert live["attendees"][0]["manual"]
+    client.post("/attendance/records/1/delete")
+    assert client.get("/api/attendance/samples/1/live").get_json()["count"] == 0
+    # מרצה לא יכול לסמן את עצמו או מישהו שאינו סטודנט בקורס
+    res = client.post(f"/attendance/samples/1/students/{lect.id}/mark")
+    assert res.status_code == 302
+    assert client.get("/api/attendance/samples/1/live").get_json()["count"] == 0
 
 
-def test_expired_qr_link_shows_message(app, client):
-    clock, lect, stud, course = _http_setup(app)
-    login(client, lect.id)
-    client.post(f"/courses/{course.id}/attendance/samples", data={"lesson_number": 1})
-    token = client.get("/api/attendance/samples/1/live").get_json()["token"]
-    clock.advance(13)
-    login(client, stud.id)
-    res = client.get(f"/attend/1?t={token}")
-    assert "הקוד פג" in res.get_data(as_text=True)
-
-
-def test_student_cannot_open_sample_or_see_live(app, client):
+def test_student_cannot_manage_or_see_live(app, client):
     clock, lect, stud, course = _http_setup(app)
     login(client, stud.id)
     client.post(f"/courses/{course.id}/attendance/samples", data={"lesson_number": 1})
@@ -251,3 +309,15 @@ def test_student_cannot_open_sample_or_see_live(app, client):
     client.post(f"/courses/{course.id}/attendance/samples", data={"lesson_number": 1})
     login(client, stud.id)
     assert client.get("/api/attendance/samples/1/live").status_code == 403
+    client.post(f"/attendance/samples/1/students/{stud.id}/mark")
+    assert conn.execute("SELECT COUNT(*) FROM attendance_records").fetchone()[0] == 0
+    conn.close()
+
+
+def test_lecturer_cannot_check_in_or_see_student_panel(app, client):
+    clock, lect, stud, course = _http_setup(app)
+    login(client, lect.id)
+    client.post(f"/courses/{course.id}/attendance/samples", data={"lesson_number": 1})
+    code = AudioTokenService.decode(client.get("/api/attendance/samples/1/live").get_json()["audio_symbols"])
+    assert client.post("/api/attend/1", json={"audio_code": code}).status_code == 403
+    assert client.get(f"/api/courses/{course.id}/attendance/panel").status_code == 403

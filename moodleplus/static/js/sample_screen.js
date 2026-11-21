@@ -1,18 +1,21 @@
-// Lecturer sample screen: polls the server every second for the QR, the audio symbols and the count.
+// Lecturer sample screen: polls the server every second for the audio code, the timer and who checked in.
+// The code changes on the server's clock; we ask again right after each change and hand it to the emitter.
 (function () {
   const stage = document.getElementById("stage");
   const liveUrl = stage.dataset.liveUrl;
-  const qr = document.getElementById("qr");
   const timer = document.getElementById("timer");
   const count = document.getElementById("count");
   const enrolled = document.getElementById("enrolled");
-  const rotateBar = document.getElementById("rotate-bar");
+  const names = document.getElementById("names");
+  const namesEmpty = document.getElementById("names-empty");
   const soundState = document.getElementById("sound-state");
   const soundToggle = document.getElementById("sound-toggle");
   const emitter = new AudioTokenEmitter();
-  let lastToken = null;
+  const shown = new Map(); // student id -> <li>
+  let lastWindow = null;
   let pollTimer = null;
   let closed = false;
+  let firstRender = true;
 
   function fmt(sec) {
     const m = Math.floor(sec / 60);
@@ -21,14 +24,16 @@
   }
 
   function setSound(on) {
-    soundState.textContent = on ? "האות הקולי פועל" : "האות הקולי כבוי";
+    soundState.textContent = on ? "הצליל פועל" : "הצליל כבוי";
     soundState.className = "pill " + (on ? "pill-ok" : "pill-warn");
     soundToggle.textContent = on ? "השתק" : "הפעל צליל";
   }
 
-  async function startSound() {
+  async function startSound({ chime = false } = {}) {
     try {
       await emitter.start();
+      if (chime) emitter.chime();
+      lastWindow = null; // hand the current code to the new emitter on the next poll
       setSound(true);
     } catch (e) {
       Model.toast("לא הצלחתי להפעיל את הרמקול", "error");
@@ -39,27 +44,33 @@
     if (emitter.running) { emitter.stop(); setSound(false); } else startSound().then(poll);
   });
 
-  function hideOverlay() { document.getElementById("start-overlay").hidden = true; }
   document.getElementById("start-btn").addEventListener("click", async () => {
-    hideOverlay();
+    document.getElementById("start-overlay").hidden = true;
     try { await document.documentElement.requestFullscreen?.(); } catch (_) {}
-    await startSound();
+    await startSound({ chime: true });
     poll();
   });
-  document.getElementById("start-silent").addEventListener("click", hideOverlay);
 
-  function animateRotation(msLeft, windowMs) {
-    rotateBar.style.transition = "none";
-    rotateBar.style.transform = `scaleX(${msLeft / windowMs})`;
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      rotateBar.style.transition = `transform ${msLeft}ms linear`;
-      rotateBar.style.transform = "scaleX(0)";
-    }));
+  function renderNames(list) {
+    const ids = new Set(list.map((a) => a.id));
+    shown.forEach((li, id) => { if (!ids.has(id)) { li.remove(); shown.delete(id); } });
+    // the list arrives newest first; add the new ones at the top, oldest of them first
+    list.slice().reverse().forEach((a) => {
+      if (shown.has(a.id)) return;
+      const li = document.createElement("li");
+      li.className = "name-chip" + (firstRender ? "" : " name-new") + (a.manual ? " name-manual" : "");
+      li.textContent = a.name;
+      names.prepend(li);
+      shown.set(a.id, li);
+    });
+    namesEmpty.hidden = list.length > 0;
+    firstRender = false;
   }
 
   function showClosed(n) {
     closed = true;
     emitter.stop();
+    setSound(false);
     document.getElementById("final-count").textContent = n;
     document.getElementById("closed-overlay").hidden = false;
     document.getElementById("start-overlay").hidden = true;
@@ -72,18 +83,16 @@
     try {
       const d = await Model.api(liveUrl);
       count.textContent = d.count;
-      enrolled.textContent = d.enrolled ? ` מתוך ${d.enrolled}` : "";
+      enrolled.textContent = d.enrolled ? `מתוך ${d.enrolled}` : "";
+      renderNames(d.attendees);
       timer.textContent = fmt(d.seconds_left);
       timer.classList.toggle("ending", d.seconds_left <= 15);
       if (!d.open) return showClosed(d.count);
-      if (d.token !== lastToken) {
-        lastToken = d.token;
-        qr.innerHTML = d.qr_svg;
-        qr.classList.remove("flip"); void qr.offsetWidth; qr.classList.add("flip");
+      if (d.window !== lastWindow) {
+        lastWindow = d.window;
         emitter.setSymbols(d.audio_symbols);
-        animateRotation(d.window_ms_left, 6000);
       }
-      // poll right after the next rotation, and at least once a second for the counter
+      // ask again right after the code changes, and at least once a second for the names and the timer
       pollTimer = setTimeout(poll, Math.min(1000, d.window_ms_left + 60));
     } catch (e) {
       pollTimer = setTimeout(poll, 1500);

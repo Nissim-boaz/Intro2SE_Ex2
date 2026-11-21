@@ -1,9 +1,9 @@
-"""טוקנים מתחלפים לדגימת נוכחות: QR וקוד קולי.
+"""הקוד הקולי המתחלף של דגימת נוכחות.
 
-שני הטוקנים נגזרים ב-HMAC מסוד השרת, ממזהה הדגימה ומחלון הזמן.
-לא שומרים אותם ב-DB: השרת פשוט מחשב מחדש ומשווה.
+הקוד נגזר ב-HMAC מסוד השרת, ממזהה הדגימה ומחלון הזמן לפי השעון של השרת
+(לא לפי השעון של המחשב המשדר, שיכול להיות מכוון לא נכון).
+לא שומרים אותו ב-DB: השרת פשוט מחשב מחדש ומשווה.
 """
-import base64
 import hashlib
 import hmac
 import time
@@ -12,7 +12,7 @@ import time
 class TokenClock:
     """מחלק את הזמן לחלונות קבועים. אפשר להזריק now בבדיקות."""
 
-    def __init__(self, window_seconds: int = 6):
+    def __init__(self, window_seconds: int = 4):
         self.window_seconds = window_seconds
 
     def now(self) -> float:
@@ -26,8 +26,20 @@ class TokenClock:
         return self.window_seconds - (at % self.window_seconds)
 
 
-class _HmacTokens:
-    purpose = ""
+class AudioTokenService:
+    """קוד של 12 ביט שמושמע כ-4 סמלים (3 ביט כל אחד) ועוד סמל בדיקה.
+
+    הקוד מתחלף בכל חלון (4 שניות). מקבלים את החלון הנוכחי ואת זה שלפניו,
+    כלומר קוד נשאר תקף לכל היותר 8 שניות מהרגע שהתחיל להישמע. זה מספיק
+    לפענוח בטלפון (כ-2 שניות) ולרשת איטית, וקצר מדי בשביל להקליט, לשלוח
+    בוואטסאפ ולהשמיע מחדש.
+    """
+
+    purpose = "audio"
+    BITS = 12
+    SYMBOLS = 4
+    ALPHABET = 8
+    ACCEPTED_WINDOWS = 2
 
     def __init__(self, secret: str, clock: TokenClock):
         self.secret = secret.encode()
@@ -37,38 +49,9 @@ class _HmacTokens:
         msg = f"{self.purpose}:{sample_id}:{window}".encode()
         return hmac.new(self.secret, msg, hashlib.sha256).digest()
 
-
-class QrTokenService(_HmacTokens):
-    """טוקן של 10 תווים שמתחלף בכל חלון. מתקבל רק בחלון הנוכחי ובזה שלפניו."""
-
-    purpose = "qr"
-    ACCEPTED_WINDOWS = 2  # הנוכחי + הקודם: זמן לפתיחת המצלמה והדף
-
-    def token(self, sample_id: int, window: int | None = None) -> str:
-        window = self.clock.window() if window is None else window
-        return base64.b32encode(self._digest(sample_id, window)).decode()[:10].lower()
-
-    def verify(self, sample_id: int, token: str, at: float | None = None) -> bool:
-        current = self.clock.window(at)
-        token = (token or "").strip().lower()
-        return any(
-            hmac.compare_digest(token, self.token(sample_id, current - back))
-            for back in range(self.ACCEPTED_WINDOWS)
-        )
-
-
-class AudioTokenService(_HmacTokens):
-    """קוד של 12 ביט שמושמע כ-4 סמלים (3 ביט כל אחד) ועוד סמל בדיקה.
-
-    הקוד מתחלף יחד עם ה-QR. בגלל שהפענוח בטלפון לוקח כמה שניות,
-    מקבלים את החלון הנוכחי ושני החלונות שלפניו.
-    """
-
-    purpose = "audio"
-    BITS = 12
-    SYMBOLS = 4
-    ALPHABET = 8
-    ACCEPTED_WINDOWS = 3
+    @property
+    def max_age_seconds(self) -> int:
+        return self.ACCEPTED_WINDOWS * self.clock.window_seconds
 
     def code(self, sample_id: int, window: int | None = None) -> int:
         window = self.clock.window() if window is None else window
@@ -99,4 +82,7 @@ class AudioTokenService(_HmacTokens):
         except (TypeError, ValueError):
             return False
         current = self.clock.window(at)
-        return any(code == self.code(sample_id, current - back) for back in range(self.ACCEPTED_WINDOWS))
+        return any(
+            hmac.compare_digest(str(code), str(self.code(sample_id, current - back)))
+            for back in range(self.ACCEPTED_WINDOWS)
+        )

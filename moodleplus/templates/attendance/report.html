@@ -21,12 +21,7 @@
 </nav>
 {% endif %}
 
-{% if suspicious %}
-<div class="notice notice-warn" style="margin-bottom:16px">
-  <strong>{{ suspicious }} רשומות ממתינות לאישור.</strong>
-  אלה סטודנטים שנרשמו בלי אות קולי או מכתובת שמחוץ לקמפוס. אשר או דחה כל אחת בטבלה.
-</div>
-{% endif %}
+<p class="small muted" style="margin:0 0 12px">✓ נקלט בצליל · <span class="cell-tag">ידני</span> סומן על ידי המרצה. לחיצה על ״+״ מסמנת סטודנט שהטלפון שלו לא קלט את הצליל.</p>
 
 <section class="panel">
   {% if rows %}
@@ -41,20 +36,21 @@
       </thead>
       <tbody>
         {% for row in rows %}
-        <tr>
+        <tr id="st-{{ row.student.id }}">
           <td><strong style="font-weight:600">{{ row.student.name }}</strong></td>
           {% for c in row.cells %}
           <td class="center">
-            {% if not c %}<span class="cell cell-miss" title="לא נרשם">–</span>
-            {% elif c.status == 'ok' %}<span class="cell cell-ok" title="נוכח">✓</span>
-            {% elif c.status == 'approved' %}<span class="cell cell-ok" title="אושר ידנית">✓</span>
-            {% elif c.status == 'rejected' %}<span class="cell cell-no" title="נדחה">✕</span>
+            {% if not c %}
+              <form method="post" action="{{ url_for('attendance.mark_manual', sample_id=samples[loop.index0].id, student_id=row.student.id) }}">
+                <button class="cell cell-miss cell-btn" title="סמן את {{ row.student.name }} כנוכח בדגימה {{ samples[loop.index0].seq }}" aria-label="סמן כנוכח">+</button>
+              </form>
             {% else %}
-              <div class="cell-review" title="{{ c.reason_labels|join(', ') }}">
-                <span class="pill pill-warn">{{ c.reason_labels|join(', ') }}</span>
-                <form method="post" action="{{ url_for('attendance.set_status', record_id=c.id) }}" class="row" style="gap:4px;justify-content:center;flex-wrap:nowrap">
-                  <button class="btn btn-sm" name="status" value="approved">אשר</button>
-                  <button class="btn btn-sm btn-quiet" name="status" value="rejected">דחה</button>
+              <div class="cell-present">
+                <span class="cell cell-ok" title="{{ c.label }}">✓</span>
+                {% if c.manual %}<span class="cell-tag">ידני</span>{% endif %}
+                <form method="post" action="{{ url_for('attendance.remove_record', record_id=c.id) }}"
+                      data-confirm="לבטל את הנוכחות של {{ row.student.name }} בדגימה {{ samples[loop.index0].seq }}?" data-confirm-ok="בטל נוכחות">
+                  <button class="cell-remove" title="בטל נוכחות" aria-label="בטל נוכחות">✕</button>
                 </form>
               </div>
             {% endif %}

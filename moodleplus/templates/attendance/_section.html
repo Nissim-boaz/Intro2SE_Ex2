@@ -34,20 +34,9 @@
     {% endif %}
 
   {% elif role == 'student' %}
-    {% if a.open_sample and a.my_record %}
-      <div class="attend-done">
-        <span class="check-badge" aria-hidden="true">✓</span>
-        <div>
-          <strong>נרשמת לדגימה {{ a.open_sample.seq }}</strong>
-          {% if a.my_record.status == 'suspicious' %}<div class="small muted">המרצה יאשר את הנוכחות שלך</div>{% endif %}
-        </div>
-      </div>
-    {% elif a.open_sample %}
-      <a class="btn btn-lg btn-block attend-cta" href="{{ url_for('attendance.scanner', sample_id=a.open_sample.id) }}">סמן נוכחות</a>
-      <p class="small muted" style="margin-top:10px;text-align:center">אפשר גם לסרוק את הקוד שעל המסך עם המצלמה של הטלפון</p>
-    {% else %}
-      <p class="muted">אין דגימה פתוחה כרגע. כשהמרצה יפתח דגימה יופיע כאן כפתור לסימון נוכחות.</p>
-    {% endif %}
+    <div id="attend-student" data-panel-url="{{ url_for('attendance.student_panel', course_id=course.id) }}">
+      {% include "attendance/_student.html" %}
+    </div>
   {% else %}
     <p class="muted">אין דגימה פתוחה כרגע.</p>
   {% endif %}

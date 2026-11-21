@@ -36,9 +36,7 @@ def app(tmp_path):
         DATABASE=str(tmp_path / "app.db"),
         UPLOAD_DIR=str(tmp_path / "uploads"),
         ADMIN_EMAIL="admin@test.ac.il",
-        CAMPUS_CIDRS_FILE=str(tmp_path / "cidrs.txt"),
     )
-    (tmp_path / "cidrs.txt").write_text("127.0.0.0/8\n10.0.0.0/8\n", encoding="utf-8")
     return app
 
 

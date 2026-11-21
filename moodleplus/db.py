@@ -19,7 +19,10 @@ def connect(path: str) -> sqlite3.Connection:
 
 def init_schema(conn: sqlite3.Connection) -> None:
     _migrate(conn)
+    legacy_records = _set_aside_legacy_attendance(conn)
     conn.executescript(SCHEMA.read_text(encoding="utf-8"))
+    if legacy_records:
+        _copy_legacy_attendance(conn)
     # DBs מלפני התיקון: תפקיד בקורס שלא תואם לתפקיד של המשתמש (שונה אחרי השיוך) מתיישר אליו
     conn.execute(
         "UPDATE enrollments SET role = (SELECT role FROM users WHERE users.id = enrollments.user_id) "
@@ -60,6 +63,33 @@ def _migrate(conn: sqlite3.Connection) -> None:
         cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
         if cols and column not in cols:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+
+
+_LEGACY_RECORDS = "attendance_records_legacy"
+
+
+def _set_aside_legacy_attendance(conn: sqlite3.Connection) -> bool:
+    """רשומות נוכחות מתקופת ה-QR (עם status ו-reasons) עוברות לטבלה הזמנית, והסכמה יוצרת את הטבלה החדשה.
+
+    ה-CHECK על method השתנה, ו-SQLite לא יודע לשנות CHECK בטבלה קיימת, אז בונים אותה מחדש.
+    """
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(attendance_records)")}
+    if "reasons" not in cols:
+        return False
+    conn.execute("DROP INDEX IF EXISTS ux_record_sample_student")  # האינדקס היה עובר עם הטבלה ששינתה שם
+    conn.execute(f"ALTER TABLE attendance_records RENAME TO {_LEGACY_RECORDS}")
+    return True
+
+
+def _copy_legacy_attendance(conn: sqlite3.Connection) -> None:
+    # רק מה שנספר כנוכחות: עם אות קולי, או חשוד שהמרצה אישר (נחשב עכשיו סימון ידני).
+    # חשודים שלא טופלו ונדחים לא עוברים, כי אין יותר מצב כזה
+    conn.execute(
+        f"INSERT INTO attendance_records (id, sample_id, student_id, at, method) "
+        f"SELECT id, sample_id, student_id, at, CASE WHEN method = 'qr_audio' THEN 'audio' ELSE 'manual' END "
+        f"FROM {_LEGACY_RECORDS} WHERE status IN ('ok', 'approved')"
+    )
+    conn.execute(f"DROP TABLE {_LEGACY_RECORDS}")
 
 
 def get_db() -> sqlite3.Connection:

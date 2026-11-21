@@ -32,6 +32,25 @@ class AudioTokenEmitter {
 
   setSymbols(symbols) { this.symbols = symbols ? symbols.slice() : null; }
 
+  // A short audible two-note chime, so the class hears that a sample started.
+  // It is far below the code band (17.2 kHz and up), so it never confuses the listener.
+  chime() {
+    if (!this.ctx) return;
+    const t0 = this.ctx.currentTime + 0.05;
+    [[784, 0], [1175, 0.17]].forEach(([freq, dt]) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const t = t0 + dt;
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.35, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+      osc.connect(gain).connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.6);
+    });
+  }
+
   setVolume(v) { this.volume = v; }
 
   stop() {

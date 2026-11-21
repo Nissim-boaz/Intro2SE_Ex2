@@ -25,4 +25,9 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/content.js') }}"></script>
 {% if recordings is defined %}<script src="{{ url_for('static', filename='js/recordings.js') }}"></script>{% endif %}
+{% if attendance is defined and role == 'student' %}
+<script src="{{ url_for('static', filename='js/audio_protocol.js') }}"></script>
+<script src="{{ url_for('static', filename='js/audio_listener.js') }}"></script>
+<script src="{{ url_for('static', filename='js/attend.js') }}"></script>
+{% endif %}
 {% endblock %}

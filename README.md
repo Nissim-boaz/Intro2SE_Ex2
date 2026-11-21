@@ -28,9 +28,15 @@ The lecturer publishes an assignment with instructions, a due date and an option
 
 The lecturer enters a lesson number and opens a sample. A new number starts a new lesson, and an existing number adds a sample to that lesson, up to 5 samples per lesson. Each sample stays open for a short time (2 minutes by default).
 
-During a sample, the lecturer's screen shows a QR code that changes every 6 seconds, while the speaker plays a high-frequency signal (17.2 to 19.5 kHz) that most people can't hear. The signal changes too. Both codes are derived with HMAC from the server secret, the sample id and the time window, and are never stored in the database.
+When the lecturer clicks "התחל" (start) on the sample screen, the computer plays a short audible chime so the class knows a sample has started. Then the speaker plays a high-frequency signal (17.2 to 19.5 kHz) that most people can't hear. The signal carries a code that changes every 4 seconds on the server's clock (not the computer's, which may be set wrong). The code is derived with HMAC from the server secret, the sample id and the time window, and is never stored in the database.
 
-The student scans the QR code with the phone camera. The page that opens listens to the microphone for a few seconds, decodes the signal and sends it to the server. If there is no microphone, no permission, or decoding doesn't succeed within 10 seconds, attendance is still recorded with the QR code only and marked as suspicious. The same happens when the IP address is outside the campus ranges. The lecturer approves or rejects suspicious records in the lesson report. A student is never blocked because of the audio alone.
+The sample screen is meant to be projected. It shows the time left and the names of the students who checked in, updated live.
+
+On the student's course page, a "בצע נוכחות" (check in) button appears as soon as the sample opens, without refreshing. Tapping it asks for microphone permission (only the first time, since the browser remembers the answer), then the phone listens for up to 10 seconds, decodes the signal and sends the code to the server. Nothing is recorded or uploaded except the decoded number.
+
+The server accepts the current code and the one before it, so a code is valid for at most 8 seconds after it starts playing. That covers decoding on the phone (about 2 seconds) and a slow network, and is too short to record the sound, send it on WhatsApp and play it back. Phone calls and voice messages also cut frequencies this high, so the signal doesn't survive them. A check-in that arrives a few seconds after the sample closes still counts if its code is valid.
+
+There is no check-in without a valid code. A wrong or old code is rejected with a message, and the student can try again while the sample is open. After 5 wrong codes in a sample the student is blocked from it, so the 12-bit code can't be guessed. In the lesson report the lecturer can mark a student as present by hand (for example, a phone that didn't pick up the sound) and can cancel any attendance. Manual marks are labeled in the report and in the CSV.
 
 The report is a matrix of students by samples, with an attendance percentage per student, and a CSV export that opens correctly in Excel.
 
@@ -66,8 +72,7 @@ moodleplus/
     courses.py       CourseService, EnrollmentService (course-level permissions)
     content.py       ContentService, FileStore
     assignments.py   AssignmentService
-    tokens.py        TokenClock, QrTokenService, AudioTokenService
-    network.py       CampusNetworkPolicy
+    tokens.py        TokenClock, AudioTokenService
     attendance.py    AttendanceService, AttendanceReport
     chat.py          ChatService, SenderMask, ReactionService, ReadReceiptService
     polls.py         PollService
@@ -105,7 +110,6 @@ Important settings in `.env`:
 | `SECRET_KEY` | The secret the tokens and the session are derived from. For the demo it must be long and random |
 | `MOCK_AUTH` | `1` shows the role picker, `0` leaves only Google |
 | `GOOGLE_CLIENT_ID` | From Google Cloud Console |
-| `CAMPUS_CIDRS_FILE` | The file with the campus IP ranges. The default is `data/campus_ips.txt` |
 | `GEMINI_API_KEY` | A free key from [Google AI Studio](https://aistudio.google.com/apikey) |
 | `GEMINI_MODEL` | The default is `gemini-3.8-flash` |
 | `WHISPER_MODEL` | The default is `small`. Use `base` for faster transcription |
@@ -126,15 +130,13 @@ cloudflared tunnel --url http://localhost:5001 # in a second window (use the por
 
 cloudflared prints an address like `https://something.trycloudflare.com`, which is what you open on the phones. The address changes on every run. For Google sign-in to work behind the tunnel, add the address in Google Cloud Console under Authorized JavaScript origins.
 
-Behind the tunnel, the server sees the phone's public IP address through the `CF-Connecting-IP` header. So `data/campus_ips.txt` must list the campus network's public ranges, not internal addresses like `10.x`. An empty file turns the IP check off.
-
 ## Testing in the lecture hall before the demo
 
 1. On the classroom computer, open `/debug/audio`, click "השמע אות בדיקה" (play test signal) and turn the volume up.
 2. On a phone, open the same page through the tunnel and tap "התחל להקשיב" (start listening).
 3. From the back row, check that the level bars rise and that the decoded code matches the one on the computer. Below 14 dB above the noise, decoding won't work; move a speaker closer or turn it up.
 
-Even if the audio doesn't work in the hall, the demo goes on: attendance is recorded with the QR code only, and the lecturer approves it in the report.
+If a phone can't pick up the signal, the lecturer can still mark that student as present by hand in the lesson report.
 
 ## Tests
 
@@ -142,4 +144,4 @@ Even if the audio doesn't work in the hall, the demo goes on: attendance is reco
 pytest -q
 ```
 
-The tests need no network and no models. They use a fake clock and fake transcription and LLM implementations, and cover, among other things, the 5-sample limit, QR and audio token expiry, the fallback path, unique votes, one reaction per user, anonymity by role, feedback privacy, late and graded submissions, publishing grades, appeals, and permissions.
+The tests need no network and no models. They use a fake clock and fake transcription and LLM implementations, and cover, among other things, the 5-sample limit, audio code expiry and replay, the wrong-code lockout, manual marking, the migration of old attendance records, unique votes, one reaction per user, anonymity by role, feedback privacy, late and graded submissions, publishing grades, appeals, and permissions.

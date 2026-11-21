@@ -1,0 +1,49 @@
+{# החלק של הסטודנט בכרטיס הנוכחות. נטען גם לבד (attendance.student_panel), והדף מחליף אותו כשהמצב משתנה #}
+{% set s = a.open_sample %}
+{% if s and a.my_record %}
+<div data-key="done-{{ s.id }}">
+  <div class="attend-done">
+    <span class="check-badge" aria-hidden="true">✓</span>
+    <div>
+      <strong>נרשמת לדגימה {{ s.seq }} בשיעור {{ s.lesson_number }}</strong>
+      {% if a.my_record.manual %}<div class="small muted">המרצה סימן אותך</div>{% endif %}
+    </div>
+  </div>
+</div>
+
+{% elif s and a.attempts_left == 0 %}
+<div data-key="blocked-{{ s.id }}">
+  <div class="notice notice-warn">היו יותר מדי ניסיונות עם קוד שגוי בדגימה הזו. אם אתה בכיתה, פנה למרצה כדי שיסמן אותך.</div>
+</div>
+
+{% elif s %}
+<div data-key="open-{{ s.id }}" data-submit-url="{{ url_for('attendance.check_in', sample_id=s.id) }}">
+  <div class="attend-inline" data-step="ready">
+    <button class="btn btn-lg btn-block attend-cta" type="button" data-action="listen">בצע נוכחות</button>
+    <p class="small muted">דגימה {{ s.seq }} בשיעור {{ s.lesson_number }}. הטלפון יקשיב כמה שניות לצליל מהרמקול בכיתה. ההקלטה לא נשמרת ולא נשלחת.</p>
+  </div>
+
+  <div class="attend-inline" data-step="listening" hidden>
+    <div class="listen-rings" aria-hidden="true"><span></span><span></span><span></span></div>
+    <strong>מקשיב לצליל מהכיתה</strong>
+    <div class="level"><span data-level></span></div>
+    <p class="small muted">השאר את הדף פתוח. <span data-left>10</span> שניות לכל היותר</p>
+  </div>
+
+  <div class="attend-inline" data-step="sending" hidden>
+    <div class="listen-rings" aria-hidden="true"><span></span></div>
+    <strong>שולח</strong>
+  </div>
+
+  <div class="attend-inline" data-step="failed" hidden>
+    <div class="attend-icon attend-icon-warn" aria-hidden="true">!</div>
+    <strong data-fail-msg>משהו השתבש</strong>
+    <button class="btn btn-block" type="button" data-action="listen">נסה שוב</button>
+  </div>
+</div>
+
+{% else %}
+<div data-key="none">
+  <p class="muted">אין דגימה פתוחה כרגע. כשהמרצה יפתח דגימה יופיע כאן כפתור לסימון נוכחות.</p>
+</div>
+{% endif %}

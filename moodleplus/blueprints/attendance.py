@@ -1,15 +1,13 @@
-"""נוכחות: פתיחת דגימה, מסך המרצה, רישום הסטודנט ודוחות."""
-import segno
-from flask import (Blueprint, Response, current_app, flash, jsonify, redirect, render_template, request,
-                   session, url_for)
+"""נוכחות: פתיחת דגימה, מסך המרצה עם הצליל והרשימה החיה, רישום הסטודנט בקול, ודוחות."""
+from flask import Blueprint, Response, current_app, flash, jsonify, redirect, render_template, request, url_for
 
 from ..db import get_db
-from ..errors import ServiceError, ValidationError
+from ..errors import ValidationError
 from ..security import current_user, login_required
 from ..services.attendance import AttendanceReport, AttendanceService
 from ..services.courses import CourseService, EnrollmentService
-from ..services.network import CampusNetworkPolicy
-from ..services.tokens import AudioTokenService, QrTokenService, TokenClock
+from ..services.tokens import AudioTokenService, TokenClock
+from ..services.users import UserService
 
 bp = Blueprint("attendance", __name__)
 
@@ -17,21 +15,25 @@ bp = Blueprint("attendance", __name__)
 def build_service(db=None) -> AttendanceService:
     cfg = current_app.config
     clock = current_app.extensions.get("token_clock") or TokenClock(cfg["TOKEN_WINDOW_SECONDS"])
-    secret = cfg["SECRET_KEY"]
-    return AttendanceService(
-        db or get_db(),
-        QrTokenService(secret, clock),
-        AudioTokenService(secret, clock),
-        CampusNetworkPolicy.from_file(cfg["CAMPUS_CIDRS_FILE"]),
-        clock,
-    )
+    return AttendanceService(db or get_db(), AudioTokenService(cfg["SECRET_KEY"], clock), clock)
 
 
-def client_ip() -> str:
-    # מאחורי cloudflared הכתובת האמיתית מגיעה בכותרת הזו
-    if current_app.config.get("TRUST_PROXY") and request.headers.get("CF-Connecting-IP"):
-        return request.headers["CF-Connecting-IP"].strip()
-    return request.remote_addr or ""
+def section_context(course_id: int, role: str) -> dict:
+    """מה שהחלק של הנוכחות בעמוד הקורס צריך, גם בטעינה הראשונה וגם בעדכון החי של הסטודנט."""
+    service = build_service()
+    sample = service.open_sample_for(course_id)
+    lessons = service.lessons(course_id)
+    ctx = {
+        "open_sample": sample,
+        "next_lesson": lessons[0].number if lessons else 1,
+        "has_lessons": bool(lessons),
+    }
+    if sample:
+        ctx["seconds_left"] = sample.seconds_left(service.clock.now())
+        if role == "student":
+            ctx["my_record"] = service.record_for(sample.id, current_user().id)
+            ctx["attempts_left"] = service.attempts_left(sample.id, current_user().id)
+    return ctx
 
 
 def _manage_sample(sample_id: int):
@@ -66,25 +68,25 @@ def screen(sample_id: int):
 @bp.get("/api/attendance/samples/<int:sample_id>/live")
 @login_required
 def live(sample_id: int):
+    """המסך של המרצה שואל כאן כל שנייה: הקוד הקולי הנוכחי, הטיימר ומי כבר נרשם."""
     service, sample = _manage_sample(sample_id)
     now = service.clock.now()
     is_open = sample.is_open(now)
+    attendees = service.attendees(sample_id)
     data = {
         "ok": True,
         "open": is_open,
         "seconds_left": sample.seconds_left(now),
-        "count": service.count(sample_id),
+        "count": len(attendees),
         "enrolled": len(EnrollmentService(get_db()).members(sample.course_id, "student")),
+        "attendees": [{"id": a.student_id, "name": a.name, "manual": a.method == "manual"} for a in attendees],
     }
     if is_open:
-        token = service.qr.token(sample_id)
-        url = url_for("attendance.scan", sample_id=sample_id, t=token, _external=True)
         code = service.audio.code(sample_id)
         data.update(
-            token=token,
-            # רמת תיקון L: פחות ריבועים וגדולים יותר, ולכן קל לסרוק מהשורה האחרונה
-            qr_svg=segno.make(url, error="l", boost_error=False).svg_inline(omitsize=True, border=2, dark="#1D1D1F"),
+            window=service.clock.window(now),
             audio_symbols=AudioTokenService.symbols(code),
+            window_ms=service.clock.window_seconds * 1000,
             window_ms_left=int(service.clock.seconds_left(now) * 1000),
         )
     return jsonify(data)
@@ -119,7 +121,6 @@ def lesson_report(lesson_id: int):
     EnrollmentService(db).require_manager(lesson.course_id, current_user())
     students = EnrollmentService(db).members(lesson.course_id, "student")
     samples, rows = AttendanceReport(service).build(lesson_id, students)
-    open_sample = service.open_sample_for(lesson.course_id)
     return render_template(
         "attendance/report.html",
         course=CourseService(db).get(lesson.course_id),
@@ -127,8 +128,7 @@ def lesson_report(lesson_id: int):
         lessons=service.lessons(lesson.course_id),
         samples=samples,
         rows=rows,
-        open_sample=open_sample,
-        suspicious=sum(1 for r in rows for c in r.cells if c and c.status == "suspicious"),
+        open_sample=service.open_sample_for(lesson.course_id),
     )
 
 
@@ -148,59 +148,34 @@ def lesson_csv(lesson_id: int):
     )
 
 
-@bp.post("/attendance/records/<int:record_id>/status")
+@bp.post("/attendance/samples/<int:sample_id>/students/<int:student_id>/mark")
 @login_required
-def set_status(record_id: int):
+def mark_manual(sample_id: int, student_id: int):
+    """סימון ידני בדוח: סטודנט שהיה בכיתה אבל הטלפון שלו לא קלט את הצליל."""
+    service, sample = _manage_sample(sample_id)
+    if EnrollmentService(get_db()).role_in(sample.course_id, UserService(get_db()).get(student_id)) != "student":
+        raise ValidationError("אפשר לסמן רק סטודנטים של הקורס")
+    service.mark_manual(sample_id, student_id, current_user())
+    return redirect(url_for("attendance.lesson_report", lesson_id=sample.lesson_id, _anchor=f"st-{student_id}"))
+
+
+@bp.post("/attendance/records/<int:record_id>/delete")
+@login_required
+def remove_record(record_id: int):
     service = build_service()
     record = service.get_record(record_id)
-    sample = service.get_sample(record.sample_id)
-    EnrollmentService(get_db()).require_manager(sample.course_id, current_user())
-    service.set_status(record_id, request.form.get("status", ""))
-    return redirect(url_for("attendance.lesson_report", lesson_id=sample.lesson_id))
+    service, sample = _manage_sample(record.sample_id)
+    service.remove_record(record_id)
+    return redirect(url_for("attendance.lesson_report", lesson_id=sample.lesson_id, _anchor=f"st-{record.student_id}"))
 
 
 # ---------- student ----------
-@bp.get("/attendance/samples/<int:sample_id>/scanner")
+@bp.get("/api/courses/<int:course_id>/attendance/panel")
 @login_required
-def scanner(sample_id: int):
-    """כפתור ״סמן נוכחות״ בעמוד הקורס מוביל לכאן: סורק QR בתוך הדפדפן, אם הטלפון תומך."""
-    sample = build_service().get_sample(sample_id)
-    EnrollmentService(get_db()).require_student(sample.course_id, current_user())
-    return render_template("attendance/scanner.html", sample=sample)
-
-
-@bp.get("/attend/<int:sample_id>")
-def scan(sample_id: int):
-    """לכאן מוביל ה-QR. בודקים את הטוקן מיד, עוד לפני ההתחברות, ושומרים ב-session."""
-    token = request.args.get("t")
-    if token:
-        service = build_service()
-        try:
-            service.scan(sample_id, token)
-        except ServiceError as err:  # פג תוקף, דגימה סגורה או לא קיימת
-            return render_template("attendance/attend.html", sample_id=sample_id, error=err.message)
-        session["checkin"] = {"s": sample_id, "at": service.clock.now()}
-        return redirect(url_for("attendance.scan", sample_id=sample_id))
-
-    if current_user() is None:
-        return redirect(url_for("auth.login", next=url_for("attendance.scan", sample_id=sample_id)))
-    service = build_service()
-    sample = service.get_sample(sample_id)
-    EnrollmentService(get_db()).require_student(sample.course_id, current_user())
-    existing = service.record_for(sample_id, current_user().id)
-    pending = _pending_checkin(sample_id, service)
-    error = None
-    if not existing and not pending:
-        error = "צריך לסרוק את הקוד שעל המסך בכיתה"
-    return render_template("attendance/attend.html", sample_id=sample_id, sample=sample,
-                           course=CourseService(get_db()).get(sample.course_id),
-                           existing=existing, error=error)
-
-
-def _pending_checkin(sample_id: int, service: AttendanceService) -> bool:
-    pending = session.get("checkin") or {}
-    grace = current_app.config["CHECKIN_GRACE_SECONDS"]
-    return pending.get("s") == sample_id and service.clock.now() - pending.get("at", 0) <= grace
+def student_panel(course_id: int):
+    """החלק של הסטודנט בעמוד הקורס. הדף שואל כאן כל כמה שניות, כך שהכפתור מופיע ברגע שהמרצה פותח דגימה."""
+    EnrollmentService(get_db()).require_student(course_id, current_user())
+    return render_template("attendance/_student.html", a=section_context(course_id, "student"), course_id=course_id)
 
 
 @bp.post("/api/attend/<int:sample_id>")
@@ -209,10 +184,6 @@ def check_in(sample_id: int):
     service = build_service()
     sample = service.get_sample(sample_id)
     EnrollmentService(get_db()).require_student(sample.course_id, current_user())
-    if not _pending_checkin(sample_id, service):
-        raise ValidationError("הקוד פג. סרוק שוב את המסך")
     body = request.get_json(silent=True) or {}
-    audio_code = None if body.get("audio_failed") else body.get("audio_code")
-    record = service.check_in(sample_id, current_user(), client_ip(), audio_code)
-    session.pop("checkin", None)
-    return jsonify(ok=True, status=record.status, method=record.method, reasons=record.reason_labels)
+    service.check_in(sample_id, current_user(), body.get("audio_code"))
+    return jsonify(ok=True)

@@ -1,35 +1,5 @@
-from moodleplus.services.tokens import AudioTokenService, QrTokenService
+from moodleplus.services.tokens import AudioTokenService
 from tests.fakes import FakeClock
-
-
-def test_qr_token_changes_every_window():
-    clock = FakeClock(start=600.0)  # תחילת חלון
-    qr = QrTokenService("secret", clock)
-    first = qr.token(7)
-    clock.advance(5.9)
-    assert qr.token(7) == first
-    clock.advance(0.2)
-    assert qr.token(7) != first
-
-
-def test_qr_token_accepts_current_and_previous_only():
-    clock = FakeClock(start=600.0)
-    qr = QrTokenService("secret", clock)
-    token = qr.token(7)
-    assert qr.verify(7, token)
-    clock.advance(6)  # חלון אחד אחרי
-    assert qr.verify(7, token)
-    clock.advance(6)  # שני חלונות אחרי: נדחה
-    assert not qr.verify(7, token)
-
-
-def test_qr_token_bound_to_sample_and_secret():
-    clock = FakeClock()
-    qr = QrTokenService("secret", clock)
-    assert not qr.verify(8, qr.token(7))
-    assert not QrTokenService("other", clock).verify(7, qr.token(7))
-    assert not qr.verify(7, "")
-    assert not qr.verify(7, None)
 
 
 def test_audio_symbols_roundtrip():
@@ -46,27 +16,40 @@ def test_audio_parity_detects_single_error():
     assert AudioTokenService.decode([1, 2, 3]) is None
 
 
-def test_audio_code_rotates_and_expires():
+def test_audio_code_changes_every_window():
+    clock = FakeClock(start=600.0)  # תחילת חלון של 4 שניות
+    audio = AudioTokenService("secret", clock)
+    codes = set()
+    for _ in range(20):
+        codes.add(audio.code(3))
+        clock.advance(4)
+    assert len(codes) > 15  # 12 ביט: חזרה מקרית אפשרית, אבל נדירה
+
+
+def test_audio_code_valid_for_at_most_two_windows():
     clock = FakeClock(start=600.0)
     audio = AudioTokenService("secret", clock)
     code = audio.code(3)
-    assert 0 <= code < 4096
+    assert audio.max_age_seconds == 8
+    clock.advance(3.9)  # אותו חלון
     assert audio.verify(3, code)
-    clock.advance(12)  # עדיין בתוך 3 חלונות
+    clock.advance(4)  # החלון הבא: עדיין מתקבל (השהיית פענוח ורשת)
     assert audio.verify(3, code)
-    clock.advance(6)
+    clock.advance(0.2)  # 8.1 שניות מתחילת החלון: הקלטה שהושמעה מחדש כבר לא עוברת
     assert not audio.verify(3, code)
+
+
+def test_audio_code_bound_to_sample_and_secret():
+    clock = FakeClock(start=600.0)
+    audio = AudioTokenService("secret", clock)
+    code = audio.code(3)
+    others = [audio.code(4), AudioTokenService("other", clock).code(3)]
+    # מספיק שאחד מהם שונה. בשניהם שוויון הוא צירוף מקרים של 1 ל-4096
+    assert any(o != code for o in others)
 
 
 def test_audio_rejects_garbage():
     audio = AudioTokenService("secret", FakeClock())
     assert not audio.verify(3, "abc")
     assert not audio.verify(3, None)
-
-
-def test_audio_and_qr_are_independent():
-    clock = FakeClock()
-    a = AudioTokenService("secret", clock)
-    q = QrTokenService("secret", clock)
-    # שני ה-purposes שונים, כך שאי אפשר לגזור אחד מהשני
-    assert a._digest(1, 5) != q._digest(1, 5)
+    assert not audio.verify(3, "")

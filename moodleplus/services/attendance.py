@@ -1,21 +1,23 @@
-"""אירועי נוכחות (שיעורים), דגימות, רישום סטודנטים ודוח."""
+"""אירועי נוכחות (שיעורים), דגימות, רישום סטודנטים ודוח.
+
+הרישום מבוסס רק על הקוד הקולי: המחשב של המרצה משמיע קוד שמתחלף כל כמה שניות,
+והטלפון של הסטודנט מפענח אותו ושולח לשרת. בלי קוד תקין אין רישום, אבל המרצה
+יכול לסמן סטודנט ידנית בדוח השיעור.
+"""
 import csv
 import io
 import sqlite3
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from ..errors import NotFound, ServiceError, ValidationError
 from ..models import User
-from .network import CampusNetworkPolicy
-from .tokens import AudioTokenService, QrTokenService, TokenClock
+from .tokens import AudioTokenService, TokenClock
 
 MAX_SAMPLES = 5
+# אחרי כמה קודים שגויים הסטודנט נחסם בדגימה. סיכוי לנחש: 5 ניסיונות × 2 קודים תקפים מתוך 4096, כרבע אחוז
+MAX_WRONG_CODES = 5
 
-REASON_LABELS = {
-    "no_audio": "בלי אות קולי",
-    "audio_mismatch": "האות הקולי לא תאם",
-    "off_campus": "מחוץ לרשת הקמפוס",
-}
+METHOD_LABELS = {"audio": "נוכח", "manual": "נוכח (סימון ידני)"}
 
 
 class SampleLimitReached(ServiceError):
@@ -28,6 +30,14 @@ class SampleClosed(ServiceError):
 
 class AlreadyCheckedIn(ServiceError):
     status = 409
+
+
+class WrongCode(ServiceError):
+    status = 422
+
+
+class TooManyAttempts(ServiceError):
+    status = 429
 
 
 @dataclass(frozen=True)
@@ -60,32 +70,35 @@ class Record:
     sample_id: int
     student_id: int
     at: float
-    ip: str
     method: str
-    status: str
-    reasons: list[str] = field(default_factory=list)
+    marked_by: int | None = None
 
     @property
-    def counts(self) -> bool:
-        return self.status in ("ok", "approved")
+    def manual(self) -> bool:
+        return self.method == "manual"
 
     @property
-    def reason_labels(self) -> list[str]:
-        return [REASON_LABELS.get(r, r) for r in self.reasons]
+    def label(self) -> str:
+        return METHOD_LABELS.get(self.method, self.method)
 
     @classmethod
     def from_row(cls, r) -> "Record":
-        reasons = [x for x in r["reasons"].split(",") if x]
-        return cls(r["id"], r["sample_id"], r["student_id"], r["at"], r["ip"], r["method"], r["status"], reasons)
+        return cls(r["id"], r["sample_id"], r["student_id"], r["at"], r["method"], r["marked_by"])
+
+
+@dataclass(frozen=True)
+class Attendee:
+    """שורה ברשימה החיה שעל מסך הדגימה."""
+    student_id: int
+    name: str
+    at: float
+    method: str
 
 
 class AttendanceService:
-    def __init__(self, db: sqlite3.Connection, qr: QrTokenService, audio: AudioTokenService,
-                 network: CampusNetworkPolicy, clock: TokenClock):
+    def __init__(self, db: sqlite3.Connection, audio: AudioTokenService, clock: TokenClock):
         self.db = db
-        self.qr = qr
         self.audio = audio
-        self.network = network
         self.clock = clock
 
     # ---------- lessons & samples ----------
@@ -175,39 +188,78 @@ class AttendanceService:
             "SELECT COUNT(*) FROM attendance_records WHERE sample_id = ?", (sample_id,)
         ).fetchone()[0]
 
+    def attendees(self, sample_id: int) -> list[Attendee]:
+        """מי כבר נרשם לדגימה, מהאחרון לראשון."""
+        rows = self.db.execute(
+            "SELECT r.student_id, u.name, r.at, r.method FROM attendance_records r "
+            "JOIN users u ON u.id = r.student_id WHERE r.sample_id = ? ORDER BY r.at DESC, r.id DESC",
+            (sample_id,),
+        )
+        return [Attendee(r["student_id"], r["name"], r["at"], r["method"]) for r in rows]
+
     # ---------- student check-in ----------
-    def scan(self, sample_id: int, qr_token: str) -> Sample:
-        """שלב ראשון: הסטודנט סרק את ה-QR. בודקים שהדגימה פתוחה ושהטוקן טרי."""
+    def _accepting(self, sample: Sample, at: float) -> bool:
+        """הדגימה פתוחה, או נסגרה ממש עכשיו: קוד שנקלט לפני הסגירה עוד יכול להיות בדרך מהטלפון."""
+        return sample.opened_at <= at < sample.closes_at + self.clock.window_seconds
+
+    def wrong_attempts(self, sample_id: int, student_id: int) -> int:
+        r = self.db.execute(
+            "SELECT wrong FROM attendance_attempts WHERE sample_id = ? AND student_id = ?", (sample_id, student_id)
+        ).fetchone()
+        return r["wrong"] if r else 0
+
+    def attempts_left(self, sample_id: int, student_id: int) -> int:
+        return max(0, MAX_WRONG_CODES - self.wrong_attempts(sample_id, student_id))
+
+    def check_in(self, sample_id: int, student: User, audio_code) -> Record:
+        """רישום לפי הקוד שהטלפון פענח. קוד ישן (הקלטה, שיחה עם השהיה) או שגוי לא נרשם."""
         sample = self.get_sample(sample_id)
         now = self.clock.now()
-        if not sample.is_open(now):
+        if not self._accepting(sample, now):
             raise SampleClosed("הדגימה כבר נסגרה")
-        if not self.qr.verify(sample_id, qr_token, now):
-            raise ValidationError("הקוד פג. סרוק שוב את המסך")
-        return sample
+        if self.record_for(sample_id, student.id):
+            raise AlreadyCheckedIn("כבר נרשמת לדגימה הזו")
+        if self.attempts_left(sample_id, student.id) == 0:
+            raise TooManyAttempts("היו יותר מדי ניסיונות עם קוד שגוי. פנה למרצה כדי שיסמן אותך")
 
-    def check_in(self, sample_id: int, student: User, ip: str, audio_code=None) -> Record:
-        """שלב שני: רישום. בלי אות קולי תקין או מחוץ לקמפוס הרשומה נשמרת כחשודה."""
-        reasons = []
-        if audio_code is None:
-            reasons.append("no_audio")
-        elif not self.audio.verify(sample_id, audio_code, self.clock.now()):
-            reasons.append("audio_mismatch")
-        if not self.network.is_campus(ip):
-            reasons.append("off_campus")
-        method = "qr_only" if {"no_audio", "audio_mismatch"} & set(reasons) else "qr_audio"
-        status = "suspicious" if reasons else "ok"
+        if not self.audio.verify(sample_id, audio_code, now):
+            self.db.execute(
+                "INSERT INTO attendance_attempts (sample_id, student_id, wrong) VALUES (?, ?, 1) "
+                "ON CONFLICT (sample_id, student_id) DO UPDATE SET wrong = wrong + 1",
+                (sample_id, student.id),
+            )
+            self.db.commit()
+            left = self.attempts_left(sample_id, student.id)
+            raise WrongCode("הקוד שנקלט לא תאם את הצליל בכיתה. התקרב לרמקול ונסה שוב"
+                            + (f" (נשארו {left} ניסיונות)" if left else ""))
+        return self._insert(sample_id, student.id, now, "audio", None, AlreadyCheckedIn("כבר נרשמת לדגימה הזו"))
+
+    def _insert(self, sample_id: int, student_id: int, at: float, method: str, marked_by: int | None,
+                duplicate: ServiceError) -> Record:
         try:
             cur = self.db.execute(
-                "INSERT INTO attendance_records (sample_id, student_id, at, ip, method, status, reasons) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (sample_id, student.id, self.clock.now(), ip, method, status, ",".join(reasons)),
+                "INSERT INTO attendance_records (sample_id, student_id, at, method, marked_by) VALUES (?, ?, ?, ?, ?)",
+                (sample_id, student_id, at, method, marked_by),
             )
-        except sqlite3.IntegrityError:
-            raise AlreadyCheckedIn("כבר נרשמת לדגימה הזו")
+        except sqlite3.IntegrityError:  # שתי בקשות באותו רגע. ה-UNIQUE מגן עלינו
+            self.db.rollback()
+            raise duplicate
         self.db.commit()
         return self.get_record(cur.lastrowid)
 
+    # ---------- lecturer corrections ----------
+    def mark_manual(self, sample_id: int, student_id: int, by: User) -> Record:
+        """המרצה מסמן נוכחות לסטודנט שהטלפון שלו לא קלט את הצליל. אפשר גם בדגימה שכבר נסגרה."""
+        self.get_sample(sample_id)
+        return self._insert(sample_id, student_id, self.clock.now(), "manual", by.id,
+                            AlreadyCheckedIn("הסטודנט כבר מסומן כנוכח בדגימה הזו"))
+
+    def remove_record(self, record_id: int) -> None:
+        self.get_record(record_id)
+        self.db.execute("DELETE FROM attendance_records WHERE id = ?", (record_id,))
+        self.db.commit()
+
+    # ---------- queries ----------
     def get_record(self, record_id: int) -> Record:
         r = self.db.execute("SELECT * FROM attendance_records WHERE id = ?", (record_id,)).fetchone()
         if r is None:
@@ -219,14 +271,6 @@ class AttendanceService:
             "SELECT * FROM attendance_records WHERE sample_id = ? AND student_id = ?", (sample_id, student_id)
         ).fetchone()
         return Record.from_row(r) if r else None
-
-    def set_status(self, record_id: int, status: str) -> Record:
-        if status not in ("approved", "rejected"):
-            raise ValidationError("סטטוס לא מוכר")
-        self.get_record(record_id)
-        self.db.execute("UPDATE attendance_records SET status = ? WHERE id = ?", (status, record_id))
-        self.db.commit()
-        return self.get_record(record_id)
 
     def records(self, lesson_id: int) -> list[Record]:
         rows = self.db.execute(
@@ -247,8 +291,6 @@ class ReportRow:
 class AttendanceReport:
     """מטריצה של סטודנט מול דגימות בשיעור אחד, ואחוז נוכחות."""
 
-    STATUS_TEXT = {"ok": "נוכח", "approved": "אושר", "suspicious": "ממתין לאישור", "rejected": "נדחה"}
-
     def __init__(self, attendance: AttendanceService):
         self.attendance = attendance
 
@@ -258,7 +300,7 @@ class AttendanceReport:
         rows = []
         for st in students:
             cells = [by_key.get((s.id, st.id)) for s in samples]
-            present = sum(1 for c in cells if c and c.counts)
+            present = sum(1 for c in cells if c)
             percent = round(100 * present / len(samples)) if samples else 0
             rows.append(ReportRow(st, cells, percent))
         return samples, rows
@@ -271,7 +313,7 @@ class AttendanceReport:
         for row in rows:
             w.writerow(
                 [row.student.name, row.student.email]
-                + [self.STATUS_TEXT[c.status] if c else "חסר" for c in row.cells]
+                + [c.label if c else "חסר" for c in row.cells]
                 + [f"{row.percent}%"]
             )
         return out.getvalue().encode("utf-8-sig")
