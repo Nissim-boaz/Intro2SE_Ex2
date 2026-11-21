@@ -16,10 +16,13 @@ class AudioTokenEmitter {
 
   get running() { return !!this.ctx && this.ctx.state === "running"; }
 
+  // Call from a click, before anything else that awaits: browsers let audio start only during the
+  // user's gesture, and other calls (requestFullscreen in particular) use that permission up.
   async start() {
     if (this.ctx) return;
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    await this.ctx.resume();
+    // resume() never settles when the browser blocks audio; don't hang on it, check `running` instead
+    await Promise.race([this.ctx.resume(), new Promise((r) => setTimeout(r, 800))]);
     this.osc = this.ctx.createOscillator();
     this.gain = this.ctx.createGain();
     this.gain.gain.value = 0;

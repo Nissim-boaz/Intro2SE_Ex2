@@ -32,22 +32,28 @@
   async function startSound({ chime = false } = {}) {
     try {
       await emitter.start();
-      if (chime) emitter.chime();
-      lastWindow = null; // hand the current code to the new emitter on the next poll
-      setSound(true);
-    } catch (e) {
-      Model.toast("לא הצלחתי להפעיל את הרמקול", "error");
+    } catch (e) {}
+    if (!emitter.running) {
+      emitter.stop(); // let the next click build a fresh AudioContext inside its own gesture
+      setSound(false);
+      Model.toast("הדפדפן חסם את הצליל. לחץ על ״הפעל צליל״", "error");
+      return;
     }
+    if (chime) emitter.chime();
+    lastWindow = null; // hand the current code to the new emitter on the next poll
+    setSound(true);
   }
 
   soundToggle.addEventListener("click", () => {
-    if (emitter.running) { emitter.stop(); setSound(false); } else startSound().then(poll);
+    if (emitter.running) { emitter.stop(); setSound(false); } else startSound({ chime: true }).then(poll);
   });
 
   document.getElementById("start-btn").addEventListener("click", async () => {
     document.getElementById("start-overlay").hidden = true;
+    // audio first, while the click still allows it; fullscreen would use that permission up
+    const sound = startSound({ chime: true });
     try { await document.documentElement.requestFullscreen?.(); } catch (_) {}
-    await startSound({ chime: true });
+    await sound;
     poll();
   });
 
