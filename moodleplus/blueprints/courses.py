@@ -34,6 +34,10 @@ def show(course_id: int):
     role = enrollments.require_member(course_id, current_user())
     context = {}
     context["attendance"] = _attendance_context(course_id, role)
+    if role == "student":
+        from .attendance import build_appeals
+
+        context["attendance_history"] = build_appeals(db).history(course_id, current_user().id)
     context["chat_enabled"] = True
     # רק ההודעה האחרונה, לכרטיס שמוביל לצ׳אט. עוברת דרך אותה הסתרה של שולח אנונימי
     last = ChatService(db, poll_reader=PollService(db)).list_messages(course_id, current_user(), limit=1)

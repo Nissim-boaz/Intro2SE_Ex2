@@ -2,7 +2,7 @@
 <section class="panel section" id="attendance">
   <div class="panel-head">
     <h2>נוכחות</h2>
-    {% if can_manage and a.has_lessons %}<a class="btn btn-sm btn-quiet" href="{{ url_for('attendance.course_report', course_id=course.id) }}">דוחות</a>{% endif %}
+    {% if can_manage and a.has_lessons %}<a class="btn btn-sm btn-quiet" href="{{ url_for('attendance.course_report', course_id=course.id) }}">דוחות{% if a.pending_appeals %} <b class="nav-badge" aria-label="{{ a.pending_appeals }} ערעורים">{{ a.pending_appeals }}</b>{% endif %}</a>{% endif %}
   </div>
 
   {% if can_manage %}
@@ -37,6 +37,7 @@
     <div id="attend-student" data-panel-url="{{ url_for('attendance.student_panel', course_id=course.id) }}">
       {% include "attendance/_student.html" %}
     </div>
+    {% include "attendance/_history.html" %}
   {% else %}
     <p class="muted">אין דגימה פתוחה כרגע.</p>
   {% endif %}

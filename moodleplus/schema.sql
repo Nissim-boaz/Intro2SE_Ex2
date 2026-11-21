@@ -73,6 +73,20 @@ CREATE TABLE IF NOT EXISTS attendance_attempts (
     PRIMARY KEY (sample_id, student_id)
 );
 
+-- ערעור על נוכחות: סטודנט שסומן חסר בדגימה שנסגרה. ערעור אחד לכל דגימה
+CREATE TABLE IF NOT EXISTS attendance_appeals (
+    id          INTEGER PRIMARY KEY,
+    sample_id   INTEGER NOT NULL REFERENCES attendance_samples(id) ON DELETE CASCADE,
+    student_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    text        TEXT NOT NULL,
+    status      TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
+    reply       TEXT NOT NULL DEFAULT '',
+    created_at  REAL NOT NULL,
+    resolved_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    resolved_at REAL NOT NULL DEFAULT 0,
+    UNIQUE (sample_id, student_id)
+);
+
 CREATE TABLE IF NOT EXISTS polls (
     id          INTEGER PRIMARY KEY,
     course_id   INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,

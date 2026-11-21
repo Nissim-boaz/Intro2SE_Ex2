@@ -5,6 +5,7 @@ from ..db import get_db
 from ..errors import ValidationError
 from ..security import current_user, login_required
 from ..services.attendance import AttendanceReport, AttendanceService
+from ..services.attendance_appeals import AttendanceAppealService
 from ..services.courses import CourseService, EnrollmentService
 from ..services.tokens import AudioTokenService, TokenClock
 from ..services.users import UserService
@@ -18,6 +19,11 @@ def build_service(db=None) -> AttendanceService:
     return AttendanceService(db or get_db(), AudioTokenService(cfg["SECRET_KEY"], clock), clock)
 
 
+def build_appeals(db=None) -> AttendanceAppealService:
+    db = db or get_db()
+    return AttendanceAppealService(db, build_service(db))
+
+
 def section_context(course_id: int, role: str) -> dict:
     """מה שהחלק של הנוכחות בעמוד הקורס צריך, גם בטעינה הראשונה וגם בעדכון החי של הסטודנט."""
     service = build_service()
@@ -28,6 +34,8 @@ def section_context(course_id: int, role: str) -> dict:
         "next_lesson": lessons[0].number if lessons else 1,
         "has_lessons": bool(lessons),
     }
+    if role in ("admin", "lecturer"):
+        ctx["pending_appeals"] = sum(build_appeals().pending_counts(course_id).values())
     if sample:
         ctx["seconds_left"] = sample.seconds_left(service.clock.now())
         if role == "student":
@@ -129,6 +137,8 @@ def lesson_report(lesson_id: int):
         samples=samples,
         rows=rows,
         open_sample=service.open_sample_for(lesson.course_id),
+        appeals=build_appeals(db).pending_for_lesson(lesson_id),
+        appeal_counts=build_appeals(db).pending_counts(lesson.course_id),
     )
 
 
@@ -169,6 +179,17 @@ def remove_record(record_id: int):
     return redirect(url_for("attendance.lesson_report", lesson_id=sample.lesson_id, _anchor=f"st-{record.student_id}"))
 
 
+@bp.post("/attendance/appeals/<int:appeal_id>/resolve")
+@login_required
+def resolve_appeal(appeal_id: int):
+    appeals = build_appeals()
+    EnrollmentService(get_db()).require_manager(appeals.course_of(appeal_id), current_user())
+    accept = request.form.get("decision") == "accept"
+    appeal = appeals.resolve(appeal_id, current_user(), accept, request.form.get("reply", ""))
+    flash(f"הערעור של {appeal.student_name} התקבל, והוא סומן כנוכח" if accept else "הערעור נדחה", "success")
+    return redirect(url_for("attendance.lesson_report", lesson_id=appeal.lesson_id))
+
+
 # ---------- student ----------
 @bp.get("/api/courses/<int:course_id>/attendance/panel")
 @login_required
@@ -187,3 +208,14 @@ def check_in(sample_id: int):
     body = request.get_json(silent=True) or {}
     service.check_in(sample_id, current_user(), body.get("audio_code"))
     return jsonify(ok=True)
+
+
+@bp.post("/attendance/samples/<int:sample_id>/appeal")
+@login_required
+def appeal(sample_id: int):
+    """סטודנט שסומן חסר בדגימה שנסגרה מערער. המרצה רואה את זה בדוח השיעור."""
+    sample = build_service().get_sample(sample_id)
+    EnrollmentService(get_db()).require_student(sample.course_id, current_user())
+    build_appeals().appeal(sample_id, current_user(), request.form.get("text", ""))
+    flash("הערעור נשלח למרצה", "success")
+    return redirect(url_for("courses.show", course_id=sample.course_id) + "#attendance")

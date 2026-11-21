@@ -16,16 +16,37 @@
 {% if lessons|length > 1 %}
 <nav class="course-nav" aria-label="שיעורים" style="position:static;margin-top:0">
   {% for l in lessons %}
-  <a href="{{ url_for('attendance.lesson_report', lesson_id=l.id) }}" {% if l.id == lesson.id %}class="chip-on"{% endif %}>שיעור {{ l.number }}</a>
+  <a href="{{ url_for('attendance.lesson_report', lesson_id=l.id) }}" {% if l.id == lesson.id %}class="chip-on"{% endif %}>שיעור {{ l.number }}{% if appeal_counts.get(l.id) %} <b class="nav-badge">{{ appeal_counts[l.id] }}</b>{% endif %}</a>
   {% endfor %}
 </nav>
 {% endif %}
 
 <p class="small muted" style="margin:0 0 12px">✓ נקלט בצליל · <span class="cell-tag">ידני</span> סומן על ידי המרצה. לחיצה על ״+״ מסמנת סטודנט שהטלפון שלו לא קלט את הצליל.</p>
 
+{% if appeals %}
+<section class="panel att-appeals" id="appeals">
+  <h2>ערעורים על נוכחות <span class="muted" style="font-weight:500">{{ appeals|length }}</span></h2>
+  <ul class="list list-scroll">
+    {% for ap in appeals %}
+    <li>
+      <div class="grow">
+        <div class="title">{{ ap.student_name }} <span class="muted small" style="font-weight:400">· דגימה {{ ap.seq }}</span></div>
+        <p class="appeal-text" dir="auto">{{ ap.text }}</p>
+        <form method="post" action="{{ url_for('attendance.resolve_appeal', appeal_id=ap.id) }}" class="att-resolve">
+          <input type="text" name="reply" maxlength="1000" placeholder="תשובה לסטודנט (חובה כשדוחים)" aria-label="תשובה ל{{ ap.student_name }}">
+          <button class="btn btn-sm" name="decision" value="accept">קבל וסמן נוכח</button>
+          <button class="btn btn-sm btn-danger" name="decision" value="reject">דחה</button>
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 <section class="panel">
   {% if rows %}
-  <div class="table-wrap">
+  <div class="table-wrap table-scroll">
     <table class="matrix">
       <thead>
         <tr>

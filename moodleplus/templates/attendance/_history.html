@@ -1,0 +1,44 @@
+{# The student's own attendance, lesson by lesson, with an appeal on a missed sample. #}
+{% if attendance_history %}
+<div class="att-history">
+  <h3>הנוכחות שלי</h3>
+  <ul class="att-lessons list-scroll">
+    {% for l in attendance_history %}
+    <li>
+      <details class="att-lesson"{% if loop.first %} open{% endif %}>
+        <summary>
+          <span class="att-lesson-title">שיעור {{ l.number }}</span>
+          <span class="muted small">{{ l.present }} מתוך {{ l.cells|length }} דגימות</span>
+          <span class="percent {{ 'percent-low' if l.percent < 60 else '' }}">{{ l.percent }}%</span>
+        </summary>
+        <ul class="att-samples">
+          {% for c in l.cells %}
+          <li>
+            <span class="att-sample-name">דגימה {{ c.sample.seq }}</span>
+            {% if c.record %}
+              <span class="pill pill-ok">{{ 'נוכח, סומן ידנית' if c.record.manual else 'נוכח' }}</span>
+            {% elif c.appeal %}
+              <span class="pill {{ {'pending': 'pill-warn', 'accepted': 'pill-ok', 'rejected': 'pill-danger'}[c.appeal.status] }}">ערעור {{ c.appeal.status_label }}</span>
+            {% else %}
+              <span class="pill pill-danger">חסר</span>
+            {% endif %}
+            {% if c.appeal and c.appeal.reply %}<p class="att-reply" dir="auto"><strong>תשובת המרצה:</strong> {{ c.appeal.reply }}</p>{% endif %}
+            {% if c.can_appeal %}
+            <details class="appeal-box att-appeal">
+              <summary class="btn btn-quiet btn-sm">ערעור</summary>
+              <form method="post" action="{{ url_for('attendance.appeal', sample_id=c.sample.id) }}" class="stack appeal-form" data-once>
+                <label>למה לדעתך היית צריך להיות מסומן?<textarea name="text" rows="3" required maxlength="2000" placeholder="למשל: הייתי בשורה האחרונה והטלפון לא קלט את הצליל"></textarea></label>
+                <p class="xsmall muted">ערעור אחד לכל דגימה. המרצה יראה אותו בדוח הנוכחות.</p>
+                <button class="btn btn-sm">שלח ערעור</button>
+              </form>
+            </details>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </details>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}

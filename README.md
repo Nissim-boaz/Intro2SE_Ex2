@@ -36,7 +36,7 @@ On the student's course page, a "בצע נוכחות" (check in) button appears 
 
 The server accepts the current code and the one before it, so a code is valid for at most 8 seconds after it starts playing. That covers decoding on the phone (about 2 seconds) and a slow network, and is too short to record the sound, send it on WhatsApp and play it back. Phone calls and voice messages also cut frequencies this high, so the signal doesn't survive them. A check-in that arrives a few seconds after the sample closes still counts if its code is valid.
 
-There is no check-in without a valid code. A wrong or old code is rejected with a message, and the student can try again while the sample is open. After 5 wrong codes in a sample the student is blocked from it, so the 12-bit code can't be guessed. In the lesson report the lecturer can mark a student as present by hand (for example, a phone that didn't pick up the sound) and can cancel any attendance. Manual marks are labeled in the report and in the CSV.
+There is no check-in without a valid code. A wrong or old code is rejected with a message, and the student can try again while the sample is open. After 5 wrong codes in a sample the student is blocked from it, so the 12-bit code can't be guessed. In the lesson report the lecturer can mark a student as present by hand (for example, a phone that didn't pick up the sound) and can cancel any attendance. Manual marks are labeled in the report and in the CSV. On the course page each student sees their own attendance per lesson, and can appeal a sample they were marked absent in once it closes. The lecturer sees open appeals at the top of the lesson report and accepts them (which marks the student present) or rejects them with a reason.
 
 The report is a matrix of students by samples, with an attendance percentage per student, and a CSV export that opens correctly in Excel.
 
@@ -74,6 +74,7 @@ moodleplus/
     assignments.py   AssignmentService
     tokens.py        TokenClock, AudioTokenService
     attendance.py    AttendanceService, AttendanceReport
+    attendance_appeals.py AttendanceAppealService
     chat.py          ChatService, SenderMask, ReactionService, ReadReceiptService
     polls.py         PollService
     requests.py      RequestService (requests to the admins)
