@@ -225,6 +225,10 @@
       show(location.hash.slice(1));
       document.body.classList.add("tabbed");
     }
+    // coming back from the chat with the phone's back button shows the cached page with the old count
+    window.addEventListener("pageshow", (e) => {
+      if (e.persisted && tabbar.querySelector(".tab-badge")) location.reload();
+    });
     requestAnimationFrame(() => tabbar.classList.add("ready")); // the glow slides only after the first paint
   }
 

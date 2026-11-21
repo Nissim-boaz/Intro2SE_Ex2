@@ -4,7 +4,7 @@ from flask import Blueprint, current_app, render_template
 from ..db import get_db
 from ..security import current_user, login_required
 from ..services.content import ContentService, FileStore
-from ..services.chat import ChatService
+from ..services.chat import ChatService, ReadReceiptService
 from ..services.courses import CourseService, EnrollmentService
 from ..services.polls import PollService
 from ..services.recordings import RecordingService
@@ -35,6 +35,7 @@ def show(course_id: int):
     # רק ההודעה האחרונה, לכרטיס שמוביל לצ׳אט. עוברת דרך אותה הסתרה של שולח אנונימי
     last = ChatService(db, poll_reader=PollService(db)).list_messages(course_id, current_user(), limit=1)
     context["chat_preview"] = last[0] if last else None
+    context["chat_unread"] = ReadReceiptService(db).unread_count(course_id, current_user())
     context["recordings"] = RecordingService(db, FileStore(current_app.config["UPLOAD_DIR"])).list(
         course_id, include_drafts=role in ("admin", "lecturer")  # טיוטות רק למרצה ולמנהל
     )

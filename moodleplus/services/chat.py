@@ -351,6 +351,14 @@ class ReadReceiptService:
         self.db.commit()
         return cur.rowcount
 
+    def unread_count(self, course_id: int, user: User) -> int:
+        """כמה הודעות של אחרים בקורס המשתמש עוד לא ראה. בשביל העיגול האדום על לשונית הצ׳אט."""
+        return self.db.execute(
+            "SELECT COUNT(*) FROM messages m WHERE m.course_id = ? AND m.sender_id != ? AND m.deleted = 0 "
+            "AND NOT EXISTS (SELECT 1 FROM message_reads r WHERE r.message_id = m.id AND r.user_id = ?)",
+            (course_id, user.id, user.id),
+        ).fetchone()[0]
+
     def audience(self, course_id: int, sender_id: int) -> int:
         """כמה חברי קורס יכולים לקרוא את ההודעה (כולם חוץ מהשולח)."""
         return self.db.execute(

@@ -1076,3 +1076,18 @@ body.tabbed .tab-on { animation: tab-in .24s var(--ease); }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .tabbar { background: var(--surface); }
 }
+
+/* unread count on the chat tab, like WhatsApp */
+.tabbar a { position: relative; }
+.tab-badge {
+  position: absolute; top: 2px; left: calc(50% - 22px); min-width: 19px; height: 19px; padding: 0 5px;
+  border-radius: 999px; background: #FF3B30; color: #fff; font-size: 11px; font-weight: 700; line-height: 19px;
+  text-align: center; font-variant-numeric: tabular-nums; box-shadow: 0 0 0 2px var(--surface);
+  animation: pop .2s var(--ease);
+}
+
+/* phones have their own emoji key on the keyboard, so the composer drops the smiley button */
+@media (hover: none) and (pointer: coarse) {
+  .emoji-toggle, .emoji-panel { display: none !important; }
+  .composer-field textarea { padding-inline-start: 16px; }
+}

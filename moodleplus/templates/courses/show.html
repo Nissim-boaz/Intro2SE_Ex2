@@ -31,7 +31,9 @@
   </a>
   {% endif %}
   {% if chat_enabled is defined %}
-  <a href="{{ url_for('chat_page.page', course_id=course.id) }}">
+  <a href="{{ url_for('chat_page.page', course_id=course.id) }}" data-chat-tab
+     {% if chat_unread %}aria-label="צ׳אט, {{ chat_unread }} הודעות שלא נקראו"{% endif %}>
+    {% if chat_unread %}<b class="tab-badge" aria-hidden="true">{{ '99+' if chat_unread > 99 else chat_unread }}</b>{% endif %}
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A3 3 0 0 1 7 3.5h10a3 3 0 0 1 3 3v6.5a3 3 0 0 1-3 3h-6.2L6.5 19.6c-.6.5-1.5 0-1.5-.7V16A3 3 0 0 1 4 13Z"/></svg>
     <span>צ׳אט</span>
   </a>

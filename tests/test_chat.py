@@ -464,3 +464,20 @@ def test_only_course_lecturer_can_pin(app, client):
     assert client.post(f"/api/messages/{mid}/pin", json={"pinned": True}).get_json()["pinned"] is True
     login(client, stud.id)
     assert [p["id"] for p in client.get(f"/api/courses/{course.id}/chat").get_json()["pinned"]] == [mid]
+
+
+def test_unread_count_for_the_chat_tab(db, chat, people):
+    from moodleplus.services.chat import ReadReceiptService
+
+    reads = ReadReceiptService(db)
+    c = people["course"].id
+    s1, s2 = people["s1"], people["s2"]
+    chat.send(c, s1, "first")
+    last = chat.send(c, s1, "second")
+    gone = chat.send(c, s1, "oops")
+    chat.delete(gone, s1)
+    chat.send(c, s2, "my own")  # my own messages never count
+    assert reads.unread_count(c, s2) == 2
+    assert reads.unread_count(c, s1) == 1
+    reads.mark_read(c, s2, last)
+    assert reads.unread_count(c, s2) == 0
