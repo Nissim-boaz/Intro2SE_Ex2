@@ -70,7 +70,7 @@
       <span class="list-search-count" id="members-count-{{ loop.index }}" aria-live="polite"></span>
     </div>
     {% endif %}
-    <ul class="list" id="members-{{ loop.index }}">
+    <ul class="list list-scroll" id="members-{{ loop.index }}">
       {% for p in people %}
       <li data-filter-item data-filter-text="{{ p.name }} {{ p.email }}">
         <div class="grow"><div class="title">{{ p.name }}</div><div class="xsmall muted" dir="ltr" style="text-align:right">{{ p.email }}</div></div>

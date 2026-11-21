@@ -52,7 +52,7 @@
     {{ search_field('#users-list', 'חיפוש לפי שם או מייל', empty='users-none', count='users-count') }}
     <span class="list-search-count" id="users-count" aria-live="polite"></span>
   </div>
-  <ul class="list" id="users-list">
+  <ul class="list list-scroll" id="users-list">
     {% for u in users %}
     <li data-filter-item data-filter-text="{{ u.name }} {{ u.email }} {{ u.role_label }}">
       <span class="avatar" aria-hidden="true">{{ u.name[:1] }}</span>
