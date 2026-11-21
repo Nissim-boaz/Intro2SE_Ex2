@@ -1260,3 +1260,26 @@ body.tabbed .tab-on { animation: tab-in .24s var(--ease); }
     radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, .55), transparent) top / 100% 10px no-repeat scroll,
     radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, .55), transparent) bottom / 100% 10px no-repeat scroll;
 }
+
+/* ---------- grades: publish to everyone at once, appeals ---------- */
+.publish-bar {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 14px 18px; border-radius: var(--r-lg);
+  background: var(--warn-soft); color: var(--warn-ink);
+}
+.publish-bar .grow { flex: 1; min-width: 220px; display: grid; gap: 2px; font-size: var(--fs-sm); }
+.publish-bar.is-published { background: var(--ok-soft); color: var(--ok); }
+.publish-bar.is-published span { color: var(--ink-2); }
+.note-info { margin-top: 14px; padding: 10px 14px; border-radius: var(--r-sm); background: var(--brand-soft); color: var(--brand); font-size: var(--fs-sm); }
+.grade-old { font-size: 22px; color: var(--ink-3); margin-inline-end: 8px; }
+.appeal-box { margin-top: 14px; }
+.appeal-box > summary { list-style: none; width: fit-content; }
+.appeal-box > summary::-webkit-details-marker { display: none; }
+.appeal-box[open] > summary { display: none; }
+.appeal-form { padding: 14px; border-radius: var(--r-md); background: var(--fill); }
+.appeal-form .btn { justify-self: start; }
+.appeal-card { margin-top: 14px; padding: 14px 16px; border-radius: var(--r-md); background: var(--fill); display: grid; gap: 8px; }
+.appeal-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.appeal-text, .appeal-reply { white-space: pre-line; line-height: 1.55; font-size: var(--fs-sm); }
+.appeal-reply { padding-top: 8px; border-top: 1px solid var(--line); }
+.appeal-resolve .row .btn { min-width: 0; }
+.asg-list.list-scroll { max-height: min(56vh, 560px); }

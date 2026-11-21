@@ -154,6 +154,7 @@ CREATE TABLE IF NOT EXISTS assignments (
     due_at      REAL NOT NULL,
     file_path   TEXT NOT NULL DEFAULT '',   -- קובץ מצורף מהמרצה (לא חובה)
     file_name   TEXT NOT NULL DEFAULT '',
+    grades_published INTEGER NOT NULL DEFAULT 0,  -- 0: המרצה בודק, והסטודנטים עוד לא רואים ציונים
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -168,6 +169,12 @@ CREATE TABLE IF NOT EXISTS submissions (
     grade         INTEGER CHECK (grade IS NULL OR grade BETWEEN 0 AND 100),
     feedback      TEXT NOT NULL DEFAULT '',  -- הערת המרצה. רק הסטודנט והמרצים רואים
     graded_at     REAL NOT NULL DEFAULT 0,
+    -- ערעור אחד על הציון: '' | pending | accepted | rejected
+    appeal_status  TEXT NOT NULL DEFAULT '',
+    appeal_text    TEXT NOT NULL DEFAULT '',
+    appeal_reply   TEXT NOT NULL DEFAULT '',
+    appeal_at      REAL NOT NULL DEFAULT 0,
+    original_grade INTEGER,                   -- הציון לפני שערעור התקבל
     UNIQUE (assignment_id, student_id)
 );
 

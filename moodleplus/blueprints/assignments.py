@@ -125,6 +125,39 @@ def submission_file(submission_id: int):
     return _send(service, sub.file_path, sub.file_name)
 
 
+@bp.post("/assignments/<int:assignment_id>/publish-grades")
+@login_required
+def publish_grades(assignment_id: int):
+    service = _service()
+    EnrollmentService(get_db()).require_manager(service.get(assignment_id).course_id, current_user())
+    published = request.form.get("published") == "1"
+    count = service.set_grades_published(assignment_id, published)
+    flash(f"הציונים פורסמו. {count} סטודנטים רואים עכשיו את הציון שלהם" if published
+          else "הציונים הוסתרו מהסטודנטים", "success")
+    return _page(assignment_id)
+
+
+@bp.post("/submissions/<int:submission_id>/appeal")
+@login_required
+def appeal(submission_id: int):
+    service = _service()
+    sub = service.appeal(submission_id, current_user(), request.form.get("text", ""))
+    flash("הערעור נשלח למרצה", "success")
+    return redirect(url_for("assignments.show", assignment_id=sub.assignment_id) + "#my-submission")
+
+
+@bp.post("/submissions/<int:submission_id>/appeal/resolve")
+@login_required
+def resolve_appeal(submission_id: int):
+    service = _service()
+    sub = service.get_submission(submission_id)
+    EnrollmentService(get_db()).require_manager(service.get(sub.assignment_id).course_id, current_user())
+    accept = request.form.get("decision") == "accept"
+    service.resolve_appeal(submission_id, accept, request.form.get("reply", ""), request.form.get("grade", ""))
+    flash("הערעור התקבל והציון עודכן" if accept else "הערעור נדחה", "success")
+    return redirect(url_for("assignments.show", assignment_id=sub.assignment_id) + f"#sub-{submission_id}")
+
+
 @bp.post("/submissions/<int:submission_id>/grade")
 @login_required
 def grade(submission_id: int):

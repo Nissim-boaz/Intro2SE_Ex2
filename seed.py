@@ -126,6 +126,12 @@ def _seed_assignments(db, course_id, students) -> None:
         sub = service.submit(first.id, student, f"hw1_{i + 1}.pdf", pdf(f"hw1_{i + 1}.pdf"))
         if i < 45:
             service.grade(sub.id, str(rng.randint(72, 100)), "עבודה טובה. כדאי לפרט יותר את התרחישים החלופיים." if i % 4 == 0 else "")
+    # הציונים של מטלה 1 פורסמו, ושני סטודנטים ערערו
+    service.set_grades_published(first.id, True)
+    clock[0] = time.time()
+    for student, text in ((students[2], "בשאלה 2 ירדו לי 10 נקודות, אבל כל ה-Use Cases שנדרשו מופיעים בדיאגרמה."),
+                          (students[5], "לא קיבלתי הערה על מה חסר. אפשר לבדוק שוב?")):
+        service.appeal(service.submission_of(first.id, student.id).id, student, text)
     for i, student in enumerate(students[1:25]):
         clock[0] = time.time() - 3600 * rng.uniform(1, 40)
         service.submit(second.id, student, f"hw2_{i + 1}.pdf", pdf(f"hw2_{i + 1}.pdf"))

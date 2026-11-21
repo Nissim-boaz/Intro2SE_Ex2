@@ -6,7 +6,7 @@
   </div>
 
   {% if assignments %}
-  <ul class="asg-list">
+  <ul class="asg-list list-scroll">
     {% for a in assignments %}
     {% set past = now > a.due_at %}
     <li>

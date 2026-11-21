@@ -44,11 +44,39 @@
       <span class="xsmall muted">הוגש {{ mine.submitted_at|when_he(now) }}</span>
       {% if mine.late %}<span class="pill pill-warn">באיחור</span>{% endif %}
     </div>
-    {% if mine.graded %}
+    {% if mine.grade_visible %}
     <div class="grade-card">
-      <div class="grade-num"><strong>{{ mine.grade }}</strong><span>/100</span></div>
+      <div class="grade-num">
+        {% if mine.appeal_status == 'accepted' and mine.original_grade is not none %}<s class="grade-old">{{ mine.original_grade }}</s>{% endif %}
+        <strong>{{ mine.grade }}</strong><span>/100</span>
+      </div>
       {% if mine.feedback %}<p class="grade-note" dir="auto">{{ mine.feedback }}</p>{% else %}<p class="muted small">אין הערות מהמרצה.</p>{% endif %}
     </div>
+
+    {% if mine.can_appeal %}
+    <details class="appeal-box">
+      <summary class="btn btn-quiet btn-sm">ערעור על הציון</summary>
+      <form method="post" action="{{ url_for('assignments.appeal', submission_id=mine.id) }}" class="stack appeal-form" data-once
+            data-confirm="לשלוח את הערעור? אפשר לערער פעם אחת בלבד על כל מטלה." data-confirm-ok="שלח ערעור">
+        <label>על מה הערעור?<textarea name="text" rows="4" required maxlength="4000" placeholder="למשל: בשאלה 2 ירדו לי 10 נקודות, אבל הדיאגרמה כוללת את כל המחלקות שנדרשו"></textarea></label>
+        <p class="xsmall muted">אפשר לערער פעם אחת על כל מטלה. המרצה יראה את הערעור ויענה כאן.</p>
+        <button class="btn btn-sm">שלח ערעור</button>
+      </form>
+    </details>
+    {% elif mine.appeal_status %}
+    <div class="appeal-card appeal-{{ mine.appeal_status }}">
+      <div class="appeal-head">
+        <strong>הערעור שלך</strong>
+        {% if mine.appeal_status == 'pending' %}<span class="pill pill-warn">ממתין לתשובת המרצה</span>
+        {% elif mine.appeal_status == 'accepted' %}<span class="pill pill-ok">התקבל, הציון עודכן</span>
+        {% else %}<span class="pill pill-danger">נדחה</span>{% endif %}
+      </div>
+      <p class="appeal-text" dir="auto">{{ mine.appeal_text }}</p>
+      {% if mine.appeal_reply %}<p class="appeal-reply" dir="auto"><strong>תשובת המרצה:</strong> {{ mine.appeal_reply }}</p>{% endif %}
+    </div>
+    {% endif %}
+    {% elif mine.graded %}
+    <p class="note-info">ההגשה נבדקה. הציון יופיע כאן כשהמרצה יפרסם את הציונים לכולם.</p>
     {% endif %}
     {% else %}
     <p class="muted small">עוד לא הגשת.</p>
@@ -67,6 +95,27 @@
 
   {% if can_manage %}
   {% set submitted = roster|selectattr(1)|list|length %}
+  {% set graded_count = roster|map(attribute=1)|select|selectattr('graded')|list|length %}
+  {% set appeals = roster|map(attribute=1)|select|selectattr('appeal_status', 'equalto', 'pending')|list|length %}
+  <div class="publish-bar{% if a.grades_published %} is-published{% endif %}">
+    <div class="grow">
+      {% if a.grades_published %}
+      <strong>הציונים פורסמו.</strong>
+      <span>הסטודנטים רואים את הציון וההערה. ציון שתשנה מעכשיו יתעדכן אצלם מיד.{% if appeals %} יש {{ appeals }} ערעורים פתוחים.{% endif %}</span>
+      {% else %}
+      <strong>הציונים עוד לא פורסמו.</strong>
+      <span>נבדקו {{ graded_count }} מתוך {{ submitted }} הגשות. הסטודנטים יראו את הציונים כולם יחד, כשתפרסם.</span>
+      {% endif %}
+    </div>
+    <form method="post" action="{{ url_for('assignments.publish_grades', assignment_id=a.id) }}"
+          {% if not a.grades_published %}data-confirm="לפרסם את הציונים? {{ graded_count }} סטודנטים יראו עכשיו את הציון וההערה שלהם{% if graded_count < submitted %}, ו-{{ submitted - graded_count }} הגשות עוד לא נבדקו{% endif %}." data-confirm-ok="פרסם ציונים"{% endif %}>
+      <input type="hidden" name="published" value="{{ '0' if a.grades_published else '1' }}">
+      <button class="btn {{ 'btn-quiet btn-sm' if a.grades_published else '' }}" {% if not graded_count and not a.grades_published %}disabled title="עוד לא נבדקה אף הגשה"{% endif %}>
+        {{ 'הסתר ציונים' if a.grades_published else 'פרסם ציונים לכולם' }}
+      </button>
+    </form>
+  </div>
+
   <section class="panel" id="submissions">
     <div class="panel-head">
       <h2>הגשות <span class="muted" style="font-weight:500">{{ submitted }} מתוך {{ roster|length }}</span></h2>
@@ -78,7 +127,7 @@
       <span class="list-search-count" id="roster-count" aria-live="polite"></span>
     </div>
     {% endif %}
-    <ul class="list roster" id="roster">
+    <ul class="list roster list-scroll" id="roster">
       {% for student, sub in roster %}
       <li data-filter-item data-filter-text="{{ student.name }} {{ student.email }}" {% if sub %}id="sub-{{ sub.id }}"{% endif %}>
         <div class="grow">
@@ -94,13 +143,29 @@
           <span class="pill {{ 'pill-danger' if past else '' }}">לא הגיש</span>
         {% else %}
           {% if sub.late %}<span class="pill pill-warn">באיחור</span>{% endif %}
-          <details class="grade-box">
-            <summary class="pill {{ 'pill-ok' if sub.graded else 'pill-brand' }}">{{ 'ציון ' ~ sub.grade if sub.graded else 'לבדיקה' }}</summary>
+          {% if sub.appeal_status == 'accepted' %}<span class="pill" title="הציון לפני הערעור: {{ sub.original_grade }}">ערעור התקבל</span>
+          {% elif sub.appeal_status == 'rejected' %}<span class="pill">ערעור נדחה</span>{% endif %}
+          <details class="grade-box"{% if sub.appeal_status == 'pending' %} open{% endif %}>
+            <summary class="pill {{ 'pill-danger' if sub.appeal_status == 'pending' else 'pill-ok' if sub.graded else 'pill-brand' }}">
+              {% if sub.appeal_status == 'pending' %}ערעור · ציון {{ sub.grade }}{% elif sub.graded %}ציון {{ sub.grade }}{% else %}לבדיקה{% endif %}
+            </summary>
+            {% if sub.appeal_status == 'pending' %}
+            <form method="post" action="{{ url_for('assignments.resolve_appeal', submission_id=sub.id) }}" class="grade-form appeal-resolve">
+              <p class="appeal-text" dir="auto"><strong>הערעור:</strong> {{ sub.appeal_text }}</p>
+              <label>ציון חדש (אם מקבלים)<input type="number" name="grade" min="0" max="100" inputmode="numeric" value="{{ sub.grade }}"></label>
+              <label>תשובה לסטודנט<textarea name="reply" rows="3" placeholder="חובה כשדוחים. רק הסטודנט רואה"></textarea></label>
+              <div class="row">
+                <button class="btn btn-sm" name="decision" value="accept">קבל ועדכן ציון</button>
+                <button class="btn btn-sm btn-danger" name="decision" value="reject">דחה</button>
+              </div>
+            </form>
+            {% else %}
             <form method="post" action="{{ url_for('assignments.grade', submission_id=sub.id) }}" class="grade-form" data-live-submit>
               <label>ציון<input type="number" name="grade" min="0" max="100" inputmode="numeric" value="{{ sub.grade if sub.graded else '' }}" placeholder="0–100"></label>
               <label>הערה לסטודנט<textarea name="feedback" rows="3" placeholder="רק הסטודנט רואה את ההערה">{{ sub.feedback }}</textarea></label>
               <button class="btn btn-sm">שמור</button>
             </form>
+            {% endif %}
           </details>
         {% endif %}
       </li>

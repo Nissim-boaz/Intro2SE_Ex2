@@ -22,7 +22,7 @@ The course page has a floating tab bar at the bottom (content, assignments, atte
 
 ### Assignments
 
-The lecturer publishes an assignment with instructions, a due date and an optional attached file. Each student submits one file and can replace it until the lecturer grades it. Submitting after the due date is allowed and marked as late; moving the due date updates the late mark on work already sent. The lecturer sees who submitted and who didn't, downloads each submission, and gives a grade (0 to 100) and a note that only that student sees.
+The lecturer publishes an assignment with instructions, a due date and an optional attached file. Each student submits one file and can replace it until the lecturer grades it. Submitting after the due date is allowed and marked as late; moving the due date updates the late mark on work already sent. The lecturer sees who submitted and who didn't, downloads each submission, and gives a grade (0 to 100) and a note that only that student sees. Grades stay hidden while the lecturer is grading, and one click publishes them to all students at once. After that, a student can appeal a grade once, and the lecturer accepts it with a new grade or rejects it with a reason.
 
 ### Attendance
 
@@ -142,4 +142,4 @@ Even if the audio doesn't work in the hall, the demo goes on: attendance is reco
 pytest -q
 ```
 
-The tests need no network and no models. They use a fake clock and fake transcription and LLM implementations, and cover, among other things, the 5-sample limit, QR and audio token expiry, the fallback path, unique votes, one reaction per user, anonymity by role, feedback privacy, late and graded submissions, and permissions.
+The tests need no network and no models. They use a fake clock and fake transcription and LLM implementations, and cover, among other things, the 5-sample limit, QR and audio token expiry, the fallback path, unique votes, one reaction per user, anonymity by role, feedback privacy, late and graded submissions, publishing grades, appeals, and permissions.

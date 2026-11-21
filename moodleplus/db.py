@@ -48,6 +48,13 @@ def _migrate(conn: sqlite3.Connection) -> None:
         ("recordings", "feedback_at"): "REAL NOT NULL DEFAULT 0",
         ("recordings", "transcript_edited_at"): "REAL NOT NULL DEFAULT 0",
         ("request_messages", "as_team"): "INTEGER NOT NULL DEFAULT 0",
+        # מטלות שכבר היו לפני שלב הפרסום נשארות עם ציונים גלויים, כמו שהיו
+        ("assignments", "grades_published"): "INTEGER NOT NULL DEFAULT 1",
+        ("submissions", "appeal_status"): "TEXT NOT NULL DEFAULT ''",
+        ("submissions", "appeal_text"): "TEXT NOT NULL DEFAULT ''",
+        ("submissions", "appeal_reply"): "TEXT NOT NULL DEFAULT ''",
+        ("submissions", "appeal_at"): "REAL NOT NULL DEFAULT 0",
+        ("submissions", "original_grade"): "INTEGER",
     }
     for (table, column), ddl in added.items():
         cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}

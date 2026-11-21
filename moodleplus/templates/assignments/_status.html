@@ -1,6 +1,8 @@
 {# One status pill, shared by the course tab and the assignment page. #}
 {% macro student_status(a, sub, now) -%}
-  {% if sub and sub.graded %}<span class="pill pill-ok">ציון {{ sub.grade }}</span>
+  {% if sub and sub.appeal_status == 'pending' %}<span class="pill pill-warn">ערעור בבדיקה</span>
+  {% elif sub and sub.grade_visible %}<span class="pill pill-ok">ציון {{ sub.grade }}</span>
+  {% elif sub and sub.graded %}<span class="pill pill-brand">נבדק</span>
   {% elif sub and sub.late %}<span class="pill pill-warn">הוגש באיחור</span>
   {% elif sub %}<span class="pill pill-ok">הוגש</span>
   {% elif now > a.due_at %}<span class="pill pill-danger">לא הוגש</span>
@@ -10,6 +12,7 @@
 
 {% macro lecturer_status(a, counts, students, now) -%}
   {% set c = counts.get(a.id, {'submitted': 0, 'ungraded': 0}) %}
+  {% if c.appeals %}<span class="pill pill-danger">{{ c.appeals }} ערעורים</span>{% endif %}
   {% if c.ungraded %}<span class="pill pill-brand">{{ c.ungraded }} לבדיקה</span>{% endif %}
   <span class="pill {{ 'pill-ok' if students and c.submitted == students else '' }}">{{ c.submitted }}/{{ students }} הגישו</span>
 {%- endmacro %}

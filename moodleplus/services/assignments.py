@@ -60,6 +60,7 @@ class Assignment:
     file_path: str
     file_name: str
     created_at: str
+    grades_published: bool = False
 
     @property
     def due_input(self) -> str:
@@ -69,7 +70,7 @@ class Assignment:
     @classmethod
     def from_row(cls, r) -> "Assignment":
         return cls(r["id"], r["course_id"], r["title"], r["description"], r["due_at"],
-                   r["file_path"], r["file_name"], r["created_at"])
+                   r["file_path"], r["file_name"], r["created_at"], bool(r["grades_published"]))
 
 
 @dataclass(frozen=True)
@@ -83,20 +84,35 @@ class Submission:
     grade: int | None
     feedback: str
     late: bool
+    published: bool = False        # המרצה פרסם את הציונים של המטלה
+    appeal_status: str = ""        # '' | pending | accepted | rejected
+    appeal_text: str = ""
+    appeal_reply: str = ""
+    original_grade: int | None = None
 
     @property
     def graded(self) -> bool:
         return self.grade is not None
 
+    @property
+    def grade_visible(self) -> bool:
+        """הסטודנט רואה ציון והערה רק אחרי שהמרצה פרסם את הציונים לכולם."""
+        return self.graded and self.published
+
+    @property
+    def can_appeal(self) -> bool:
+        return self.grade_visible and not self.appeal_status
+
     @classmethod
     def from_row(cls, r) -> "Submission":
         return cls(r["id"], r["assignment_id"], r["student_id"], r["file_path"], r["file_name"],
-                   r["submitted_at"], r["grade"], r["feedback"], bool(r["late"]))
+                   r["submitted_at"], r["grade"], r["feedback"], bool(r["late"]), bool(r["published"]),
+                   r["appeal_status"], r["appeal_text"], r["appeal_reply"], r["original_grade"])
 
 
 # late מחושב מול מועד ההגשה הנוכחי, כך שהארכה שהמרצה נותן מתקנת גם הגשות שכבר נשלחו
 _SUBMISSION_SQL = (
-    "SELECT s.*, s.submitted_at > a.due_at AS late FROM submissions s "
+    "SELECT s.*, s.submitted_at > a.due_at AS late, a.grades_published AS published FROM submissions s "
     "JOIN assignments a ON a.id = s.assignment_id"
 )
 
@@ -217,31 +233,93 @@ class AssignmentService:
         subs = {r["student_id"]: Submission.from_row(r) for r in self.db.execute(
             _SUBMISSION_SQL + " WHERE s.assignment_id = ?", (assignment_id,))}
         rows = [(u, subs.get(u.id)) for u in students]
-        rows.sort(key=lambda p: 0 if p[1] and not p[1].graded else 1 if p[1] else 2)
+        # ערעורים פתוחים קודם, אחר כך הגשות שמחכות לבדיקה, אחר כך שנבדקו, ובסוף מי שלא הגיש
+        def order(pair):
+            s = pair[1]
+            if s is None:
+                return 3
+            return 0 if s.appeal_status == "pending" else 1 if not s.graded else 2
+
+        rows.sort(key=order)
         return rows
 
     def counts(self, course_id: int) -> dict[int, dict]:
         """לעמוד הקורס של המרצה: כמה הגישו וכמה מחכים לבדיקה, לכל מטלה."""
         rows = self.db.execute(
-            "SELECT a.id, COUNT(s.id) AS submitted, SUM(s.id IS NOT NULL AND s.grade IS NULL) AS ungraded "
+            "SELECT a.id, COUNT(s.id) AS submitted, SUM(s.id IS NOT NULL AND s.grade IS NULL) AS ungraded, "
+            "SUM(s.appeal_status = 'pending') AS appeals "
             "FROM assignments a LEFT JOIN submissions s ON s.assignment_id = a.id "
             "AND s.student_id IN (SELECT user_id FROM enrollments WHERE course_id = a.course_id AND role = 'student') "
             "WHERE a.course_id = ? GROUP BY a.id", (course_id,))
-        return {r["id"]: {"submitted": r["submitted"], "ungraded": r["ungraded"] or 0} for r in rows}
+        return {r["id"]: {"submitted": r["submitted"], "ungraded": r["ungraded"] or 0, "appeals": r["appeals"] or 0}
+                for r in rows}
+
+    @staticmethod
+    def _parse_grade(grade: str) -> int | None:
+        value = (grade or "").strip()
+        if not value:
+            return None
+        try:
+            number = int(value)
+        except ValueError:
+            raise ValidationError("הציון צריך להיות מספר שלם")
+        if not 0 <= number <= MAX_GRADE:
+            raise ValidationError(f"הציון צריך להיות בין 0 ל-{MAX_GRADE}")
+        return number
+
+    def set_grades_published(self, assignment_id: int, published: bool) -> int:
+        """פרסום הציונים לכל הסטודנטים בבת אחת. מחזיר כמה ציונים נחשפו."""
+        self.get(assignment_id)
+        self.db.execute("UPDATE assignments SET grades_published = ? WHERE id = ?", (int(published), assignment_id))
+        self.db.commit()
+        return self.db.execute(
+            "SELECT COUNT(*) FROM submissions WHERE assignment_id = ? AND grade IS NOT NULL", (assignment_id,)
+        ).fetchone()[0]
+
+    # ---------- appeals ----------
+    def appeal(self, submission_id: int, student: User, text: str) -> Submission:
+        """ערעור אחד לכל הגשה, רק אחרי שהציון פורסם."""
+        sub = self.get_submission(submission_id)
+        if sub.student_id != student.id:
+            raise ValidationError("אפשר לערער רק על הציון שלך")
+        if not sub.grade_visible:
+            raise ValidationError("אפשר לערער רק אחרי שהציון פורסם")
+        if sub.appeal_status:
+            raise ValidationError("כבר הגשת ערעור על המטלה הזו")
+        text = (text or "").strip()
+        if not text:
+            raise ValidationError("כתוב על מה אתה מערער ולמה")
+        self.db.execute(
+            "UPDATE submissions SET appeal_status = 'pending', appeal_text = ?, appeal_at = ? WHERE id = ?",
+            (text[:4000], self.clock(), submission_id))
+        self.db.commit()
+        return self.get_submission(submission_id)
+
+    def resolve_appeal(self, submission_id: int, accept: bool, reply: str, new_grade: str = "") -> Submission:
+        """קבלה מחייבת ציון חדש (הציון הקודם נשמר להשוואה). דחייה משאירה את הציון."""
+        sub = self.get_submission(submission_id)
+        if sub.appeal_status != "pending":
+            raise ValidationError("אין ערעור פתוח על ההגשה הזו")
+        reply = (reply or "").strip()
+        if accept:
+            number = self._parse_grade(new_grade)
+            if number is None:
+                raise ValidationError("כדי לקבל את הערעור צריך לכתוב ציון חדש")
+            self.db.execute(
+                "UPDATE submissions SET appeal_status = 'accepted', appeal_reply = ?, original_grade = grade, "
+                "grade = ?, graded_at = ? WHERE id = ?", (reply, number, self.clock(), submission_id))
+        else:
+            if not reply:
+                raise ValidationError("כתוב לסטודנט למה הערעור נדחה")
+            self.db.execute("UPDATE submissions SET appeal_status = 'rejected', appeal_reply = ? WHERE id = ?",
+                            (reply, submission_id))
+        self.db.commit()
+        return self.get_submission(submission_id)
 
     def grade(self, submission_id: int, grade: str, feedback: str) -> Submission:
         """ציון 0 עד 100 והערה. ציון ריק מבטל את הבדיקה, והסטודנט יכול שוב להגיש מחדש."""
         self.get_submission(submission_id)
-        value = (grade or "").strip()
-        if value:
-            try:
-                number = int(value)
-            except ValueError:
-                raise ValidationError("הציון צריך להיות מספר שלם")
-            if not 0 <= number <= MAX_GRADE:
-                raise ValidationError(f"הציון צריך להיות בין 0 ל-{MAX_GRADE}")
-        else:
-            number = None
+        number = self._parse_grade(grade)
         self.db.execute(
             "UPDATE submissions SET grade = ?, feedback = ?, graded_at = ? WHERE id = ?",
             (number, (feedback or "").strip(), self.clock() if number is not None else 0, submission_id),

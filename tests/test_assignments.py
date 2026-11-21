@@ -90,9 +90,9 @@ def test_roster_and_counts(asg, people):
     roster = asg.roster(a.id)
     assert [u.id for u, _ in roster] == [people["s2"].id, people["s1"].id]  # waiting for grading comes first
     assert roster[1][1] is None
-    assert asg.counts(c)[a.id] == {"submitted": 1, "ungraded": 1}
+    assert asg.counts(c)[a.id] == {"submitted": 1, "ungraded": 1, "appeals": 0}
     asg.grade(s.id, "80", "")
-    assert asg.counts(c)[a.id] == {"submitted": 1, "ungraded": 0}
+    assert asg.counts(c)[a.id] == {"submitted": 1, "ungraded": 0, "appeals": 0}
     assert asg.my_submissions(c, people["s2"].id)[a.id].grade == 80
 
 
@@ -152,5 +152,91 @@ def test_routes_permissions(app, client):
     client.post("/submissions/1/grade", data={"grade": "92", "feedback": "מצוין"})
     login(client, s1.id)
     page = client.get("/assignments/1").get_data(as_text=True)
+    assert "מצוין" not in page and "הציון יופיע כאן" in page  # graded, not published yet
+    login(client, lect.id)
+    client.post("/assignments/1/publish-grades", data={"published": "1"})
+    login(client, s1.id)
+    page = client.get("/assignments/1").get_data(as_text=True)
     assert "92" in page and "מצוין" in page and "הגש מחדש" not in page
     conn.close()
+
+
+def test_grades_stay_hidden_until_published(asg, people):
+    c = people["course"].id
+    a = asg.create(c, "מטלה", "", DUE)
+    assert not a.grades_published
+    sub_ = asg.submit(a.id, people["s1"], "a.pdf", _file())
+    asg.grade(sub_.id, "88", "טוב")
+    mine = asg.submission_of(a.id, people["s1"].id)
+    assert mine.graded and not mine.grade_visible and not mine.can_appeal
+    assert asg.set_grades_published(a.id, True) == 1
+    mine = asg.my_submissions(c, people["s1"].id)[a.id]
+    assert mine.grade_visible and mine.can_appeal
+    asg.set_grades_published(a.id, False)  # the lecturer can hide them again
+    assert not asg.submission_of(a.id, people["s1"].id).grade_visible
+
+
+def test_appeal_once_then_accept_or_reject(asg, people):
+    c = people["course"].id
+    a = asg.create(c, "מטלה", "", DUE)
+    s1 = asg.submit(a.id, people["s1"], "a.pdf", _file())
+    s2 = asg.submit(a.id, people["s2"], "b.pdf", _file())
+    asg.grade(s1.id, "70", "")
+    asg.grade(s2.id, "60", "")
+    with pytest.raises(ValidationError):
+        asg.appeal(s1.id, people["s1"], "not published yet")
+    asg.set_grades_published(a.id, True)
+    with pytest.raises(ValidationError):
+        asg.appeal(s1.id, people["s2"], "not mine")
+    with pytest.raises(ValidationError):
+        asg.appeal(s1.id, people["s1"], "  ")
+    pending = asg.appeal(s1.id, people["s1"], "שאלה 2 נבדקה לא נכון")
+    assert pending.appeal_status == "pending" and not pending.can_appeal
+    with pytest.raises(ValidationError):
+        asg.appeal(s1.id, people["s1"], "again")  # one appeal per assignment
+    assert asg.counts(c)[a.id]["appeals"] == 1
+    assert asg.roster(a.id)[0][1].id == s1.id  # open appeals come first
+
+    with pytest.raises(ValidationError):
+        asg.resolve_appeal(s1.id, True, "", "")  # accepting needs a new grade
+    done = asg.resolve_appeal(s1.id, True, "צודק, תוקן", "85")
+    assert (done.appeal_status, done.grade, done.original_grade) == ("accepted", 85, 70)
+
+    asg.appeal(s2.id, people["s2"], "בבקשה")
+    with pytest.raises(ValidationError):
+        asg.resolve_appeal(s2.id, False, "")  # a rejection needs a reason
+    rejected = asg.resolve_appeal(s2.id, False, "הציון נשאר, חסרה דיאגרמת רצף")
+    assert (rejected.appeal_status, rejected.grade) == ("rejected", 60)
+    with pytest.raises(ValidationError):
+        asg.resolve_appeal(s2.id, True, "", "90")  # already decided
+
+
+def test_appeal_routes(app, client):
+    conn = connect(app.config["DATABASE"])
+    users = UserService(conn)
+    lect = users.create("l@test.ac.il", "מרצה", "lecturer")
+    stud = users.create("s1@test.ac.il", "סטודנטית", "student")
+    course = CourseService(conn).create("קורס")
+    EnrollmentService(conn).enroll_many(course.id, [lect, stud])
+    conn.close()
+    login(client, lect.id)
+    client.post(f"/courses/{course.id}/assignments", data={"title": "מטלה", "due": DUE})
+    login(client, stud.id)
+    client.post("/assignments/1/submit", data={"file": (io.BytesIO(b"x"), "a.pdf")}, content_type="multipart/form-data")
+    login(client, lect.id)
+    client.post("/submissions/1/grade", data={"grade": "70"})
+    client.post("/assignments/1/publish-grades", data={"published": "1"})
+
+    login(client, stud.id)
+    assert "ערעור על הציון" in client.get("/assignments/1").get_data(as_text=True)
+    client.post("/submissions/1/appeal", data={"text": "בדקו שוב את שאלה 3"})
+    client.post("/submissions/1/appeal/resolve", data={"decision": "accept", "grade": "100"})  # not allowed
+    page = client.get("/assignments/1").get_data(as_text=True)
+    assert "ממתין לתשובת המרצה" in page and ">70<" in page
+
+    login(client, lect.id)
+    assert "בדקו שוב את שאלה 3" in client.get("/assignments/1").get_data(as_text=True)
+    client.post("/submissions/1/appeal/resolve", data={"decision": "accept", "grade": "80", "reply": "תוקן"})
+    login(client, stud.id)
+    page = client.get("/assignments/1").get_data(as_text=True)
+    assert "התקבל, הציון עודכן" in page and ">80<" in page and "תוקן" in page
