@@ -75,19 +75,19 @@
       {% if mine.appeal_reply %}<p class="appeal-reply" dir="auto"><strong>תשובת המרצה:</strong> {{ mine.appeal_reply }}</p>{% endif %}
     </div>
     {% endif %}
-    {% elif mine.graded %}
-    <p class="note-info">ההגשה נבדקה. הציון יופיע כאן כשהמרצה יפרסם את הציונים לכולם.</p>
+    {% elif past %}
+    <p class="note-info">ההגשה בבדיקה. הציון יופיע כאן כשהמרצה יפרסם את הציונים.</p>
     {% endif %}
     {% else %}
     <p class="muted small">עוד לא הגשת.</p>
     {% endif %}
 
-    {% if not (mine and mine.graded) %}
+    {% if not (mine and mine.grade_visible) %}
     <form method="post" action="{{ url_for('assignments.submit', assignment_id=a.id) }}" enctype="multipart/form-data" class="stack submit-form" data-once>
       {% if past %}<p class="note-warn">המועד עבר. עדיין אפשר להגיש, וההגשה תסומן כמאחרת.</p>{% endif %}
       <input type="file" name="file" required>
       <button class="btn">{{ 'הגש מחדש' if mine else 'הגש' }}</button>
-      {% if mine %}<p class="xsmall muted">הגשה חדשה מחליפה את הקובץ הקודם. אפשר להגיש מחדש עד שהמרצה בודק.</p>{% endif %}
+      {% if mine %}<p class="xsmall muted">הגשה חדשה מחליפה את הקובץ הקודם. אפשר להגיש מחדש עד שהמרצה מפרסם את הציונים.</p>{% endif %}
     </form>
     {% endif %}
   </section>
@@ -97,6 +97,7 @@
   {% set submitted = roster|selectattr(1)|list|length %}
   {% set graded_count = roster|map(attribute=1)|select|selectattr('graded')|list|length %}
   {% set appeals = roster|map(attribute=1)|select|selectattr('appeal_status', 'equalto', 'pending')|list|length %}
+  {% include "assignments/_ai.html" %}
   <div class="publish-bar{% if a.grades_published %} is-published{% endif %}">
     <div class="grow">
       {% if a.grades_published %}
@@ -143,6 +144,8 @@
           <span class="pill {{ 'pill-danger' if past else '' }}">לא הגיש</span>
         {% else %}
           {% if sub.late %}<span class="pill pill-warn">באיחור</span>{% endif %}
+          {% if sub.ai_flag %}<span class="pill pill-danger ai-flag" title="{{ sub.ai_flag }}">⚠ {{ 'דמיון חשוד' if 'דומה' in sub.ai_flag else 'לא קשור' }}</span>{% endif %}
+          {% if sub.ai_ready and not sub.graded %}<span class="pill pill-ai" title="הצעת ציון של ה-AI">AI {{ sub.ai_grade }}</span>{% endif %}
           {% if sub.appeal_status == 'accepted' %}<span class="pill" title="הציון לפני הערעור: {{ sub.original_grade }}">ערעור התקבל</span>
           {% elif sub.appeal_status == 'rejected' %}<span class="pill">ערעור נדחה</span>{% endif %}
           <details class="grade-box"{% if sub.appeal_status == 'pending' %} open{% endif %}>
@@ -160,8 +163,27 @@
               </div>
             </form>
             {% else %}
+            {% if sub.ai_flag %}<p class="ai-flag-text" dir="auto">⚠ {{ sub.ai_flag }}</p>{% endif %}
+            {% if sub.ai_ready %}
+            <div class="ai-suggest">
+              <div class="ai-suggest-head">
+                <span class="pill pill-ai">הצעת AI: {{ sub.ai_grade }}</span>
+                {% if not sub.graded %}
+                <form method="post" action="{{ url_for('assignments.ai_approve', submission_id=sub.id) }}">
+                  <button class="btn btn-sm">אשר הצעה</button>
+                </form>
+                {% endif %}
+              </div>
+              {% if sub.ai_reason %}<p dir="auto"><strong>נימוק:</strong> {{ sub.ai_reason }}</p>{% endif %}
+              {% if sub.ai_feedback %}<p dir="auto"><strong>משוב לסטודנט:</strong> {{ sub.ai_feedback }}</p>{% endif %}
+              {% if sub.ai_class_note %}<p dir="auto"><strong>ביחס לכיתה:</strong> {{ sub.ai_class_note }}</p>{% endif %}
+              <p class="xsmall muted">אישור שומר את הציון ואת המשוב (אם עוד לא כתבת הערה). הסטודנט יראה אותם רק אחרי שתפרסם.</p>
+            </div>
+            {% elif sub.ai_error and sub.ai_at >= sub.submitted_at %}
+            <p class="ai-flag-text">ה-AI לא בדק את ההגשה: {{ sub.ai_error }}</p>
+            {% endif %}
             <form method="post" action="{{ url_for('assignments.grade', submission_id=sub.id) }}" class="grade-form" data-live-submit>
-              <label>ציון<input type="number" name="grade" min="0" max="100" inputmode="numeric" value="{{ sub.grade if sub.graded else '' }}" placeholder="0–100"></label>
+              <label>ציון<input type="number" name="grade" min="0" max="100" inputmode="numeric" value="{{ sub.grade if sub.graded else '' }}" placeholder="{{ 'הצעת AI: ' ~ sub.ai_grade if sub.ai_ready else '0–100' }}"></label>
               <label>הערה לסטודנט<textarea name="feedback" rows="3" placeholder="רק הסטודנט רואה את ההערה">{{ sub.feedback }}</textarea></label>
               <button class="btn btn-sm">שמור</button>
             </form>
@@ -190,4 +212,7 @@
   </dialog>
   {% endif %}
 </article>
+{% endblock %}
+{% block scripts %}
+{% if can_manage %}<script src="{{ url_for('static', filename='js/assignments.js') }}"></script>{% endif %}
 {% endblock %}

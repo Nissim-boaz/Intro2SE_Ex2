@@ -69,7 +69,7 @@ def test_late_submission_is_allowed_and_marked(asg, people, clock):
     assert not asg.get_submission(sub.id).late
 
 
-def test_grade_validation_and_no_resubmit_after_grading(asg, people):
+def test_grade_validation_and_resubmit_until_published(asg, people):
     a = asg.create(people["course"].id, "מטלה", "", DUE)
     sub = asg.submit(a.id, people["s1"], "a.pdf", _file())
     for bad in ("abc", "101", "-1"):
@@ -77,10 +77,13 @@ def test_grade_validation_and_no_resubmit_after_grading(asg, people):
             asg.grade(sub.id, bad, "")
     graded = asg.grade(sub.id, "95", "יפה מאוד")
     assert graded.grade == 95 and graded.feedback == "יפה מאוד"
+    # the student can't tell it was graded, so resubmitting still works, and the old grade goes away
+    again = asg.submit(a.id, people["s1"], "b.pdf", _file())
+    assert again.id == sub.id and again.grade is None and again.feedback == ""
+    asg.grade(sub.id, "90", "")
+    asg.set_grades_published(a.id, True)
     with pytest.raises(ValidationError):
-        asg.submit(a.id, people["s1"], "b.pdf", _file())
-    asg.grade(sub.id, "", "")  # clearing the grade opens resubmission again
-    asg.submit(a.id, people["s1"], "b.pdf", _file())
+        asg.submit(a.id, people["s1"], "c.pdf", _file())
 
 
 def test_roster_and_counts(asg, people):
@@ -152,7 +155,7 @@ def test_routes_permissions(app, client):
     client.post("/submissions/1/grade", data={"grade": "92", "feedback": "מצוין"})
     login(client, s1.id)
     page = client.get("/assignments/1").get_data(as_text=True)
-    assert "מצוין" not in page and "הציון יופיע כאן" in page  # graded, not published yet
+    assert "מצוין" not in page and ">92<" not in page and "נבדק" not in page  # graded, but nothing shows yet
     login(client, lect.id)
     client.post("/assignments/1/publish-grades", data={"published": "1"})
     login(client, s1.id)

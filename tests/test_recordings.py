@@ -138,7 +138,7 @@ def _scripted_provider(script):
     class Scripted(GeminiProvider):
         calls = []
 
-        def _call(self, model, prompt):
+        def _call(self, model, prompt, files=None):
             self.calls.append(model)
             result = script[model].pop(0)
             if isinstance(result, Exception):

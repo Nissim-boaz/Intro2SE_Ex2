@@ -1322,3 +1322,26 @@ body.tabbed .tab-on { animation: tab-in .24s var(--ease); }
 .att-resolve input { flex: 1; min-width: 200px; }
 
 .att-appeals { margin-bottom: 20px; }
+
+/* ---------- checking assignments with AI ---------- */
+:root { --ai: #7C4DDB; --ai-soft: rgba(124, 77, 219, .12); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ai: #B39AF5; --ai-soft: rgba(179, 154, 245, .16); } }
+:root[data-theme="dark"] { --ai: #B39AF5; --ai-soft: rgba(179, 154, 245, .16); }
+.pill-ai { background: var(--ai-soft); color: var(--ai); }
+.ai-spark { color: var(--ai); }
+.ai-panel { display: grid; gap: 12px; }
+.ai-panel > summary h2 { display: inline-flex; align-items: center; gap: 8px; }
+.ai-panel > summary { display: flex; align-items: center; gap: 10px; }
+.ai-panel > summary h2 { flex: 1; }
+.ai-settings { padding: 14px; border-radius: var(--r-md); background: var(--fill); }
+.ai-settings .btn { justify-self: start; }
+.ai-run { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 14px; border-radius: var(--r-md); background: var(--ai-soft); }
+.ai-run .grow { flex: 1; min-width: 220px; display: grid; gap: 6px; }
+.ai-run .level { height: 6px; border-radius: 6px; background: var(--fill-2); overflow: hidden; }
+.ai-run .level span { display: block; height: 100%; background: var(--ai); transform-origin: right; transition: transform .5s var(--ease); }
+.ai-error { color: var(--danger); }
+.ai-suggest { display: grid; gap: 6px; padding: 12px 14px; margin-bottom: 10px; border-radius: var(--r-md); background: var(--ai-soft); font-size: var(--fs-sm); line-height: 1.55; }
+.ai-suggest p { white-space: pre-line; }
+.ai-suggest-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ai-flag-text { margin-bottom: 10px; padding: 8px 12px; border-radius: var(--r-sm); background: var(--danger-soft); color: var(--danger); font-size: var(--fs-sm); white-space: pre-line; }
+.publish-bar { margin-top: 0; }

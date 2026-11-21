@@ -1,0 +1,69 @@
+{# Lecturer only: checking the submissions with AI. Needs a, roster, submitted. #}
+{% set ai_ready = roster|map(attribute=1)|select|selectattr('ai_ready')|list %}
+{% set ai_waiting = ai_ready|rejectattr('graded')|list|length %}
+{% set ai_flagged = roster|map(attribute=1)|select|selectattr('ai_flag')|list|length %}
+<details class="panel ai-panel fold" id="ai" data-fold="ai-grading"{% if a.ai_status == 'running' %} data-ai-running data-ai-status-url="{{ url_for('assignments.ai_status', assignment_id=a.id) }}"{% endif %} open>
+  <summary class="fold-head">
+    <h2><span class="ai-spark" aria-hidden="true">✦</span> בדיקה עם AI</h2>
+    {% if a.ai_status == 'running' %}<span class="pill pill-brand"><span class="spinner" aria-hidden="true"></span>בודק</span>
+    {% elif ai_waiting %}<span class="pill pill-ai">{{ ai_waiting }} הצעות לאישור</span>{% endif %}
+    <span class="fold-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <p class="muted small">ה-AI מציע ציון, נימוק ומשוב בונה לכל הגשה, ומשווה בין כל ההגשות. שום דבר לא מגיע לסטודנטים עד שתאשר ותפרסם.</p>
+
+  <form method="post" action="{{ url_for('assignments.ai_settings', assignment_id=a.id) }}" enctype="multipart/form-data" class="stack ai-settings" data-live-submit>
+    <label>דגשים לבדיקה (לא חובה)
+      <textarea name="guidelines" rows="3" maxlength="8000" placeholder="למשל: דיאגרמת מחלקות 40 נקודות, דיאגרמת רצף 40, קוד 20. להוריד נקודות על חוסר ב-multiplicity">{{ a.ai_guidelines }}</textarea>
+    </label>
+    <label>פתרון לדוגמה (לא חובה)<input type="file" name="solution"></label>
+    {% if a.ai_solution_name %}
+    <div class="row">
+      <a class="file-chip" href="{{ url_for('assignments.ai_solution', assignment_id=a.id) }}"><span dir="auto">{{ a.ai_solution_name }}</span></a>
+      <label class="switch"><input type="checkbox" name="remove_solution" value="1"><span class="switch-track" aria-hidden="true"></span>הסר</label>
+    </div>
+    {% endif %}
+    <button class="btn btn-quiet btn-sm">שמור דגשים</button>
+  </form>
+
+  <div class="ai-run">
+    {% if a.ai_status == 'running' %}
+      <div class="grow">
+        <strong>בודק את ההגשות: <span data-ai-done>{{ a.ai_done }}</span> מתוך {{ a.ai_total }}</strong>
+        <div class="level"><span data-ai-bar style="transform:scaleX({{ (a.ai_done / a.ai_total) if a.ai_total else 0 }})"></span></div>
+        <span class="xsmall muted">אפשר לסגור את העמוד. בגלל המגבלות של Gemini בחינם, זה לוקח בערך 5 שניות להגשה.</span>
+      </div>
+      <form method="post" action="{{ url_for('assignments.ai_cancel', assignment_id=a.id) }}" data-once>
+        <button class="btn btn-quiet btn-sm">עצור</button>
+      </form>
+    {% else %}
+      <div class="grow">
+        {% if a.ai_status == 'failed' %}<strong class="ai-error">{{ a.ai_error or 'הבדיקה נכשלה' }}</strong>
+        {% elif a.ai_status == 'cancelled' %}<strong>הבדיקה נעצרה.</strong> <span class="muted small">ההצעות שכבר נכתבו נשמרו.</span>
+        {% elif ai_ready %}<strong>ה-AI בדק {{ ai_ready|length }} הגשות.</strong>
+          <span class="muted small">{% if ai_flagged %}{{ ai_flagged }} מסומנות ב-⚠ לבדיקה שלך. {% endif %}{% if a.ai_error %}{{ a.ai_error }}.{% endif %}</span>
+        {% else %}<strong>ה-AI עוד לא בדק את המטלה.</strong>
+        {% endif %}
+      </div>
+      <div class="row">
+        {% if ai_waiting %}
+        <form method="post" action="{{ url_for('assignments.ai_approve_all', assignment_id=a.id) }}"
+              data-confirm="לאשר את ההצעות של ה-AI ל-{{ ai_waiting }} הגשות שעוד אין להן ציון? ציונים שכבר נתת לא ישתנו, והסטודנטים יראו אותם רק אחרי שתפרסם." data-confirm-ok="אשר הכל">
+          <button class="btn btn-sm">אשר את כל ההצעות ({{ ai_waiting }})</button>
+        </form>
+        {% endif %}
+        <form method="post" action="{{ url_for('assignments.ai_run', assignment_id=a.id) }}" data-once>
+          <button class="btn btn-sm {{ 'btn-quiet' if ai_ready else '' }}" {% if not submitted %}disabled title="עוד אין הגשות"{% endif %}>{{ 'בדוק הגשות חדשות' if ai_ready else 'בדוק את כל ההגשות עם AI' }}</button>
+        </form>
+        {% if ai_ready %}
+        <form method="post" action="{{ url_for('assignments.ai_run', assignment_id=a.id) }}" data-once
+              data-confirm="לבדוק מחדש את כל ההגשות? ההצעות הקודמות יוחלפו. ציונים שכבר נתת לא ישתנו." data-confirm-ok="בדוק מחדש">
+          <input type="hidden" name="redo" value="1">
+          <button class="btn btn-quiet btn-sm">בדוק מחדש את כולן</button>
+        </form>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+  <p class="xsmall muted">הקבצים נשלחים ל-Gemini של Google. ב-free tier, Google רשאית להשתמש בתוכן כדי לשפר את המודלים שלה.</p>
+</details>

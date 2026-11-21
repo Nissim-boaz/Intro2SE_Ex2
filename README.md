@@ -22,7 +22,9 @@ The course page has a floating tab bar at the bottom (content, assignments, atte
 
 ### Assignments
 
-The lecturer publishes an assignment with instructions, a due date and an optional attached file. Each student submits one file and can replace it until the lecturer grades it. Submitting after the due date is allowed and marked as late; moving the due date updates the late mark on work already sent. The lecturer sees who submitted and who didn't, downloads each submission, and gives a grade (0 to 100) and a note that only that student sees. Grades stay hidden while the lecturer is grading, and one click publishes them to all students at once. After that, a student can appeal a grade once, and the lecturer accepts it with a new grade or rejects it with a reason.
+The lecturer publishes an assignment with instructions, a due date and an optional attached file. Each student submits one file and can replace it until the lecturer grades it. Submitting after the due date is allowed and marked as late; moving the due date updates the late mark on work already sent. The lecturer sees who submitted and who didn't, downloads each submission, and gives a grade (0 to 100) and a note that only that student sees. Grades stay hidden while the lecturer is grading, and one click publishes them to all students at once. After that, a student can appeal a grade once, and the lecturer accepts it with a new grade or rejects it (a reason is optional).
+
+The lecturer can also have the AI check the submissions. Optionally, they add grading notes and a reference solution so the check is more accurate. In the background, Gemini reads each submission (text, code, Word, PowerPoint, zip, PDF, or an image of a diagram) and suggests a grade, a reason for the lecturer, and constructive feedback for the student. One more pass over the whole class adds a note relative to the class, with no names ("unlike most of the class, you didn't include a sequence diagram"), and a local text comparison flags for the lecturer only submissions that look copied from each other. These are only suggestions: the lecturer approves each one, or all at once, and students see nothing until the grades are published. Before publishing, students can't tell whether their work was checked, and they can still resubmit.
 
 ### Attendance
 
@@ -81,6 +83,8 @@ moodleplus/
     recordings.py    RecordingService, BackgroundJobRunner
     transcription.py Transcriber, WhisperTranscriber, AudioExtractor
     llm.py           LLMProvider, GeminiProvider, LessonSummarizer, LessonFeedbackWriter
+    ai_grading.py    AIGradingService, SubmissionReviewer, ClassComparer, AIGradingRunner
+    documents.py     read_document (submission files as text or as files for Gemini), similarity
   blueprints/        thin routes: read the request, call a service, return a template or JSON
   static/js/         audio_emitter.js (AudioTokenEmitter), audio_listener.js (AudioTokenListener), chat.js and more
 tests/               pytest tests for every service

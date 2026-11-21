@@ -58,6 +58,23 @@ def _migrate(conn: sqlite3.Connection) -> None:
         ("submissions", "appeal_reply"): "TEXT NOT NULL DEFAULT ''",
         ("submissions", "appeal_at"): "REAL NOT NULL DEFAULT 0",
         ("submissions", "original_grade"): "INTEGER",
+        ("assignments", "ai_guidelines"): "TEXT NOT NULL DEFAULT ''",
+        ("assignments", "ai_solution_path"): "TEXT NOT NULL DEFAULT ''",
+        ("assignments", "ai_solution_name"): "TEXT NOT NULL DEFAULT ''",
+        ("assignments", "ai_status"): "TEXT NOT NULL DEFAULT ''",
+        ("assignments", "ai_error"): "TEXT NOT NULL DEFAULT ''",
+        ("assignments", "ai_job"): "INTEGER NOT NULL DEFAULT 0",
+        ("assignments", "ai_done"): "INTEGER NOT NULL DEFAULT 0",
+        ("assignments", "ai_total"): "INTEGER NOT NULL DEFAULT 0",
+        ("submissions", "ai_grade"): "INTEGER",
+        ("submissions", "ai_reason"): "TEXT NOT NULL DEFAULT ''",
+        ("submissions", "ai_feedback"): "TEXT NOT NULL DEFAULT ''",
+        ("submissions", "ai_class_note"): "TEXT NOT NULL DEFAULT ''",
+        ("submissions", "ai_summary"): "TEXT NOT NULL DEFAULT ''",
+        ("submissions", "ai_off_topic"): "INTEGER NOT NULL DEFAULT 0",
+        ("submissions", "ai_flag"): "TEXT NOT NULL DEFAULT ''",
+        ("submissions", "ai_error"): "TEXT NOT NULL DEFAULT ''",
+        ("submissions", "ai_at"): "REAL NOT NULL DEFAULT 0",
     }
     for (table, column), ddl in added.items():
         cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}

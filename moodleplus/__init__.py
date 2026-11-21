@@ -63,6 +63,9 @@ def _start_jobs(app: Flask) -> None:
     except ImportError:
         return
     start_runner(app)
+    from .services.ai_grading import start_grading_runner
+
+    start_grading_runner(app)
 
 
 HEBREW_MONTHS = ("ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט",

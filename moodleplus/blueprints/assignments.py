@@ -1,11 +1,12 @@
 """מטלות: פרסום ועריכה (מרצה), הגשה (סטודנט), ובדיקה עם ציון (מרצה)."""
 import time
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, send_file, url_for
 
 from ..db import get_db
 from ..errors import Forbidden
 from ..security import current_user, login_required
+from ..services.ai_grading import AIGradingService
 from ..services.assignments import AssignmentService
 from ..services.content import FileStore
 from ..services.courses import CourseService, EnrollmentService
@@ -167,3 +168,79 @@ def grade(submission_id: int):
     service.grade(submission_id, request.form.get("grade", ""), request.form.get("feedback", ""))
     flash("הציון נשמר", "success")
     return redirect(url_for("assignments.show", assignment_id=sub.assignment_id) + f"#sub-{submission_id}")
+
+
+# ---------- checking with AI (lecturer) ----------
+def _ai(assignment_id: int) -> AIGradingService:
+    service = AIGradingService(get_db(), FileStore(current_app.config["UPLOAD_DIR"]))
+    EnrollmentService(get_db()).require_manager(service.assignments.get(assignment_id).course_id, current_user())
+    return service
+
+
+def _ai_page(assignment_id: int):
+    return redirect(url_for("assignments.show", assignment_id=assignment_id) + "#ai")
+
+
+@bp.post("/assignments/<int:assignment_id>/ai/settings")
+@login_required
+def ai_settings(assignment_id: int):
+    upload = request.files.get("solution")
+    _ai(assignment_id).save_settings(assignment_id, request.form.get("guidelines", ""),
+                                     upload.filename if upload else "", upload,
+                                     remove_solution=request.form.get("remove_solution") == "1")
+    flash("הדגשים לבדיקה נשמרו", "success")
+    return _ai_page(assignment_id)
+
+
+@bp.post("/assignments/<int:assignment_id>/ai/run")
+@login_required
+def ai_run(assignment_id: int):
+    service = _ai(assignment_id)
+    already = service.assignments.get(assignment_id).ai_status == "running"
+    job = service.request(assignment_id, redo=request.form.get("redo") == "1")
+    runner = current_app.extensions.get("grading_runner")
+    if runner and not already:  # לחיצה כפולה לא מתחילה בדיקה שנייה
+        runner.enqueue(assignment_id, job)
+    return _ai_page(assignment_id)
+
+
+@bp.post("/assignments/<int:assignment_id>/ai/cancel")
+@login_required
+def ai_cancel(assignment_id: int):
+    _ai(assignment_id).cancel(assignment_id)
+    return _ai_page(assignment_id)
+
+
+@bp.get("/api/assignments/<int:assignment_id>/ai-status")
+@login_required
+def ai_status(assignment_id: int):
+    a = _ai(assignment_id).assignments.get(assignment_id)
+    return jsonify(ok=True, status=a.ai_status, done=a.ai_done, total=a.ai_total)
+
+
+@bp.get("/assignments/<int:assignment_id>/ai/solution")
+@login_required
+def ai_solution(assignment_id: int):
+    service = _ai(assignment_id)
+    a = service.assignments.get(assignment_id)
+    if not a.ai_solution_path:
+        raise Forbidden("אין פתרון לדוגמה")
+    return _send(service.assignments, a.ai_solution_path, a.ai_solution_name)
+
+
+@bp.post("/submissions/<int:submission_id>/ai/approve")
+@login_required
+def ai_approve(submission_id: int):
+    files = FileStore(current_app.config["UPLOAD_DIR"])
+    sub = AssignmentService(get_db(), files).get_submission(submission_id)
+    _ai(sub.assignment_id).approve(submission_id)
+    flash("ההצעה אושרה", "success")
+    return redirect(url_for("assignments.show", assignment_id=sub.assignment_id) + f"#sub-{submission_id}")
+
+
+@bp.post("/assignments/<int:assignment_id>/ai/approve-all")
+@login_required
+def ai_approve_all(assignment_id: int):
+    count = _ai(assignment_id).approve_all(assignment_id)
+    flash(f"אושרו {count} הצעות. הסטודנטים יראו אותן אחרי שתפרסם את הציונים", "success")
+    return _page(assignment_id)

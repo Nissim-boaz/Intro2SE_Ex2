@@ -36,23 +36,24 @@ class GeminiProvider(LLMProvider):
         self.timeout_seconds = timeout_seconds
         self.backoff_seconds = backoff_seconds
 
-    def generate_json(self, prompt: str) -> dict:
+    def generate_json(self, prompt: str, files: list[tuple[str, bytes]] | None = None) -> dict:
+        """files: קבצים שהמודל צריך לראות בעצמו, כ-(mime, bytes). למשל PDF סרוק או תמונה של דיאגרמה."""
         import time
 
         last_error = None
         for model in self.models:
             for attempt in range(self.attempts):
                 try:
-                    return parse_json(self._call(model, prompt))
+                    return parse_json(self._call(model, prompt, files))
                 except Exception as err:
                     last_error = err
                     if not self._retryable(err):
                         break  # למשל מודל שלא קיים: אין טעם לנסות שוב, עוברים לבא
                     if attempt + 1 < self.attempts:
                         time.sleep(self.backoff_seconds * (attempt + 1))
-        raise LLMError(f"Gemini לא הצליח לסכם כרגע. נסה שוב בעוד כמה דקות ({last_error})")
+        raise LLMError(f"Gemini לא ענה כרגע. נסה שוב בעוד כמה דקות ({last_error})")
 
-    def _call(self, model: str, prompt: str) -> str:
+    def _call(self, model: str, prompt: str, files: list[tuple[str, bytes]] | None = None) -> str:
         from google import genai
         from google.genai import types
 
@@ -60,7 +61,7 @@ class GeminiProvider(LLMProvider):
                               http_options=types.HttpOptions(timeout=self.timeout_seconds * 1000))
         resp = client.models.generate_content(
             model=model,
-            contents=prompt,
+            contents=[prompt] + [types.Part.from_bytes(data=data, mime_type=mime) for mime, data in (files or [])],
             config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.3),
         )
         return resp.text or ""

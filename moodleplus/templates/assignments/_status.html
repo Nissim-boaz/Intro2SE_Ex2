@@ -2,7 +2,6 @@
 {% macro student_status(a, sub, now) -%}
   {% if sub and sub.appeal_status == 'pending' %}<span class="pill pill-warn">ערעור בבדיקה</span>
   {% elif sub and sub.grade_visible %}<span class="pill pill-ok">ציון {{ sub.grade }}</span>
-  {% elif sub and sub.graded %}<span class="pill pill-brand">נבדק</span>
   {% elif sub and sub.late %}<span class="pill pill-warn">הוגש באיחור</span>
   {% elif sub %}<span class="pill pill-ok">הוגש</span>
   {% elif now > a.due_at %}<span class="pill pill-danger">לא הוגש</span>

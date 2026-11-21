@@ -61,6 +61,14 @@ class Assignment:
     file_name: str
     created_at: str
     grades_published: bool = False
+    ai_guidelines: str = ""
+    ai_solution_path: str = ""
+    ai_solution_name: str = ""
+    ai_status: str = ""      # '' | running | done | failed | cancelled
+    ai_error: str = ""
+    ai_job: int = 0
+    ai_done: int = 0
+    ai_total: int = 0
 
     @property
     def due_input(self) -> str:
@@ -70,7 +78,9 @@ class Assignment:
     @classmethod
     def from_row(cls, r) -> "Assignment":
         return cls(r["id"], r["course_id"], r["title"], r["description"], r["due_at"],
-                   r["file_path"], r["file_name"], r["created_at"], bool(r["grades_published"]))
+                   r["file_path"], r["file_name"], r["created_at"], bool(r["grades_published"]),
+                   r["ai_guidelines"], r["ai_solution_path"], r["ai_solution_name"], r["ai_status"], r["ai_error"],
+                   r["ai_job"], r["ai_done"], r["ai_total"])
 
 
 @dataclass(frozen=True)
@@ -89,6 +99,18 @@ class Submission:
     appeal_text: str = ""
     appeal_reply: str = ""
     original_grade: int | None = None
+    ai_grade: int | None = None
+    ai_reason: str = ""
+    ai_feedback: str = ""
+    ai_class_note: str = ""
+    ai_flag: str = ""
+    ai_error: str = ""
+    ai_at: float = 0.0
+
+    @property
+    def ai_ready(self) -> bool:
+        """יש הצעה של ה-AI, והיא על הקובץ הנוכחי (לא על הגשה קודמת)."""
+        return self.ai_grade is not None and self.ai_at >= self.submitted_at
 
     @property
     def graded(self) -> bool:
@@ -107,7 +129,9 @@ class Submission:
     def from_row(cls, r) -> "Submission":
         return cls(r["id"], r["assignment_id"], r["student_id"], r["file_path"], r["file_name"],
                    r["submitted_at"], r["grade"], r["feedback"], bool(r["late"]), bool(r["published"]),
-                   r["appeal_status"], r["appeal_text"], r["appeal_reply"], r["original_grade"])
+                   r["appeal_status"], r["appeal_text"], r["appeal_reply"], r["original_grade"],
+                   r["ai_grade"], r["ai_reason"], r["ai_feedback"], r["ai_class_note"], r["ai_flag"], r["ai_error"],
+                   r["ai_at"])
 
 
 # late מחושב מול מועד ההגשה הנוכחי, כך שהארכה שהמרצה נותן מתקנת גם הגשות שכבר נשלחו
@@ -171,6 +195,7 @@ class AssignmentService:
         for (rel,) in self.db.execute("SELECT file_path FROM submissions WHERE assignment_id = ?", (assignment_id,)):
             self.files.delete(rel)
         self.files.delete(current.file_path)
+        self.files.delete(current.ai_solution_path)
         self.db.execute("DELETE FROM assignments WHERE id = ?", (assignment_id,))
         self.db.commit()
 
@@ -183,18 +208,23 @@ class AssignmentService:
 
     # ---------- submissions (student) ----------
     def submit(self, assignment_id: int, student: User, file_name: str, upload) -> Submission:
-        """הגשה אחת לסטודנט. הגשה חוזרת מחליפה את הקובץ, עד שהמרצה בודק. אחרי המועד מותר, ומסומן כאיחור."""
+        """הגשה אחת לסטודנט. הגשה חוזרת מחליפה את הקובץ עד שהמרצה מפרסם ציונים. אחרי המועד מותר, ומסומן כאיחור.
+
+        הסטודנט לא יודע אם המרצה כבר בדק לפני הפרסום, אז הגשה חוזרת מותרת גם אז: הבדיקה הקודמת נמחקת
+        והמרצה רואה את ההגשה שוב כממתינה לבדיקה.
+        """
         assignment = self.get(assignment_id)
         if not file_name:
             raise ValidationError("בחר קובץ להגשה")
         previous = self.submission_of(assignment_id, student.id)
-        if previous and previous.graded:
-            raise ValidationError("המטלה כבר נבדקה, אז אי אפשר להגיש אותה מחדש")
+        if previous and previous.grade_visible:
+            raise ValidationError("הציונים כבר פורסמו, אז אי אפשר להגיש את המטלה מחדש")
         rel = self.files.save_stream(f"submissions/{assignment.id}", file_name, upload)
         if previous:
             self.files.delete(previous.file_path)
             self.db.execute(
-                "UPDATE submissions SET file_path = ?, file_name = ?, submitted_at = ? WHERE id = ?",
+                "UPDATE submissions SET file_path = ?, file_name = ?, submitted_at = ?, grade = NULL, feedback = '', "
+                "graded_at = 0, ai_grade = NULL, ai_flag = '', ai_at = 0 WHERE id = ?",
                 (rel, file_name, self.clock(), previous.id),
             )
         else:

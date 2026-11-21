@@ -29,6 +29,8 @@ class Config:
     DEFAULT_SAMPLE_SECONDS = 120
 
     GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+    # הפסקה בין הגשות בבדיקה עם AI, כי ה-free tier מגביל כמה בקשות בדקה
+    AI_GRADING_DELAY = float(os.environ.get("AI_GRADING_DELAY", "4"))
     GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
     # מודלים לגיבוי כשהראשי עמוס, מופרדים בפסיק
     GEMINI_FALLBACK_MODELS = [

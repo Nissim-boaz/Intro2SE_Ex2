@@ -175,6 +175,15 @@ CREATE TABLE IF NOT EXISTS assignments (
     file_path   TEXT NOT NULL DEFAULT '',   -- קובץ מצורף מהמרצה (לא חובה)
     file_name   TEXT NOT NULL DEFAULT '',
     grades_published INTEGER NOT NULL DEFAULT 0,  -- 0: המרצה בודק, והסטודנטים עוד לא רואים ציונים
+    -- בדיקה עם AI: דגשים ופתרון לדוגמה (לא חובה), ומצב הבדיקה ברקע
+    ai_guidelines    TEXT NOT NULL DEFAULT '',
+    ai_solution_path TEXT NOT NULL DEFAULT '',
+    ai_solution_name TEXT NOT NULL DEFAULT '',
+    ai_status        TEXT NOT NULL DEFAULT '',     -- '' | running | done | failed | cancelled
+    ai_error         TEXT NOT NULL DEFAULT '',
+    ai_job           INTEGER NOT NULL DEFAULT 0,   -- מונה בקשות: תוצאה של בקשה שבוטלה נזרקת
+    ai_done          INTEGER NOT NULL DEFAULT 0,
+    ai_total         INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -195,6 +204,16 @@ CREATE TABLE IF NOT EXISTS submissions (
     appeal_reply   TEXT NOT NULL DEFAULT '',
     appeal_at      REAL NOT NULL DEFAULT 0,
     original_grade INTEGER,                   -- הציון לפני שערעור התקבל
+    -- הצעת ה-AI. המרצה רואה, ורק אם הוא מאשר הציון והמשוב עוברים לסטודנט
+    ai_grade       INTEGER,
+    ai_reason      TEXT NOT NULL DEFAULT '',  -- למרצה
+    ai_feedback    TEXT NOT NULL DEFAULT '',  -- טיוטת משוב בונה לסטודנט
+    ai_class_note  TEXT NOT NULL DEFAULT '',  -- ההגשה ביחס לכיתה, בלי שמות
+    ai_summary     TEXT NOT NULL DEFAULT '',
+    ai_off_topic   INTEGER NOT NULL DEFAULT 0,
+    ai_flag        TEXT NOT NULL DEFAULT '',  -- למרצה בלבד: דמיון חשוד להגשה אחרת, או הגשה לא קשורה
+    ai_error       TEXT NOT NULL DEFAULT '',
+    ai_at          REAL NOT NULL DEFAULT 0,
     UNIQUE (assignment_id, student_id)
 );
 
