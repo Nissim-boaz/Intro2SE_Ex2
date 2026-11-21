@@ -96,7 +96,7 @@ python seed.py --reset           # demo data: a lecturer, 105 students, a course
 python run.py
 ```
 
-The site runs at `http://localhost:5000`. With `MOCK_AUTH=1`, the sign-in page lets you pick a role and a user. The admin's email comes from `ADMIN_EMAIL`, and the admin is created automatically on the first run.
+The site runs at `http://localhost:5001` (the exact address is printed on start). Port 5000 is skipped because macOS uses it for AirPlay Receiver; if 5001 is taken, the next free port is used. Set `PORT` to force a specific port. With `MOCK_AUTH=1`, the sign-in page lets you pick a role and a user. The admin's email comes from `ADMIN_EMAIL`, and the admin is created automatically on the first run.
 
 Important settings in `.env`:
 
@@ -121,7 +121,7 @@ On a phone, the microphone works only over HTTPS. The simplest way is a Cloudfla
 ```bash
 winget install --id Cloudflare.cloudflared     # on Mac: brew install cloudflared
 python run.py                                  # in one window
-cloudflared tunnel --url http://localhost:5000 # in a second window
+cloudflared tunnel --url http://localhost:5001 # in a second window (use the port printed on start)
 ```
 
 cloudflared prints an address like `https://something.trycloudflare.com`, which is what you open on the phones. The address changes on every run. For Google sign-in to work behind the tunnel, add the address in Google Cloud Console under Authorized JavaScript origins.
