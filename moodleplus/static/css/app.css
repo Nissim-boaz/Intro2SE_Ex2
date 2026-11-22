@@ -1345,3 +1345,7 @@ body.tabbed .tab-on { animation: tab-in .24s var(--ease); }
 .ai-suggest-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .ai-flag-text { margin-bottom: 10px; padding: 8px 12px; border-radius: var(--r-sm); background: var(--danger-soft); color: var(--danger); font-size: var(--fs-sm); white-space: pre-line; }
 .publish-bar { margin-top: 0; }
+
+.att-lesson > summary .fold-chevron { width: 28px; height: 28px; }
+.att-lesson:not([open]) .fold-chevron::before { transform: translateY(-2px) rotate(45deg); }
+.att-lesson > summary:hover .fold-chevron { background: var(--fill-2); }

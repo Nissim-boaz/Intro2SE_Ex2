@@ -79,7 +79,7 @@ def test_routes(app, client):
 
     login(client, stud.id)
     page = client.get(f"/courses/{course.id}").get_data(as_text=True)
-    assert "הנוכחות שלי" in page and "ערעור" in page
+    assert "הנוכחות שלי" in page and "ערעור" in page and ">חסר<" in page
     client.post("/attendance/samples/1/appeal", data={"text": "הייתי בשורה האחרונה"})
     client.post("/attendance/appeals/1/resolve", data={"decision": "accept"})  # a student can't decide
     assert "ערעור ממתין לתשובת המרצה" in client.get(f"/courses/{course.id}").get_data(as_text=True)

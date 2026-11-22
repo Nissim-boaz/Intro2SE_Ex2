@@ -5,11 +5,15 @@
   <ul class="att-lessons list-scroll">
     {% for l in attendance_history %}
     <li>
-      <details class="att-lesson"{% if loop.first %} open{% endif %}>
+      {# closed by default: just present or absent. The arrow opens the samples, and an appeal there #}
+      <details class="att-lesson">
         <summary>
           <span class="att-lesson-title">שיעור {{ l.number }}</span>
-          <span class="muted small">{{ l.present }} מתוך {{ l.cells|length }} דגימות</span>
-          <span class="percent {{ 'percent-low' if l.percent < 60 else '' }}">{{ l.percent }}%</span>
+          {% if l.cells|selectattr('appeal')|selectattr('appeal.status', 'equalto', 'pending')|list %}<span class="pill pill-warn">ערעור בבדיקה</span>{% endif %}
+          {% if l.present == l.cells|length %}<span class="pill pill-ok">נכח</span>
+          {% elif l.present %}<span class="pill pill-warn">נכח חלקית</span>
+          {% else %}<span class="pill pill-danger">חסר</span>{% endif %}
+          <span class="fold-chevron" aria-hidden="true"></span>
         </summary>
         <ul class="att-samples">
           {% for c in l.cells %}
