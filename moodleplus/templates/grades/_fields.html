@@ -1,0 +1,9 @@
+{# Fields of an exam, for "new" and "edit". With `exam` set they start from that exam. #}
+<label>שם<input type="text" name="title" required maxlength="200" value="{{ exam.title if exam is defined else '' }}" placeholder="מבחן סופי, מועד א׳"></label>
+<label>סוג
+  <select name="kind">
+    <option value="exam" {% if exam is defined and exam.kind == 'exam' %}selected{% endif %}>מבחן</option>
+    <option value="quiz" {% if exam is defined and exam.kind == 'quiz' %}selected{% endif %}>בוחן</option>
+  </select>
+</label>
+<label>תאריך (לא חובה)<input type="date" name="held_on" value="{{ exam.held_on if exam is defined else '' }}"></label>

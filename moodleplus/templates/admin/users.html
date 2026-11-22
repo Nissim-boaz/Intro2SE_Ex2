@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_search.html" import search_field %}
+{% from "_search.html" import search_field, funnel, list_state %}
 {% block title %}משתמשים · Moodle+{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -41,20 +41,21 @@
 <section class="panel">
   <div class="panel-head">
     <h2>{{ users|length }} משתמשים</h2>
-    <div class="row">
-      {% for key, label in [('', 'כולם'), ('student', 'סטודנטים'), ('lecturer', 'מרצים'), ('admin', 'מנהלים')] %}
-      <a class="btn btn-sm {{ '' if (role_filter or '') == key else 'btn-quiet' }}" href="{{ url_for('admin.users', role=key or None) }}">{{ label }}</a>
-      {% endfor %}
-    </div>
   </div>
   {% if users %}
-  <div class="list-search-row">
+  <div class="list-search-row has-funnel">
     {{ search_field('#users-list', 'חיפוש לפי שם או מייל', empty='users-none', count='users-count') }}
-    <span class="list-search-count" id="users-count" aria-live="polite"></span>
+    {{ funnel('#users-list', [
+        ('', 'כולם', users|length, ''),
+        ('student', 'סטודנטים', users|selectattr('role', 'equalto', 'student')|list|length, 'אין סטודנטים.'),
+        ('lecturer', 'מרצים', users|selectattr('role', 'equalto', 'lecturer')|list|length, 'אין מרצים.'),
+        ('admin', 'מנהלים', users|selectattr('role', 'equalto', 'admin')|list|length, 'אין מנהלים.'),
+      ], current=role_filter, explicit=role_filter != '') }}
   </div>
-  <ul class="list list-scroll" id="users-list">
+  {{ list_state('#users-list', 'users-count') }}
+  <ul class="list list-scroll" id="users-list" data-keep-scroll>
     {% for u in users %}
-    <li data-filter-item data-filter-text="{{ u.name }} {{ u.email }} {{ u.role_label }}">
+    <li data-filter-item data-filter-tags="{{ u.role }}" data-filter-text="{{ u.name }} {{ u.email }} {{ u.role_label }}">
       <span class="avatar" aria-hidden="true">{{ u.name[:1] }}</span>
       <div class="grow">
         <div class="title">{{ u.name }}</div>
@@ -65,7 +66,7 @@
       {% else %}
       <form method="post" action="{{ url_for('admin.update_user', user_id=u.id) }}" class="row">
         <input type="hidden" name="name" value="{{ u.name }}">
-        <select name="role" onchange="this.form.submit()" aria-label="תפקיד של {{ u.name }}" style="width:auto;padding:6px 10px;font-size:14px">
+        <select name="role" onchange="this.form.requestSubmit()" aria-label="תפקיד של {{ u.name }}" style="width:auto;padding:6px 10px;font-size:14px">
           {% for key, label in role_labels.items() %}
           <option value="{{ key }}" {% if key == u.role %}selected{% endif %}>{{ label }}</option>
           {% endfor %}

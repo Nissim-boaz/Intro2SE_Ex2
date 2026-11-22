@@ -29,7 +29,7 @@
       {% if user %}
       <nav class="topnav">
         <a href="{{ url_for('courses.index') }}">הקורסים שלי</a>
-        {% if user.is_admin %}<a href="{{ url_for('requests.inbox') if requests_badge else url_for('admin.users') }}">ניהול{% if requests_badge %} <b class="nav-badge" aria-label="{{ requests_badge }} פניות חדשות">{{ requests_badge }}</b>{% endif %}</a>{% endif %}
+        {% if user.is_admin %}<a href="{{ url_for('requests.inbox', status='open') if requests_badge else url_for('admin.users') }}">ניהול{% if requests_badge %} <b class="nav-badge" aria-label="{{ requests_badge }} פניות חדשות">{{ requests_badge }}</b>{% endif %}</a>{% endif %}
       </nav>
       <details class="account">
         <summary><span class="avatar" aria-hidden="true">{{ user.name[:1] }}</span><span class="sr-only">חשבון</span>{% if requests_badge and not user.is_admin %}<b class="avatar-dot" aria-label="יש תשובה חדשה לפנייה שלך"></b>{% endif %}</summary>

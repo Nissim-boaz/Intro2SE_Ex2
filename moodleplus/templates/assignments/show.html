@@ -11,7 +11,7 @@
       <h1>{{ a.title }}</h1>
       <p class="muted">להגשה עד {{ a.due_at|when_he(now) }}{% if not past %} · {{ (a.due_at - now)|left_he }}{% endif %}</p>
     </div>
-    {% if is_student %}{{ student_status(a, mine, now) }}{% endif %}
+    {% if is_student %}{{ student_status(a, mine, now, my_zero) }}{% endif %}
     {% if can_manage %}
     <div class="row">
       <button class="btn btn-quiet btn-sm" type="button" data-open-dialog="edit-assignment">עריכה</button>
@@ -32,6 +32,45 @@
       <span dir="auto">{{ a.file_name }}</span>
     </a>
     {% endif %}
+  </section>
+  {% endif %}
+
+  {% if can_manage %}
+  <section class="panel" id="solution">
+    <div class="panel-head">
+      <h2>פתרון לסטודנטים <span class="muted small" style="font-weight:400">לא חובה</span></h2>
+      {% if a.solution_name %}<span class="pill {{ 'pill-ok' if a.solution_published else 'pill-warn' }}">{{ 'פורסם' if a.solution_published else 'לא פורסם' }}</span>{% endif %}
+    </div>
+    {% if a.solution_name %}
+    <div class="row solution-row">
+      <a class="file-chip" href="{{ url_for('assignments.solution', assignment_id=a.id) }}"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M14 3H7.5A1.5 1.5 0 0 0 6 4.5v15A1.5 1.5 0 0 0 7.5 21h9a1.5 1.5 0 0 0 1.5-1.5V7Z M14 3v4h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span dir="auto">{{ a.solution_name }}</span></a>
+      {% if a.solution_published %}
+      <form method="post" action="{{ url_for('assignments.publish_solution', assignment_id=a.id) }}"
+            data-confirm="להסתיר את הפתרון? ההגשה תיפתח שוב, ומי שכבר הוריד את הפתרון יוכל להיעזר בו." data-confirm-ok="הסתר פתרון">
+        <input type="hidden" name="published" value="0"><button class="btn btn-quiet btn-sm">הסתר</button>
+      </form>
+      {% elif past %}
+      <form method="post" action="{{ url_for('assignments.publish_solution', assignment_id=a.id) }}"
+            data-confirm="לפרסם את הפתרון? כל הסטודנטים יראו אותו, ומרגע זה אי אפשר להגיש או להגיש מחדש." data-confirm-ok="פרסם וסגור הגשה">
+        <input type="hidden" name="published" value="1"><button class="btn btn-sm">פרסם לסטודנטים</button>
+      </form>
+      {% endif %}
+      <form method="post" action="{{ url_for('assignments.delete_solution', assignment_id=a.id) }}"
+            data-confirm="למחוק את קובץ הפתרון?{% if a.solution_published %} ההגשה תיפתח שוב.{% endif %}">
+        <button class="btn btn-danger btn-sm">מחק</button>
+      </form>
+    </div>
+    {% endif %}
+    <form method="post" action="{{ url_for('assignments.save_solution', assignment_id=a.id) }}" enctype="multipart/form-data" class="form-grid" data-live-submit>
+      <input type="file" name="file" required>
+      <button class="btn btn-quiet btn-sm">{{ 'החלף קובץ' if a.solution_name else 'שמור פתרון' }}</button>
+    </form>
+    <p class="xsmall muted" style="margin-top:10px">{% if past %}פרסום הפתרון סוגר את ההגשה, כדי שמי שמאחר לא יעתיק ממנו.{% else %}אפשר להעלות כבר עכשיו. הפרסום אפשרי רק אחרי מועד ההגשה, והוא סוגר את ההגשה.{% endif %}</p>
+  </section>
+  {% elif a.solution_published %}
+  <section class="panel" id="solution">
+    <h2 class="asg-h2">הפתרון</h2>
+    <a class="file-chip" href="{{ url_for('assignments.solution', assignment_id=a.id) }}"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M14 3H7.5A1.5 1.5 0 0 0 6 4.5v15A1.5 1.5 0 0 0 7.5 21h9a1.5 1.5 0 0 0 1.5-1.5V7Z M14 3v4h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span dir="auto">{{ a.solution_name }}</span></a>
   </section>
   {% endif %}
 
@@ -78,11 +117,17 @@
     {% elif past %}
     <p class="note-info">ההגשה בבדיקה. הציון יופיע כאן כשהמרצה יפרסם את הציונים.</p>
     {% endif %}
+    {% elif my_zero %}
+    <div class="grade-card grade-card-zero">
+      <div class="grade-num"><strong>0</strong><span>/100</span></div>
+      <p class="grade-note">לא הגשת את המטלה.</p>
+    </div>
     {% else %}
-    <p class="muted small">עוד לא הגשת.</p>
+    <p class="muted small">{{ 'לא הגשת.' if closed else 'עוד לא הגשת.' }}</p>
     {% endif %}
 
-    {% if not (mine and mine.grade_visible) %}
+    {% if closed and not my_zero and not (mine and mine.grade_visible) %}<p class="note-info">{{ closed }}.</p>{% endif %}
+    {% if not closed %}
     <form method="post" action="{{ url_for('assignments.submit', assignment_id=a.id) }}" enctype="multipart/form-data" class="stack submit-form" data-once>
       {% if past %}<p class="note-warn">המועד עבר. עדיין אפשר להגיש, וההגשה תסומן כמאחרת.</p>{% endif %}
       <input type="file" name="file" required>
@@ -111,7 +156,7 @@
     <form method="post" action="{{ url_for('assignments.publish_grades', assignment_id=a.id) }}"
           {% if not a.grades_published %}data-confirm="לפרסם את הציונים? {{ graded_count }} סטודנטים יראו עכשיו את הציון וההערה שלהם{% if graded_count < submitted %}, ו-{{ submitted - graded_count }} הגשות עוד לא נבדקו{% endif %}." data-confirm-ok="פרסם ציונים"{% endif %}>
       <input type="hidden" name="published" value="{{ '0' if a.grades_published else '1' }}">
-      <button class="btn {{ 'btn-quiet btn-sm' if a.grades_published else '' }}" {% if not graded_count and not a.grades_published %}disabled title="עוד לא נבדקה אף הגשה"{% endif %}>
+      <button class="btn {{ 'btn-quiet btn-sm' if a.grades_published else '' }}" {% if not graded_count and not zeros and not a.grades_published %}disabled title="עוד לא נבדקה אף הגשה"{% endif %}>
         {{ 'הסתר ציונים' if a.grades_published else 'פרסם ציונים לכולם' }}
       </button>
     </form>
@@ -120,6 +165,13 @@
   <section class="panel" id="submissions">
     <div class="panel-head">
       <h2>הגשות <span class="muted" style="font-weight:500">{{ submitted }} מתוך {{ roster|length }}</span></h2>
+      {% set unmarked = roster|length - submitted - zeros|length %}
+      {% if past and unmarked > 0 %}
+      <form method="post" action="{{ url_for('assignments.zero_missing', assignment_id=a.id) }}"
+            data-confirm="לרשום 0 ל-{{ unmarked }} סטודנטים שלא הגישו? בלי זה המטלה פשוט לא נספרת להם בציון המשוקלל. {{ 'הם יראו את זה מיד.' if a.grades_published else 'הם יראו את זה כשתפרסם את הציונים.' }}" data-confirm-ok="רשום 0">
+        <button class="btn btn-quiet btn-sm">רשום 0 למי שלא הגיש ({{ unmarked }})</button>
+      </form>
+      {% endif %}
     </div>
     {% if roster %}
     {% if roster|length > 5 %}
@@ -130,7 +182,7 @@
     {% endif %}
     <ul class="list roster list-scroll" id="roster">
       {% for student, sub in roster %}
-      <li data-filter-item data-filter-text="{{ student.name }} {{ student.email }}" {% if sub %}id="sub-{{ sub.id }}"{% endif %}>
+      <li data-filter-item data-filter-text="{{ student.name }} {{ student.email }}" id="{{ 'sub-%d' % sub.id if sub else 'st-%d' % student.id }}">
         <div class="grow">
           <div class="title">{{ student.name }}</div>
           {% if sub %}
@@ -141,7 +193,13 @@
           {% endif %}
         </div>
         {% if not sub %}
-          <span class="pill {{ 'pill-danger' if past else '' }}">לא הגיש</span>
+          <span class="pill {{ 'pill-danger' if past else '' }}">{{ 'לא הגיש · 0' if student.id in zeros else 'לא הגיש' }}</span>
+          {% if past %}
+          <form method="post" action="{{ url_for('assignments.set_zero', assignment_id=a.id, student_id=student.id) }}">
+            <input type="hidden" name="on" value="{{ '0' if student.id in zeros else '1' }}">
+            <button class="btn btn-ghost btn-sm">{{ 'בטל 0' if student.id in zeros else 'רשום 0' }}</button>
+          </form>
+          {% endif %}
         {% else %}
           {% if sub.late %}<span class="pill pill-warn">באיחור</span>{% endif %}
           {% if sub.ai_flag %}<span class="pill pill-danger ai-flag" title="{{ sub.ai_flag }}">⚠ {{ 'דמיון חשוד' if 'דומה' in sub.ai_flag else 'לא קשור' }}</span>{% endif %}

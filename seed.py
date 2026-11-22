@@ -18,6 +18,7 @@ from moodleplus.services.assignments import AssignmentService
 from moodleplus.services.chat import ChatService, ReactionService
 from moodleplus.services.content import ContentService, FileStore
 from moodleplus.services.courses import CourseService, EnrollmentService
+from moodleplus.services.gradebook import ExamService, Gradebook
 from moodleplus.services.polls import PollService
 from moodleplus.services.users import StudentImporter, UserService
 
@@ -62,6 +63,7 @@ def seed(db_path: str, reset: bool) -> None:
     _seed_attendance(db, oop.id, lecturer, students)
     _seed_chat(db, oop.id, lecturer, students)
     _seed_assignments(db, oop.id, students)
+    _seed_grades(db, oop.id, students)
     print(f"נוצרו: אדמין ({admin.email}), מרצה, {len(students)} סטודנטים ו-2 קורסים.")
     print("להתחברות בדמו: MOCK_AUTH=1 ואז בחר תפקיד ומשתמש בעמוד ההתחברות.")
 
@@ -132,6 +134,19 @@ def _seed_assignments(db, course_id, students) -> None:
     for i, student in enumerate(students[1:25]):
         clock[0] = time.time() - 3600 * rng.uniform(1, 40)
         service.submit(second.id, student, f"hw2_{i + 1}.pdf", pdf(f"hw2_{i + 1}.pdf"))
+
+
+def _seed_grades(db, course_id, students) -> None:
+    """בוחן שפורסם, מבחן שעוד לא, ומשקל לכל רכיב."""
+    rng = random.Random(11)
+    exams = ExamService(db)
+    quiz = exams.create(course_id, "בוחן אמצע", "quiz", weight="20")
+    exam = exams.create(course_id, "מבחן סופי", "exam", weight="50")
+    exams.save_grades(quiz.id, {st.id: str(rng.randint(60, 100)) for st in students[:98]})
+    exams.save_grades(exam.id, {st.id: str(rng.randint(55, 100)) for st in students[:30]})
+    exams.set_published(quiz.id, True)
+    Gradebook(db).set_weights(course_id, {c.key: "15" for c in Gradebook(db).components(course_id)
+                                          if c.kind == "assignment"})
 
 
 def _seed_chat(db, course_id, lecturer, students) -> None:

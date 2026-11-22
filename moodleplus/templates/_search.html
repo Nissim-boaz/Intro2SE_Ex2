@@ -8,3 +8,29 @@
   <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.1"/><path d="m15.5 15.5 5 5" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></svg>
 </label>
 {%- endmacro %}
+
+{# Glass funnel button that filters the same list by tag, in the browser (see "funnel" in ui.js).
+   options: (tag, label, how many, text when nothing matches). current: the tag to start from; explicit: it came
+   from the URL, so it wins over the remembered choice. #}
+{% macro funnel(target, options, current='', explicit=False) -%}
+<div class="funnel" data-funnel="{{ target }}" data-current="{{ current }}"{% if explicit %} data-explicit{% endif %}>
+  <button type="button" class="funnel-btn" aria-haspopup="menu" aria-expanded="false" aria-label="סינון הרשימה" title="סינון">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 5.5h16l-6.2 7.3v5.1l-3.6 1.9v-7Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></svg>
+  </button>
+  <div class="funnel-menu" role="menu" aria-label="סינון הרשימה" hidden>
+    {% for tag, label, n, none_text in options %}
+    <button type="button" role="menuitemradio" aria-checked="false" data-tag="{{ tag }}" data-label="{{ label }}" data-none="{{ none_text }}">
+      <span class="funnel-check" aria-hidden="true">✓</span><span class="grow">{{ label }}</span><span class="funnel-n">{{ n }}</span>
+    </button>
+    {% endfor %}
+  </div>
+</div>
+{%- endmacro %}
+
+{# Under the search row: the active filter (tap to clear) and "N of M". #}
+{% macro list_state(target, count) -%}
+<div class="list-state">
+  <button type="button" class="funnel-chip" data-funnel-chip="{{ target }}" hidden></button>
+  <span class="list-search-count" id="{{ count }}" aria-live="polite"></span>
+</div>
+{%- endmacro %}

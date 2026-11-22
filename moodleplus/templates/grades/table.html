@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% from "_search.html" import search_field %}
+{% set back_url = url_for('courses.show', course_id=course.id) ~ '#grades' %}{% set back_label = course.name %}
+{% block title %}ציונים · {{ course.name }}{% endblock %}
+{% block content %}
+<div class="stack">
+  <div class="page-head">
+    <div><h1>טבלת ציונים</h1><p class="muted">{{ components|length }} רכיבים, {{ rows|length }} סטודנטים</p></div>
+    {% if components %}<a class="btn btn-quiet" href="{{ url_for('grades.table_csv', course_id=course.id) }}">ייצוא ל-CSV</a>{% endif %}
+  </div>
+
+  {% if not components %}
+  <section class="panel empty"><strong>עוד אין מה לשקלל</strong>הוסף מטלה, מבחן או בוחן בעמוד הקורס, ואז אפשר להגדיר כאן כמה כל אחד שווה.</section>
+  {% else %}
+  <section class="panel" id="weights">
+    <h2 style="margin-bottom:6px">משקלים</h2>
+    <p class="muted small" style="margin-bottom:14px">כמה אחוזים כל ציון שווה מהציון הסופי. רכיב עם 0 לא נספר. הסטודנטים רואים את המשקלים.</p>
+    <form method="post" action="{{ url_for('grades.weights', course_id=course.id) }}" data-weights data-warn-unsaved>
+      <ul class="list list-scroll">
+        {% for c in components %}
+        <li>
+          <div class="grow"><div class="title">{{ c.title }}</div><div class="xsmall muted">{{ c.kind_label }}</div></div>
+          <input type="number" class="grade-input" name="w_{{ c.key }}" min="0" max="100" step="any" inputmode="decimal" value="{{ c.weight|grade }}" aria-label="משקל של {{ c.title }}">
+          <span class="muted" aria-hidden="true">%</span>
+        </li>
+        {% endfor %}
+      </ul>
+      <div class="save-row">
+        <button class="btn">שמור משקלים</button>
+        <span class="weights-total" data-weights-total aria-live="polite">סך הכול {{ total|grade }}% מתוך 100%</span>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="list-search-row">
+      {{ search_field('#grades-body', 'חיפוש סטודנט', empty='grades-none', count='grades-count') }}
+      <span class="list-search-count" id="grades-count" aria-live="polite"></span>
+    </div>
+    <div class="table-wrap table-scroll">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>סטודנט</th>
+            {% for c in components %}<th class="center"><span class="th-title" title="{{ c.title }}">{{ c.title }}</span><span class="th-sub">{{ c.weight|grade }}%{% if not c.published %} · לא פורסם{% endif %}</span></th>{% endfor %}
+            <th class="center">משוקלל</th>
+          </tr>
+        </thead>
+        <tbody id="grades-body">
+          {% for row in rows %}
+          <tr data-filter-item data-filter-text="{{ row.student.name }} {{ row.student.email }}">
+            <td><strong style="font-weight:600">{{ row.student.name }}</strong></td>
+            {% for c in row.cells %}<td class="center{{ '' if c.component.published else ' muted' }}">{{ c.grade|grade }}</td>{% endfor %}
+            <td class="center"><strong>{{ row.weighted|grade }}</strong>{% if row.weighted is not none %}<span class="th-sub">מתוך {{ row.covered|grade }}%</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="search-none" id="grades-none" hidden>לא נמצא סטודנט בשם הזה.</p>
+    <p class="xsmall muted" style="margin-top:12px">הטבלה כוללת גם ציונים שעוד לא פורסמו. הסטודנטים רואים ומשוקללים רק לפי מה שפורסם. ״–״ הוא ציון חסר, והוא לא נספר.</p>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/grades.js') }}"></script>{% endblock %}

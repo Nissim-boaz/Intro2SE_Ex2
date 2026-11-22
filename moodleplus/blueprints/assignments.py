@@ -57,6 +57,9 @@ def show(assignment_id: int):
         is_student=role == "student",
         mine=service.submission_of(assignment_id, current_user().id) if role == "student" else None,
         roster=service.roster(assignment_id) if can_manage else [],
+        zeros=service.zeros(assignment_id) if can_manage else set(),
+        my_zero=assignment_id in service.my_zeros(assignment.course_id, current_user().id),
+        closed=service.closed_reason(assignment, current_user().id) if role == "student" else "",
         now=time.time(),
     )
 
@@ -244,3 +247,65 @@ def ai_approve_all(assignment_id: int):
     count = _ai(assignment_id).approve_all(assignment_id)
     flash(f"אושרו {count} הצעות. הסטודנטים יראו אותן אחרי שתפרסם את הציונים", "success")
     return _page(assignment_id)
+
+
+# ---------- solution for students, and 0 for missing submissions (lecturer) ----------
+def _managed(assignment_id: int) -> AssignmentService:
+    service = _service()
+    EnrollmentService(get_db()).require_manager(service.get(assignment_id).course_id, current_user())
+    return service
+
+
+@bp.post("/assignments/<int:assignment_id>/solution")
+@login_required
+def save_solution(assignment_id: int):
+    service = _managed(assignment_id)
+    upload = request.files.get("file")
+    service.save_solution(assignment_id, upload.filename if upload else "", upload)
+    flash("הפתרון הוחלף" if service.get(assignment_id).solution_published
+          else "הפתרון נשמר. הסטודנטים עוד לא רואים אותו", "success")
+    return redirect(url_for("assignments.show", assignment_id=assignment_id) + "#solution")
+
+
+@bp.post("/assignments/<int:assignment_id>/solution/publish")
+@login_required
+def publish_solution(assignment_id: int):
+    published = request.form.get("published") == "1"
+    _managed(assignment_id).set_solution_published(assignment_id, published)
+    flash("הפתרון פורסם לסטודנטים, וההגשה נסגרה" if published else "הפתרון הוסתר, וההגשה נפתחה שוב", "success")
+    return redirect(url_for("assignments.show", assignment_id=assignment_id) + "#solution")
+
+
+@bp.post("/assignments/<int:assignment_id>/solution/delete")
+@login_required
+def delete_solution(assignment_id: int):
+    _managed(assignment_id).remove_solution(assignment_id)
+    flash("הפתרון נמחק", "success")
+    return redirect(url_for("assignments.show", assignment_id=assignment_id) + "#solution")
+
+
+@bp.get("/assignments/<int:assignment_id>/solution")
+@login_required
+def solution(assignment_id: int):
+    service = _service()
+    a = service.get(assignment_id)
+    enrollments = EnrollmentService(get_db())
+    enrollments.require_member(a.course_id, current_user())
+    if not a.solution_path or not (a.solution_published or enrollments.can_manage(a.course_id, current_user())):
+        raise Forbidden("הפתרון עוד לא פורסם")
+    return _send(service, a.solution_path, a.solution_name)
+
+
+@bp.post("/assignments/<int:assignment_id>/students/<int:student_id>/zero")
+@login_required
+def set_zero(assignment_id: int, student_id: int):
+    _managed(assignment_id).set_zero(assignment_id, student_id, request.form.get("on") == "1")
+    return redirect(url_for("assignments.show", assignment_id=assignment_id) + f"#st-{student_id}")
+
+
+@bp.post("/assignments/<int:assignment_id>/zero-missing")
+@login_required
+def zero_missing(assignment_id: int):
+    count = _managed(assignment_id).zero_all_missing(assignment_id)
+    flash(f"נרשם 0 ל-{count} סטודנטים שלא הגישו", "success")
+    return redirect(url_for("assignments.show", assignment_id=assignment_id) + "#submissions")

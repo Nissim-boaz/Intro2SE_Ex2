@@ -1209,14 +1209,6 @@ body.tabbed .tab-on { animation: tab-in .24s var(--ease); }
 .req-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #FF3B30; margin-inline-end: 6px; vertical-align: 1px; }
 .req-foot { margin-top: 14px; text-align: center; }
 
-.req-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
-.req-filters a {
-  padding: 6px 12px; border-radius: 999px; font-size: var(--fs-sm); color: var(--ink-2); background: var(--fill);
-}
-.req-filters a:hover { text-decoration: none; color: var(--ink); }
-.req-filters a.on { background: var(--chip-on); color: var(--chip-on-ink); }
-.req-filters a span { font-variant-numeric: tabular-nums; opacity: .75; }
-
 .req-status { display: grid; gap: 6px; }
 .req-status .segmented { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--fill); width: fit-content; max-width: 100%; flex-wrap: wrap; }
 .req-status .segmented button {
@@ -1349,3 +1341,77 @@ body.tabbed .tab-on { animation: tab-in .24s var(--ease); }
 .att-lesson > summary .fold-chevron { width: 28px; height: 28px; }
 .att-lesson:not([open]) .fold-chevron::before { transform: translateY(-2px) rotate(45deg); }
 .att-lesson > summary:hover .fold-chevron { background: var(--fill-2); }
+
+/* ---------- funnel filter: a glass button with a small glass menu ---------- */
+.list-search-row.has-funnel { flex-wrap: nowrap; margin-bottom: 10px; }
+.list-search-row.has-funnel .list-search { flex: 1; }
+.list-state { display: flex; align-items: center; gap: 10px; min-height: 30px; margin-bottom: 6px; }
+.funnel { position: relative; flex: none; }
+.funnel-btn {
+  width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; color: var(--ink-2);
+  background: var(--glass); border: 1px solid var(--glass-edge);
+  -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .1), 0 0 0 .5px var(--glass-line), inset 0 1px 0 rgba(255, 255, 255, .3);
+  transition: color .15s, transform .15s var(--ease), background .15s;
+}
+.funnel-btn:hover { color: var(--ink); }
+.funnel-btn:active { transform: scale(.93); }
+.funnel-btn.on { color: var(--brand); background: var(--glass-glow); }
+.funnel-btn.on path { fill: color-mix(in srgb, currentColor 22%, transparent); }
+.funnel-menu {
+  position: absolute; z-index: 30; top: calc(100% + 8px); left: 0; min-width: 210px; padding: 6px; border-radius: 20px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent); border: 1px solid var(--glass-edge);
+  -webkit-backdrop-filter: blur(26px) saturate(190%); backdrop-filter: blur(26px) saturate(190%);
+  box-shadow: var(--glass-shadow), 0 0 0 .5px var(--glass-line); animation: pop .16s var(--ease);
+}
+.funnel-menu button {
+  width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 0; border-radius: 14px;
+  background: transparent; color: var(--ink); font: inherit; font-size: var(--fs-sm); text-align: start; cursor: pointer;
+}
+.funnel-menu button:hover, .funnel-menu button:focus-visible { background: var(--fill-2); outline: none; }
+.funnel-menu .grow { flex: 1; }
+.funnel-check { width: 16px; color: var(--brand); font-weight: 700; visibility: hidden; }
+.funnel-menu [aria-checked="true"] { font-weight: 600; }
+.funnel-menu [aria-checked="true"] .funnel-check { visibility: visible; }
+.funnel-n { color: var(--ink-2); font-size: 13px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.funnel-chip {
+  border: 0; padding: 5px 12px; border-radius: 999px; background: var(--brand-soft); color: var(--brand);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.funnel-chip:hover { filter: brightness(.96); }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .funnel-menu, .funnel-btn { background: var(--surface); }
+}
+
+/* ---------- grades ---------- */
+input[type=date], input[type=datetime-local] {
+  font: inherit; font-size: 16px; color: var(--ink); width: 100%; padding: 11px 14px; border-radius: var(--r-sm);
+  border: 1px solid var(--line); background: var(--surface);
+}
+.weights-note { margin-bottom: 12px; }
+.grade-hero { display: flex; align-items: center; gap: 18px; padding: 18px; border-radius: var(--r-md); background: var(--brand-soft); margin-bottom: 14px; }
+.grade-hero-num { flex: none; min-width: 92px; text-align: center; font-size: 46px; font-weight: 700; line-height: 1; letter-spacing: -.02em; color: var(--brand); font-variant-numeric: tabular-nums; }
+.grade-hero .grow { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.grade-bar { height: 6px; margin-top: 4px; border-radius: 6px; background: var(--fill-2); overflow: hidden; }
+.grade-bar span { display: block; height: 100%; background: var(--brand); transform-origin: right; }
+.grade-list { list-style: none; margin: 0; padding: 0; }
+.grade-list > li { padding: 13px 0; border-top: 1px solid var(--line); }
+.grade-list > li:first-child { border-top: 0; }
+.grade-line { display: flex; align-items: center; gap: 12px; }
+.grade-line .grow { flex: 1; min-width: 0; }
+.grade-title { font-weight: 600; color: var(--ink); }
+.grade-value { flex: none; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.grade-value s { font-size: 15px; font-weight: 500; color: var(--ink-3); }
+.grade-card-zero { background: var(--danger-soft); }
+.grade-card-zero .grade-num { color: var(--danger); }
+input[type=number].grade-input { width: 92px; flex: none; text-align: center; padding: 9px 8px; }
+.att-resolve input[type=number].grade-input { flex: none; min-width: 0; }
+.save-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 14px; }
+.weights-total { font-weight: 600; font-variant-numeric: tabular-nums; }
+.weights-total.is-over { color: var(--danger); }
+.th-title { display: block; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-inline: auto; color: var(--ink); }
+.th-sub { display: block; font-size: 12px; font-weight: 400; color: var(--ink-2); }
+.solution-row { margin-bottom: 14px; }
+/* no spinner arrows in the grade boxes: they push the number off centre, and a scroll could change a grade */
+.grade-input { appearance: textfield; -moz-appearance: textfield; }
+.grade-input::-webkit-inner-spin-button, .grade-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }

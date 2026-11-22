@@ -20,7 +20,7 @@
         </span>
         <span class="asg-status">
           {% if can_manage %}{{ lecturer_status(a, assignment_counts, student_count, now) }}
-          {% else %}{{ student_status(a, my_submissions.get(a.id), now) }}{% endif %}
+          {% else %}{{ student_status(a, my_submissions.get(a.id), now, a.id in my_zeros) }}{% endif %}
         </span>
       </a>
     </li>

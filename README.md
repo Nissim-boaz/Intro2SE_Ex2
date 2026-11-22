@@ -18,13 +18,21 @@ Students and lecturers can send a request to the admins from the account menu (f
 
 The home page and the admin lists (users, courses, course members) have a live search field that filters as you type.
 
-The course page has a floating tab bar at the bottom (content, assignments, attendance, recordings, chat), with an unread count on the chat icon.
+The course page has a floating tab bar at the bottom (content, assignments, grades, attendance, recordings, chat), with an unread count on the chat icon.
 
 ### Assignments
 
 The lecturer publishes an assignment with instructions, a due date and an optional attached file. Each student submits one file and can replace it until the lecturer grades it. Submitting after the due date is allowed and marked as late; moving the due date updates the late mark on work already sent. The lecturer sees who submitted and who didn't, downloads each submission, and gives a grade (0 to 100) and a note that only that student sees. Grades stay hidden while the lecturer is grading, and one click publishes them to all students at once. After that, a student can appeal a grade once, and the lecturer accepts it with a new grade or rejects it (a reason is optional).
 
 The lecturer can also have the AI check the submissions. Optionally, they add grading notes and a reference solution so the check is more accurate. In the background, Gemini reads each submission (text, code, Word, PowerPoint, zip, PDF, or an image of a diagram) and suggests a grade, a reason for the lecturer, and constructive feedback for the student. One more pass over the whole class adds a note relative to the class, with no names ("unlike most of the class, you didn't include a sequence diagram"), and a local text comparison flags for the lecturer only submissions that look copied from each other. These are only suggestions: the lecturer approves each one, or all at once, and students see nothing until the grades are published. Before publishing, students can't tell whether their work was checked, and they can still resubmit.
+
+Optionally, the lecturer uploads a solution. It can be published to students only after the due date, and publishing it closes submission, so nobody who is late can copy from it. A student who did not submit has no grade until the lecturer records a 0, one by one or for everyone who is missing.
+
+### Grades
+
+The lecturer adds exams and quizzes, and enters grades by hand or imports them from a CSV or XLSX file with an email and a grade column (a Moodle grade export works too). Grades stay hidden until they are published to everyone at once, and after that a student can appeal each one once.
+
+Every assignment, exam and quiz can get a weight in the final grade, up to 100% in total. The student sees their published grades, the weights, and the weighted grade so far with how much of the final grade it covers. Grades that are not published, and missing grades, do not count. The lecturer sees the whole class in one table and can export it to CSV.
 
 ### Attendance
 
@@ -74,6 +82,7 @@ moodleplus/
     courses.py       CourseService, EnrollmentService (course-level permissions)
     content.py       ContentService, FileStore
     assignments.py   AssignmentService
+    gradebook.py     ExamService, Gradebook (weights and the weighted grade)
     tokens.py        TokenClock, AudioTokenService
     attendance.py    AttendanceService, AttendanceReport
     attendance_appeals.py AttendanceAppealService
@@ -149,4 +158,4 @@ If a phone can't pick up the signal, the lecturer can still mark that student as
 pytest -q
 ```
 
-The tests need no network and no models. They use a fake clock and fake transcription and LLM implementations, and cover, among other things, the 5-sample limit, audio code expiry and replay, the wrong-code lockout, manual marking, the migration of old attendance records, unique votes, one reaction per user, anonymity by role, feedback privacy, late and graded submissions, publishing grades, appeals, and permissions.
+The tests need no network and no models. They use a fake clock and fake transcription and LLM implementations, and cover, among other things, the 5-sample limit, audio code expiry and replay, the wrong-code lockout, manual marking, the migration of old attendance records, unique votes, one reaction per user, anonymity by role, feedback privacy, late and graded submissions, publishing grades, weighted grades, appeals, and permissions.

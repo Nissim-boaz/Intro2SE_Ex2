@@ -130,37 +130,123 @@
     sync();
   });
 
-  // ---------- live list search: <input data-filter="#list"> hides the items that do not match ----------
-  // items are the [data-filter-item] elements (or <option>s) inside the target; data-filter-text adds hidden text
-  // such as an email. A [data-filter-empty] element next to the list shows when nothing matches.
+  // ---------- live list filter: search box and funnel, both on the same list, without reloading ----------
+  // items are the [data-filter-item] elements (or <option>s) inside the target; data-filter-text, when given, is the
+  // whole searchable text (so labels like "מרצה" in a dropdown don't match), and data-filter-tags are the funnel's tags
   const norm = (s) => (s || "").toLowerCase().replace(/[֑-ׇ]/g, "").replace(/\s+/g, " ").trim(); // drop niqqud
-  document.querySelectorAll("input[data-filter]").forEach((input) => {
-    const target = document.querySelector(input.dataset.filter);
-    if (!target) return;
+  const lists = new Map();
+  function filterList(selector) {
+    const target = document.querySelector(selector);
+    if (!target) return null;
+    if (lists.has(target)) return lists.get(target);
     // a <select> filters its options; any other list filters its [data-filter-item]s (and not the
     // options of a dropdown that happens to sit inside a row, like the role picker in the users list)
     const items = [...target.querySelectorAll(target.tagName === "SELECT" ? "option" : "[data-filter-item]")];
-    const empty = document.querySelector(input.dataset.filterEmpty || "#__none");
-    const count = document.querySelector(input.dataset.filterCount || "#__none");
-    // data-filter-text, when given, is the whole searchable text (so labels like "מרצה" in a dropdown don't match)
     const text = (el) => norm(el.dataset.filterText !== undefined ? el.dataset.filterText : el.textContent);
-    const run = () => {
-      const words = norm(input.value).split(" ").filter(Boolean);
+    const list = { words: [], tag: "", noneText: "", views: [] };
+    list.refresh = () => {
       let shown = 0;
       items.forEach((el) => {
         const hay = text(el);
+        const tagged = !list.tag || (el.dataset.filterTags || "").split(" ").includes(list.tag);
         // a selected option stays visible, so a search never hides what you already picked
-        const match = !words.length || words.every((w) => hay.includes(w)) || (el.tagName === "OPTION" && el.selected);
+        const match = (tagged && list.words.every((w) => hay.includes(w))) || (el.tagName === "OPTION" && el.selected);
         el.hidden = !match;
         if (match) shown++;
       });
       target.querySelectorAll("optgroup").forEach((g) => { g.hidden = ![...g.children].some((o) => !o.hidden); });
-      if (empty) empty.hidden = shown > 0;
-      if (count) count.textContent = words.length ? `${shown} מתוך ${items.length}` : "";
+      list.views.forEach((view) => view(shown, items.length));
     };
+    lists.set(target, list);
+    return list;
+  }
+
+  // <input data-filter="#list">; [data-filter-empty] shows when nothing matches, [data-filter-count] says "N מתוך M"
+  document.querySelectorAll("input[data-filter]").forEach((input) => {
+    const list = filterList(input.dataset.filter);
+    if (!list) return;
+    const empty = document.querySelector(input.dataset.filterEmpty || "#__none");
+    const count = document.querySelector(input.dataset.filterCount || "#__none");
+    const emptyText = empty ? empty.textContent : "";
+    list.views.push((shown, total) => {
+      if (empty) {
+        empty.hidden = shown > 0;
+        empty.textContent = (!list.words.length && list.noneText) || emptyText;
+      }
+      if (count) count.textContent = list.words.length || list.tag ? `${shown} מתוך ${total}` : "";
+    });
+    const run = () => { list.words = norm(input.value).split(" ").filter(Boolean); list.refresh(); };
     input.addEventListener("input", run);
     input.addEventListener("keydown", (e) => { if (e.key === "Escape") { input.value = ""; run(); } });
     run();
+  });
+
+  // the funnel: a glass button with a small menu. The choice is remembered for this browser tab, so coming back to
+  // the list (or a reload after changing something in it) keeps it
+  document.querySelectorAll("[data-funnel]").forEach((box) => {
+    const list = filterList(box.dataset.funnel);
+    if (!list) return;
+    const button = box.querySelector(".funnel-btn");
+    const menu = box.querySelector(".funnel-menu");
+    const options = [...menu.querySelectorAll("[data-tag]")];
+    const chip = document.querySelector(`[data-funnel-chip="${box.dataset.funnel}"]`);
+    const key = "moodleplus.funnel." + location.pathname + box.dataset.funnel;
+    const open = (on) => {
+      menu.hidden = !on;
+      button.setAttribute("aria-expanded", on ? "true" : "false");
+      if (on) (options.find((o) => o.dataset.tag === list.tag) || options[0]).focus();
+    };
+    const pick = (tag) => {
+      const option = options.find((o) => o.dataset.tag === tag) || options[0];
+      list.tag = option.dataset.tag;
+      list.noneText = option.dataset.none;
+      options.forEach((o) => o.setAttribute("aria-checked", o === option ? "true" : "false"));
+      button.classList.toggle("on", !!list.tag);
+      if (chip) {
+        chip.hidden = !list.tag;
+        chip.textContent = option.dataset.label + " ✕";
+        chip.setAttribute("aria-label", "בטל את הסינון: " + option.dataset.label);
+      }
+      try { sessionStorage.setItem(key, list.tag); } catch (_) {}
+      list.refresh();
+    };
+    button.addEventListener("click", () => open(menu.hidden));
+    options.forEach((o) => o.addEventListener("click", () => {
+      pick(o.dataset.tag);
+      open(false);
+      button.focus();
+      if (location.search) history.replaceState(null, "", location.pathname); // the link's filter no longer applies
+    }));
+    if (chip) chip.addEventListener("click", () => {
+      pick("");
+      if (location.search) history.replaceState(null, "", location.pathname);
+    });
+    box.addEventListener("keydown", (e) => {
+      if (menu.hidden) return;
+      const at = options.indexOf(document.activeElement);
+      if (e.key === "Escape") { open(false); button.focus(); }
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        options[(at + (e.key === "ArrowDown" ? 1 : -1) + options.length) % options.length].focus();
+      }
+    });
+    document.addEventListener("click", (e) => { if (!menu.hidden && !box.contains(e.target)) open(false); });
+    let start = null;
+    if (!("explicit" in box.dataset)) { try { start = sessionStorage.getItem(key); } catch (_) {} }
+    pick(start === null ? box.dataset.current : start);
+  });
+
+  // ---------- [data-keep-scroll]: a form inside the list reloads the page, but it stays where you were ----------
+  document.querySelectorAll("[data-keep-scroll]").forEach((el) => {
+    const key = "moodleplus.scroll." + location.pathname + "#" + el.id;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(key) || "null");
+      sessionStorage.removeItem(key);
+      if (saved) { window.scrollTo(0, saved.page); el.scrollTop = saved.list; }
+    } catch (_) {}
+    el.addEventListener("submit", () => {
+      try { sessionStorage.setItem(key, JSON.stringify({ page: window.scrollY, list: el.scrollTop })); } catch (_) {}
+    });
   });
 
   // ---------- <form data-once>: lock the button on the first click so a double click sends one request ----------

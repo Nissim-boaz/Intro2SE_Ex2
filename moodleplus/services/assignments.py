@@ -69,6 +69,9 @@ class Assignment:
     ai_job: int = 0
     ai_done: int = 0
     ai_total: int = 0
+    solution_path: str = ""
+    solution_name: str = ""
+    solution_published: bool = False   # הסטודנטים רואים את הפתרון, וההגשה סגורה
 
     @property
     def due_input(self) -> str:
@@ -80,7 +83,8 @@ class Assignment:
         return cls(r["id"], r["course_id"], r["title"], r["description"], r["due_at"],
                    r["file_path"], r["file_name"], r["created_at"], bool(r["grades_published"]),
                    r["ai_guidelines"], r["ai_solution_path"], r["ai_solution_name"], r["ai_status"], r["ai_error"],
-                   r["ai_job"], r["ai_done"], r["ai_total"])
+                   r["ai_job"], r["ai_done"], r["ai_total"],
+                   r["solution_path"], r["solution_name"], bool(r["solution_published"]))
 
 
 @dataclass(frozen=True)
@@ -196,8 +200,83 @@ class AssignmentService:
             self.files.delete(rel)
         self.files.delete(current.file_path)
         self.files.delete(current.ai_solution_path)
+        self.files.delete(current.solution_path)
         self.db.execute("DELETE FROM assignments WHERE id = ?", (assignment_id,))
         self.db.commit()
+
+    # ---------- solution for students (optional) ----------
+    def save_solution(self, assignment_id: int, file_name: str, upload) -> Assignment:
+        """העלאה או החלפה. הקובץ נשאר אצל המרצה עד שהוא מפרסם."""
+        a = self.get(assignment_id)
+        if not file_name:
+            raise ValidationError("בחר קובץ עם הפתרון")
+        rel = self.files.save_stream(f"assignments/{a.course_id}/solutions", file_name, upload)
+        self.files.delete(a.solution_path)
+        self.db.execute("UPDATE assignments SET solution_path = ?, solution_name = ? WHERE id = ?",
+                        (rel, file_name, assignment_id))
+        self.db.commit()
+        return self.get(assignment_id)
+
+    def remove_solution(self, assignment_id: int) -> None:
+        self.files.delete(self.get(assignment_id).solution_path)
+        self.db.execute("UPDATE assignments SET solution_path = '', solution_name = '', solution_published = 0 "
+                        "WHERE id = ?", (assignment_id,))
+        self.db.commit()
+
+    def set_solution_published(self, assignment_id: int, published: bool) -> None:
+        """פרסום אפשרי רק אחרי מועד ההגשה, והוא סוגר את ההגשה כדי שמי שמאחר לא יעתיק מהפתרון."""
+        a = self.get(assignment_id)
+        if published and not a.solution_path:
+            raise ValidationError("קודם העלה קובץ עם הפתרון")
+        if published and self.clock() <= a.due_at:
+            raise ValidationError("אפשר לפרסם את הפתרון רק אחרי מועד ההגשה")
+        self.db.execute("UPDATE assignments SET solution_published = ? WHERE id = ?", (int(published), assignment_id))
+        self.db.commit()
+
+    # ---------- 0 for students who did not submit ----------
+    def zeros(self, assignment_id: int) -> set[int]:
+        return {r[0] for r in self.db.execute(
+            "SELECT student_id FROM assignment_zeros WHERE assignment_id = ?", (assignment_id,))}
+
+    def my_zeros(self, course_id: int, student_id: int) -> set[int]:
+        """המטלות שבהן הסטודנט קיבל 0 כי לא הגיש, רק אחרי שהציונים פורסמו."""
+        return {r[0] for r in self.db.execute(
+            "SELECT z.assignment_id FROM assignment_zeros z JOIN assignments a ON a.id = z.assignment_id "
+            "WHERE a.course_id = ? AND z.student_id = ? AND a.grades_published = 1", (course_id, student_id))}
+
+    def set_zero(self, assignment_id: int, student_id: int, on: bool) -> None:
+        self._require_past(assignment_id)
+        if not on:
+            self.db.execute("DELETE FROM assignment_zeros WHERE assignment_id = ? AND student_id = ?",
+                            (assignment_id, student_id))
+        else:
+            if student_id not in {u.id for u, sub in self.roster(assignment_id) if sub is None}:
+                raise ValidationError("אפשר לרשום 0 רק לסטודנט בקורס שלא הגיש")
+            self.db.execute("INSERT OR IGNORE INTO assignment_zeros (assignment_id, student_id) VALUES (?, ?)",
+                            (assignment_id, student_id))
+        self.db.commit()
+
+    def zero_all_missing(self, assignment_id: int) -> int:
+        self._require_past(assignment_id)
+        missing = {u.id for u, sub in self.roster(assignment_id) if sub is None} - self.zeros(assignment_id)
+        self.db.executemany("INSERT INTO assignment_zeros (assignment_id, student_id) VALUES (?, ?)",
+                            [(assignment_id, sid) for sid in missing])
+        self.db.commit()
+        return len(missing)
+
+    def _require_past(self, assignment_id: int) -> None:
+        if self.clock() <= self.get(assignment_id).due_at:
+            raise ValidationError("אפשר לרשום 0 רק אחרי מועד ההגשה")
+
+    def closed_reason(self, assignment: Assignment, student_id: int) -> str:
+        """למה הסטודנט לא יכול להגיש עכשיו. ריק: אפשר להגיש."""
+        if assignment.solution_published:
+            return "הפתרון פורסם, ולכן ההגשה נסגרה"
+        if assignment.grades_published:
+            sub = self.submission_of(assignment.id, student_id)
+            if (sub and sub.graded) or (sub is None and student_id in self.zeros(assignment.id)):
+                return "הציונים כבר פורסמו, אז אי אפשר להגיש את המטלה"
+        return ""
 
     @staticmethod
     def _title(title: str) -> str:
@@ -216,9 +295,10 @@ class AssignmentService:
         assignment = self.get(assignment_id)
         if not file_name:
             raise ValidationError("בחר קובץ להגשה")
+        closed = self.closed_reason(assignment, student.id)
+        if closed:
+            raise ValidationError(closed)
         previous = self.submission_of(assignment_id, student.id)
-        if previous and previous.grade_visible:
-            raise ValidationError("הציונים כבר פורסמו, אז אי אפשר להגיש את המטלה מחדש")
         rel = self.files.save_stream(f"submissions/{assignment.id}", file_name, upload)
         if previous:
             self.files.delete(previous.file_path)
@@ -233,6 +313,8 @@ class AssignmentService:
                 "VALUES (?, ?, ?, ?, ?)",
                 (assignment_id, student.id, rel, file_name, self.clock()),
             )
+            self.db.execute("DELETE FROM assignment_zeros WHERE assignment_id = ? AND student_id = ?",
+                            (assignment_id, student.id))  # הגיש בסוף, אז ה-0 על אי הגשה מתבטל
         self.db.commit()
         return self.submission_of(assignment_id, student.id)
 
@@ -304,7 +386,7 @@ class AssignmentService:
         self.db.commit()
         return self.db.execute(
             "SELECT COUNT(*) FROM submissions WHERE assignment_id = ? AND grade IS NOT NULL", (assignment_id,)
-        ).fetchone()[0]
+        ).fetchone()[0] + len(self.zeros(assignment_id))
 
     # ---------- appeals ----------
     def appeal(self, submission_id: int, student: User, text: str) -> Submission:

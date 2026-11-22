@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% from "_search.html" import search_field %}
+{% set back_url = url_for('courses.show', course_id=course.id) ~ '#grades' %}{% set back_label = course.name %}
+{% block title %}{{ exam.title }} · {{ course.name }}{% endblock %}
+{% block content %}
+{% set graded = roster|map(attribute=1)|select|list|length %}
+<article class="stack">
+  <header class="asg-head">
+    <div>
+      <h1>{{ exam.title }}</h1>
+      <p class="muted">{{ exam.kind_label }} · {{ exam.weight|grade }}% מהציון הסופי{% if exam.date_label %} · {{ exam.date_label }}{% endif %}</p>
+    </div>
+    <div class="row">
+      <a class="btn btn-quiet btn-sm" href="{{ url_for('grades.table', course_id=course.id) }}">טבלת ציונים ומשקלים</a>
+      <button class="btn btn-quiet btn-sm" type="button" data-open-dialog="edit-exam">עריכה</button>
+      <form method="post" action="{{ url_for('grades.delete', exam_id=exam.id) }}"
+            data-confirm="למחוק את ״{{ exam.title }}״? גם כל הציונים והערעורים שלו יימחקו.">
+        <button class="btn btn-danger btn-sm">מחק</button>
+      </form>
+    </div>
+  </header>
+
+  <div class="publish-bar{% if exam.published %} is-published{% endif %}">
+    <div class="grow">
+      {% if exam.published %}<strong>הציונים פורסמו.</strong><span>ציון שתשנה מעכשיו יתעדכן אצל הסטודנט מיד.</span>
+      {% else %}<strong>הציונים עוד לא פורסמו.</strong><span>הוזנו {{ graded }} מתוך {{ roster|length }}. הסטודנטים יראו את הציונים כולם יחד, כשתפרסם.</span>{% endif %}
+    </div>
+    <form method="post" action="{{ url_for('grades.publish', exam_id=exam.id) }}"
+          {% if not exam.published %}data-confirm="לפרסם את הציונים? {{ graded }} סטודנטים יראו עכשיו את הציון שלהם." data-confirm-ok="פרסם ציונים"{% endif %}>
+      <input type="hidden" name="published" value="{{ '0' if exam.published else '1' }}">
+      <button class="btn {{ 'btn-quiet btn-sm' if exam.published else '' }}" {% if not graded and not exam.published %}disabled title="עוד לא הוזן אף ציון"{% endif %}>{{ 'הסתר ציונים' if exam.published else 'פרסם ציונים לכולם' }}</button>
+    </form>
+  </div>
+
+  {% if appeals %}
+  <section class="panel" id="appeals">
+    <h2 class="asg-h2">ערעורים <span class="muted" style="font-weight:500">{{ appeals|length }}</span></h2>
+    <ul class="list list-scroll">
+      {% for g in appeals %}
+      <li>
+        <div class="grow">
+          <div class="title">{{ g.student_name }} <span class="muted small" style="font-weight:400">· ציון {{ g.grade|grade }}</span></div>
+          <p class="appeal-text" dir="auto">{{ g.appeal_text }}</p>
+          <form method="post" action="{{ url_for('grades.resolve_appeal', grade_id=g.id) }}" class="att-resolve">
+            <input type="number" name="grade" class="grade-input" min="0" max="100" step="any" inputmode="decimal" value="{{ g.grade|grade }}" aria-label="ציון חדש ל{{ g.student_name }}">
+            <input type="text" name="reply" maxlength="2000" placeholder="תשובה לסטודנט (לא חובה)" aria-label="תשובה ל{{ g.student_name }}">
+            <button class="btn btn-sm" name="decision" value="accept">קבל ועדכן ציון</button>
+            <button class="btn btn-sm btn-danger" name="decision" value="reject">דחה</button>
+          </form>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <section class="panel">
+    <h2 style="margin-bottom:6px">ציונים מקובץ</h2>
+    <p class="muted small" style="margin-bottom:12px">CSV או XLSX עם עמודת מייל ועמודת ציון. גם ייצוא ציונים מ-Moodle מתאים. שורה בלי ציון לא משנה כלום.</p>
+    <form method="post" action="{{ url_for('grades.import_grades', exam_id=exam.id) }}" enctype="multipart/form-data" class="form-grid" data-live-submit>
+      <input type="file" name="file" accept=".csv,.xlsx" required>
+      <button class="btn btn-sm">ייבא ציונים</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>הזנת ציונים <span class="muted" style="font-weight:500">{{ graded }} מתוך {{ roster|length }}</span></h2></div>
+    {% if roster %}
+    {% if roster|length > 5 %}
+    <div class="list-search-row">
+      {{ search_field('#exam-roster', 'חיפוש סטודנט', empty='exam-none', count='exam-count') }}
+      <span class="list-search-count" id="exam-count" aria-live="polite"></span>
+    </div>
+    {% endif %}
+    <form method="post" action="{{ url_for('grades.save_grades', exam_id=exam.id) }}" data-live-submit data-warn-unsaved>
+      <ul class="list list-scroll" id="exam-roster">
+        {% for student, g in roster %}
+        <li data-filter-item data-filter-text="{{ student.name }} {{ student.email }}">
+          <div class="grow"><div class="title">{{ student.name }}</div><div class="xsmall muted" dir="ltr" style="text-align:right">{{ student.email }}</div></div>
+          {% if g and g.appeal_status == 'accepted' %}<span class="pill" title="הציון לפני הערעור: {{ g.original_grade|grade }}">ערעור התקבל</span>{% endif %}
+          <input type="hidden" name="o_{{ student.id }}" value="{{ g.grade|grade if g else '' }}">
+          <input type="number" class="grade-input" name="g_{{ student.id }}" min="0" max="100" step="any" inputmode="decimal"
+                 value="{{ g.grade|grade if g else '' }}" placeholder="–" aria-label="ציון של {{ student.name }}">
+        </li>
+        {% endfor %}
+      </ul>
+      <p class="search-none" id="exam-none" hidden>לא נמצא סטודנט בשם הזה.</p>
+      <div class="save-row"><button class="btn">שמור ציונים</button><span class="xsmall muted">תא ריק הוא ״אין ציון״ ולא נספר. מי שצריך לקבל 0, כתוב לו 0.</span></div>
+    </form>
+    {% else %}<p class="muted small">עוד אין סטודנטים בקורס.</p>{% endif %}
+  </section>
+
+  <dialog id="edit-exam">
+    <form method="post" action="{{ url_for('grades.edit', exam_id=exam.id) }}" class="dialog-body" data-live-submit>
+      <h2>עריכה</h2>
+      {% include "grades/_fields.html" %}
+      <div class="dialog-actions">
+        <button class="btn btn-quiet" type="button" data-close-dialog>ביטול</button>
+        <button class="btn">שמור</button>
+      </div>
+    </form>
+  </dialog>
+</article>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/grades.js') }}"></script>{% endblock %}

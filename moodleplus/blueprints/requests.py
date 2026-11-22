@@ -48,7 +48,8 @@ def inbox():
     everything = service.all()
     counts = {key: sum(1 for r in everything if r.status == key) for key in STATUSES}
     counts["open"] = counts["new"] + counts["in_progress"]
-    return render_template("requests/inbox.html", items=service.all(status), status=status, counts=counts,
+    # כל הפניות נשלחות, והסינון לפי סטטוס קורה בדפדפן בלי לטעון את העמוד מחדש
+    return render_template("requests/inbox.html", items=everything, status=status, counts=counts,
                            statuses=STATUSES, keep_days=KEEP_CLOSED_DAYS, now=time.time())
 
 

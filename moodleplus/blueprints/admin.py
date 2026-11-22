@@ -29,10 +29,10 @@ def _report(result) -> None:
 @bp.get("/")
 @role_required("admin")
 def users():
-    role = request.args.get("role") or None
+    role = request.args.get("role", "")
     return render_template(
         "admin/users.html",
-        users=UserService(get_db()).list(role),
+        users=UserService(get_db()).list(),  # הסינון לפי תפקיד קורה בדפדפן, בלי לטעון את העמוד מחדש
         role_filter=role,
         role_labels=ROLE_LABELS,
     )

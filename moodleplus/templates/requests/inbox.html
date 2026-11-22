@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "requests/_bits.html" import request_row %}
-{% from "_search.html" import search_field %}
+{% from "_search.html" import search_field, funnel, list_state %}
 {% block title %}פניות · Moodle+{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -12,30 +12,25 @@
 {% set active = 'requests' %}{% include "admin/_nav.html" %}
 
 <section class="panel">
-  <nav class="req-filters" aria-label="סינון לפי סטטוס">
-    {% for key, label in [('open', 'פתוחות'), ('new', 'חדשות'), ('in_progress', 'בטיפול'), ('resolved', 'טופלו'), ('rejected', 'נדחו'), ('all', 'הכל')] %}
-    <a href="{{ url_for('requests.inbox', status=key) }}" {% if status == key %}class="on" aria-current="page"{% endif %}>
-      {{ label }}{% if key != 'all' and counts[key] %} <span>{{ counts[key] }}</span>{% endif %}
-    </a>
-    {% endfor %}
-  </nav>
-
   {% if items %}
-  {% if items|length > 5 %}
-  <div class="list-search-row">
+  <div class="list-search-row has-funnel">
     {{ search_field('#req-list', 'חיפוש לפי נושא או שם', empty='req-none', count='req-count') }}
-    <span class="list-search-count" id="req-count" aria-live="polite"></span>
+    {{ funnel('#req-list', [
+        ('', 'הכל', items|length, ''),
+        ('open', 'פתוחות', counts.open, 'אין פניות פתוחות. כל הפניות טופלו.'),
+        ('new', 'חדשות', counts.new, 'אין פניות חדשות.'),
+        ('in_progress', 'בטיפול', counts.in_progress, 'אין פניות בטיפול.'),
+        ('resolved', 'טופלו', counts.resolved, 'אין פניות שטופלו.'),
+        ('rejected', 'נדחו', counts.rejected, 'אין פניות שנדחו.'),
+      ], current='' if status == 'all' else status, explicit='status' in request.args) }}
   </div>
-  {% endif %}
+  {{ list_state('#req-list', 'req-count') }}
   <ul class="req-list" id="req-list">
     {% for r in items %}{{ request_row(r, now, show_author=True) }}{% endfor %}
   </ul>
   <p class="search-none" id="req-none" hidden>לא נמצאה פנייה כזו.</p>
   {% else %}
-  <div class="empty">
-    <strong>{{ 'אין פניות פתוחות' if status == 'open' else 'אין פניות כאן' }}</strong>
-    {% if status == 'open' %}כל הפניות טופלו.{% else %}אין פניות בסטטוס הזה.{% endif %}
-  </div>
+  <div class="empty"><strong>אין פניות</strong>כשסטודנט או מרצה ישלחו פנייה, היא תופיע כאן.</div>
   {% endif %}
 </section>
 {% endblock %}

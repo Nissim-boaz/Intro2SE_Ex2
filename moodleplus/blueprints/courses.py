@@ -50,9 +50,11 @@ def show(course_id: int):
     context["assignments"] = assignments.list(course_id)
     if role == "student":
         context["my_submissions"] = assignments.my_submissions(course_id, current_user().id)
+        context["my_zeros"] = assignments.my_zeros(course_id, current_user().id)
     else:
         context["assignment_counts"] = assignments.counts(course_id)
         context["student_count"] = len(enrollments.members(course_id, "student"))
+    context["grades"] = _grades_context(course_id, role)
     context["now"] = time.time()
     return render_template(
         "courses/show.html",
@@ -67,5 +69,11 @@ def show(course_id: int):
 
 def _attendance_context(course_id: int, role: str) -> dict:
     from .attendance import section_context
+
+    return section_context(course_id, role)
+
+
+def _grades_context(course_id: int, role: str) -> dict:
+    from .grades import section_context
 
     return section_context(course_id, role)

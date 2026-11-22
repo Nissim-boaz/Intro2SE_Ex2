@@ -175,6 +175,11 @@ CREATE TABLE IF NOT EXISTS assignments (
     file_path   TEXT NOT NULL DEFAULT '',   -- קובץ מצורף מהמרצה (לא חובה)
     file_name   TEXT NOT NULL DEFAULT '',
     grades_published INTEGER NOT NULL DEFAULT 0,  -- 0: המרצה בודק, והסטודנטים עוד לא רואים ציונים
+    weight           REAL NOT NULL DEFAULT 0,      -- אחוז מהציון הסופי בקורס
+    -- פתרון לסטודנטים (לא חובה). מתפרסם רק אחרי המועד, והפרסום סוגר את ההגשה
+    solution_path      TEXT NOT NULL DEFAULT '',
+    solution_name      TEXT NOT NULL DEFAULT '',
+    solution_published INTEGER NOT NULL DEFAULT 0,
     -- בדיקה עם AI: דגשים ופתרון לדוגמה (לא חובה), ומצב הבדיקה ברקע
     ai_guidelines    TEXT NOT NULL DEFAULT '',
     ai_solution_path TEXT NOT NULL DEFAULT '',
@@ -239,4 +244,36 @@ CREATE TABLE IF NOT EXISTS request_messages (
     status      TEXT NOT NULL DEFAULT '',
     as_team     INTEGER NOT NULL DEFAULT 0,  -- 1: הפונה רואה ״מנהל המערכת״ בלי שם. מנהלים אחרים רואים מי כתב
     created_at  REAL NOT NULL
+);
+
+-- 0 שהמרצה רשם לסטודנט שלא הגיש. בלי זה ציון חסר פשוט לא נספר
+CREATE TABLE IF NOT EXISTS assignment_zeros (
+    assignment_id INTEGER NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+    student_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (assignment_id, student_id)
+);
+
+-- מבחנים ובחנים. weight הוא אחוז מהציון הסופי, והציונים גלויים לסטודנטים רק אחרי published
+CREATE TABLE IF NOT EXISTS exams (
+    id         INTEGER PRIMARY KEY,
+    course_id  INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    title      TEXT NOT NULL,
+    kind       TEXT NOT NULL CHECK (kind IN ('exam', 'quiz')),
+    held_on    TEXT NOT NULL DEFAULT '',
+    weight     REAL NOT NULL DEFAULT 0,
+    published  INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS exam_grades (
+    id             INTEGER PRIMARY KEY,
+    exam_id        INTEGER NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+    student_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    grade          REAL NOT NULL CHECK (grade BETWEEN 0 AND 100),
+    appeal_status  TEXT NOT NULL DEFAULT '',   -- '' | pending | accepted | rejected
+    appeal_text    TEXT NOT NULL DEFAULT '',
+    appeal_reply   TEXT NOT NULL DEFAULT '',
+    appeal_at      REAL NOT NULL DEFAULT 0,
+    original_grade REAL,                       -- הציון לפני שערעור התקבל
+    UNIQUE (exam_id, student_id)
 );

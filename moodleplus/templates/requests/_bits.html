@@ -9,7 +9,7 @@
 {%- endmacro %}
 
 {% macro request_row(r, now, show_author=False) -%}
-<li data-filter-item data-filter-text="{{ r.subject }} {{ r.user_name if show_author else '' }}">
+<li data-filter-item data-filter-tags="{{ r.status }}{{ '' if r.closed else ' open' }}" data-filter-text="{{ r.subject }} {{ r.user_name if show_author else '' }}">
   <a class="req-row{% if r.closed %} is-closed{% endif %}" href="{{ url_for('requests.show', request_id=r.id) }}">
     <span class="req-text">
       <span class="req-subject">

@@ -75,6 +75,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
         ("submissions", "ai_flag"): "TEXT NOT NULL DEFAULT ''",
         ("submissions", "ai_error"): "TEXT NOT NULL DEFAULT ''",
         ("submissions", "ai_at"): "REAL NOT NULL DEFAULT 0",
+        ("assignments", "weight"): "REAL NOT NULL DEFAULT 0",
+        ("assignments", "solution_path"): "TEXT NOT NULL DEFAULT ''",
+        ("assignments", "solution_name"): "TEXT NOT NULL DEFAULT ''",
+        ("assignments", "solution_published"): "INTEGER NOT NULL DEFAULT 0",
     }
     for (table, column), ddl in added.items():
         cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
