@@ -11,13 +11,15 @@ bp = Blueprint("grades", __name__)
 
 
 def section_context(course_id: int, role: str) -> dict:
-    """מה שלשונית הציונים בעמוד הקורס צריכה. סטודנט מקבל רק את הציונים שלו שפורסמו."""
+    """מה שלשונית ״מטלות וציונים״ בעמוד הקורס צריכה. סטודנט מקבל רק את הציונים שלו שפורסמו."""
     db = get_db()
+    components = Gradebook(db).components(course_id)
+    ctx = {"weights": {c.id: c.weight for c in components if c.kind == "assignment"}}
     if role == "student":
-        return {"mine": Gradebook(db).for_student(course_id, current_user().id)}
+        return ctx | {"mine": Gradebook(db).for_student(course_id, current_user().id)}
     exams = ExamService(db)
-    return {"exams": exams.list(course_id), "exam_counts": exams.counts(course_id),
-            "total_weight": Gradebook(db).total_weight(course_id)}
+    return ctx | {"exams": exams.list(course_id), "exam_counts": exams.counts(course_id),
+                  "total_weight": sum(c.weight for c in components)}
 
 
 def _manage_course(course_id: int):
@@ -100,7 +102,7 @@ def delete(exam_id: int):
     service, item = _manage_exam(exam_id)
     service.delete(exam_id)
     flash(f"ה{item.kind_label} נמחק", "success")
-    return redirect(url_for("courses.show", course_id=item.course_id) + "#grades")
+    return redirect(url_for("courses.show", course_id=item.course_id) + "#assignments")
 
 
 @bp.post("/exams/<int:exam_id>/grades")
@@ -167,4 +169,4 @@ def appeal(grade_id: int):
     EnrollmentService(get_db()).require_student(course_id, current_user())
     service.appeal(grade_id, current_user(), request.form.get("text", ""))
     flash("הערעור נשלח למרצה", "success")
-    return redirect(url_for("courses.show", course_id=course_id) + "#grades")
+    return redirect(url_for("courses.show", course_id=course_id) + "#assignments")

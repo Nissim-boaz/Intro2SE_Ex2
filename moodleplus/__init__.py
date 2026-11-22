@@ -96,8 +96,9 @@ def _register_handlers(app: Flask) -> None:
     from .services.assignments import left_he, when_he
     app.jinja_env.filters["when_he"] = when_he
     app.jinja_env.filters["left_he"] = left_he
-    from .services.gradebook import fmt_grade
+    from .services.gradebook import fmt_grade, tone
     app.jinja_env.filters["grade"] = fmt_grade
+    app.jinja_env.filters["tone"] = tone
 
     @app.context_processor
     def inject_user():

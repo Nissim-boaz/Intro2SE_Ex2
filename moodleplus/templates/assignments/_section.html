@@ -1,14 +1,37 @@
+{# One tab for assignments and grades: the weighted grade on top, then assignments, then exams and quizzes. #}
 {% from "assignments/_status.html" import student_status, lecturer_status %}
 <section class="panel section" id="assignments">
+  {% if can_manage %}
   <div class="panel-head">
-    <h2>מטלות</h2>
+    <h2>מטלות וציונים</h2>
+    <a class="btn btn-sm btn-quiet" href="{{ url_for('grades.table', course_id=course.id) }}">טבלת ציונים ומשקלים</a>
+  </div>
+  <p class="weights-note small muted">
+    {% if grades.total_weight >= 100 %}חילקת את כל 100% של הציון הסופי.{% else %}חילקת {{ grades.total_weight|grade }}% מתוך 100% של הציון הסופי.{% endif %}
+  </p>
+  {% else %}
+  <div class="panel-head"><h2>מטלות וציונים</h2></div>
+  {% if grades.mine is defined and grades.mine.weighted is not none %}
+  {% set g = grades.mine %}
+  <div class="grade-total">
+    <div class="grow">
+      <strong>{{ 'ציון משוקלל' if g.covered >= 100 else 'ציון משוקלל עד כה' }}</strong>
+      <span class="xsmall muted">מבוסס על {{ g.covered|grade }}% מהציון הסופי</span>
+    </div>
+    <span class="grade-total-num tone-{{ g.weighted|tone }}">{{ g.weighted|grade }}</span>
+  </div>
+  {% endif %}
+  {% endif %}
+
+  <div class="sub-head">
+    <h3>מטלות</h3>
     {% if can_manage %}<button class="btn btn-sm" type="button" data-open-dialog="new-assignment">מטלה חדשה</button>{% endif %}
   </div>
-
   {% if assignments %}
   <ul class="asg-list list-scroll">
     {% for a in assignments %}
     {% set past = now > a.due_at %}
+    {% set weight = grades.weights.get(a.id) %}
     <li>
       <a class="asg-row{% if past %} is-past{% endif %}" href="{{ url_for('assignments.show', assignment_id=a.id) }}">
         <span class="asg-icon" aria-hidden="true">
@@ -17,6 +40,7 @@
         <span class="asg-text">
           <span class="asg-title">{{ a.title }}</span>
           <span class="asg-due">עד {{ a.due_at|when_he(now) }}</span>
+          {% if weight %}<span class="asg-due">{{ weight|grade }}% מהציון</span>{% endif %}
         </span>
         <span class="asg-status">
           {% if can_manage %}{{ lecturer_status(a, assignment_counts, student_count, now) }}
@@ -27,11 +51,10 @@
     {% endfor %}
   </ul>
   {% else %}
-  <div class="empty">
-    <strong>עוד אין מטלות</strong>
-    {% if can_manage %}פרסם מטלה עם תאריך הגשה, והסטודנטים יוכלו להגיש אותה כאן.{% else %}כשהמרצה יפרסם מטלה, היא תופיע כאן.{% endif %}
-  </div>
+  <p class="small muted">{% if can_manage %}עוד אין מטלות. פרסם מטלה עם תאריך הגשה, והסטודנטים יוכלו להגיש אותה כאן.{% else %}עוד אין מטלות. כשהמרצה יפרסם מטלה, היא תופיע כאן.{% endif %}</p>
   {% endif %}
+
+  {% include "grades/_exams.html" %}
 </section>
 
 {% if can_manage %}
@@ -42,6 +65,17 @@
     <div class="dialog-actions">
       <button class="btn btn-quiet" type="button" data-close-dialog>ביטול</button>
       <button class="btn">פרסם</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="new-exam">
+  <form method="post" action="{{ url_for('grades.create', course_id=course.id) }}" class="dialog-body" data-once>
+    <h2>מבחן או בוחן חדש</h2>
+    {% include "grades/_fields.html" %}
+    <label>משקל בציון הסופי (%)<input type="number" name="weight" min="0" max="100" step="any" inputmode="decimal" placeholder="אפשר להגדיר גם אחר כך"></label>
+    <div class="dialog-actions">
+      <button class="btn btn-quiet" type="button" data-close-dialog>ביטול</button>
+      <button class="btn">הוסף</button>
     </div>
   </form>
 </dialog>

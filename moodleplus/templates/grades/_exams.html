@@ -1,0 +1,76 @@
+{# Exams and quizzes, the second half of the "assignments and grades" tab. #}
+{% set exam_icon %}<span class="asg-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 20l1-4.2L15.9 4.9a2 2 0 0 1 2.8 0l.4.4a2 2 0 0 1 0 2.8L8.2 19Z M13.8 7l3.2 3.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></svg></span>{% endset %}
+
+{% if can_manage %}
+<div class="sub-head">
+  <h3>מבחנים ובחנים</h3>
+  <button class="btn btn-sm" type="button" data-open-dialog="new-exam">מבחן או בוחן חדש</button>
+</div>
+{% if grades.exams %}
+<ul class="asg-list list-scroll">
+  {% for e in grades.exams %}
+  {% set c = grades.exam_counts[e.id] %}
+  <li>
+    <a class="asg-row" href="{{ url_for('grades.exam', exam_id=e.id) }}">
+      {{ exam_icon }}
+      <span class="asg-text">
+        <span class="asg-title">{{ e.title }}</span>
+        <span class="asg-due">{{ e.kind_label }}{% if e.weight %} · {{ e.weight|grade }}% מהציון{% endif %}{% if e.date_label %} · {{ e.date_label }}{% endif %}</span>
+      </span>
+      <span class="asg-status">
+        {% if c.appeals %}<span class="pill pill-danger">{{ c.appeals }} ערעורים</span>{% endif %}
+        <span class="pill {{ 'pill-ok' if e.published else 'pill-warn' }}">{{ 'פורסם' if e.published else 'לא פורסם' }}</span>
+        <span class="pill">{{ c.graded }}/{{ student_count }} ציונים</span>
+      </span>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}<p class="small muted">עוד אין מבחנים או בחנים. אפשר להזין ציונים ידנית או מקובץ, ולפרסם לכולם בבת אחת.</p>{% endif %}
+
+{% elif grades.mine is defined %}
+{% set cells = grades.mine.cells|rejectattr('component.kind', 'equalto', 'assignment')|list %}
+{% if cells %}
+<div class="sub-head"><h3>מבחנים ובחנים</h3></div>
+<ul class="asg-list list-scroll">
+  {% for c in cells %}
+  {% set x = c.exam_grade %}
+  <li class="exam-item">
+    <div class="asg-row is-static">
+      {{ exam_icon }}
+      <span class="asg-text">
+        <span class="asg-title">{{ c.component.title }}</span>
+        <span class="asg-due">{{ c.component.kind_label }}{% if c.component.weight %} · {{ c.component.weight|grade }}% מהציון{% endif %}</span>
+      </span>
+      <span class="asg-status">
+        {% if c.grade is not none %}<span class="pill pill-{{ c.grade|tone }}">ציון {{ c.grade|grade }}</span>
+        {% else %}<span class="pill">{{ 'אין ציון' if c.component.published else 'עוד לא פורסם' }}</span>{% endif %}
+        {% if x and x.appeal_status == 'pending' %}<span class="pill pill-warn">ערעור בבדיקה</span>{% endif %}
+      </span>
+    </div>
+    {% if x and x.can_appeal %}
+    <details class="appeal-box">
+      <summary class="btn btn-ghost btn-sm">ערעור על הציון</summary>
+      <form method="post" action="{{ url_for('grades.appeal', grade_id=x.id) }}" class="stack appeal-form" data-once
+            data-confirm="לשלוח את הערעור? אפשר לערער פעם אחת על כל מבחן או בוחן." data-confirm-ok="שלח ערעור">
+        <label>על מה הערעור?<textarea name="text" rows="3" required maxlength="4000"></textarea></label>
+        <button class="btn btn-sm">שלח ערעור</button>
+      </form>
+    </details>
+    {% elif x and x.appeal_status %}
+    <div class="appeal-card">
+      <div class="appeal-head">
+        <strong>הערעור שלך</strong>
+        {% if x.appeal_status == 'pending' %}<span class="pill pill-warn">ממתין לתשובת המרצה</span>
+        {% elif x.appeal_status == 'accepted' %}<span class="pill pill-ok">התקבל, הציון עודכן מ-{{ x.original_grade|grade }}</span>
+        {% else %}<span class="pill pill-danger">נדחה</span>{% endif %}
+      </div>
+      <p class="appeal-text" dir="auto">{{ x.appeal_text }}</p>
+      {% if x.appeal_reply %}<p class="appeal-reply" dir="auto"><strong>תשובת המרצה:</strong> {{ x.appeal_reply }}</p>{% endif %}
+    </div>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endif %}

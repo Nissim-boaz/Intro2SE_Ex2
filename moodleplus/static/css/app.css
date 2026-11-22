@@ -1140,12 +1140,12 @@ body.tabbed .tab-on { animation: tab-in .24s var(--ease); }
 .note-warn { padding: 10px 14px; border-radius: var(--r-sm); background: var(--warn-soft); color: var(--warn-ink); font-size: var(--fs-sm); }
 
 .grade-card {
-  margin-top: 14px; display: flex; gap: 16px; align-items: flex-start; padding: 16px; border-radius: var(--r-md);
-  background: var(--ok-soft);
+  margin-top: 14px; display: flex; gap: 14px; align-items: baseline; padding: 12px 14px; border-radius: var(--r-md);
+  box-shadow: 0 0 0 1px var(--line) inset;
 }
-.grade-num { flex: none; color: var(--ok); line-height: 1; }
-.grade-num strong { font-size: 40px; font-weight: 700; letter-spacing: -.02em; }
-.grade-num span { font-size: var(--fs-sm); opacity: .8; }
+.grade-num { flex: none; line-height: 1.2; }
+.grade-num strong { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.grade-num span { font-size: var(--fs-xs); color: var(--ink-2); }
 .grade-note { white-space: pre-line; line-height: 1.55; }
 
 /* grading: the pill opens a small form inside the row */
@@ -1269,7 +1269,7 @@ body.tabbed .tab-on { animation: tab-in .24s var(--ease); }
 .publish-bar.is-published { background: var(--ok-soft); color: var(--ok); }
 .publish-bar.is-published span { color: var(--ink-2); }
 .note-info { margin-top: 14px; padding: 10px 14px; border-radius: var(--r-sm); background: var(--brand-soft); color: var(--brand); font-size: var(--fs-sm); }
-.grade-old { font-size: 22px; color: var(--ink-3); margin-inline-end: 8px; }
+.grade-old { font-size: 15px; color: var(--ink-3); margin-inline-end: 8px; }
 .appeal-box { margin-top: 14px; }
 .appeal-box > summary { list-style: none; width: fit-content; }
 .appeal-box > summary::-webkit-details-marker { display: none; }
@@ -1389,21 +1389,17 @@ input[type=date], input[type=datetime-local] {
   border: 1px solid var(--line); background: var(--surface);
 }
 .weights-note { margin-bottom: 12px; }
-.grade-hero { display: flex; align-items: center; gap: 18px; padding: 18px; border-radius: var(--r-md); background: var(--brand-soft); margin-bottom: 14px; }
-.grade-hero-num { flex: none; min-width: 92px; text-align: center; font-size: 46px; font-weight: 700; line-height: 1; letter-spacing: -.02em; color: var(--brand); font-variant-numeric: tabular-nums; }
-.grade-hero .grow { flex: 1; min-width: 0; display: grid; gap: 4px; }
-.grade-bar { height: 6px; margin-top: 4px; border-radius: 6px; background: var(--fill-2); overflow: hidden; }
-.grade-bar span { display: block; height: 100%; background: var(--brand); transform-origin: right; }
-.grade-list { list-style: none; margin: 0; padding: 0; }
-.grade-list > li { padding: 13px 0; border-top: 1px solid var(--line); }
-.grade-list > li:first-child { border-top: 0; }
-.grade-line { display: flex; align-items: center; gap: 12px; }
-.grade-line .grow { flex: 1; min-width: 0; }
-.grade-title { font-weight: 600; color: var(--ink); }
-.grade-value { flex: none; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.grade-value s { font-size: 15px; font-weight: 500; color: var(--ink-3); }
-.grade-card-zero { background: var(--danger-soft); }
-.grade-card-zero .grade-num { color: var(--danger); }
+.grade-total { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--r-md); box-shadow: 0 0 0 1px var(--line) inset; }
+.grade-total .grow { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.grade-total-num { flex: none; font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tone-ok { color: var(--ok); }
+.tone-danger, .matrix td.tone-danger { color: var(--danger); }
+.sub-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 20px 0 10px; }
+.sub-head h3 { font-size: var(--fs-md); }
+.asg-row.is-static, .asg-row.is-static:hover { background: var(--fill); cursor: default; }
+.asg-row.is-static:active { transform: none; }
+.exam-item .appeal-box { margin: 4px 0 0; }
+.exam-item .appeal-box[open], .exam-item .appeal-card { margin-top: 8px; }
 input[type=number].grade-input { width: 92px; flex: none; text-align: center; padding: 9px 8px; }
 .att-resolve input[type=number].grade-input { flex: none; min-width: 0; }
 .save-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 14px; }

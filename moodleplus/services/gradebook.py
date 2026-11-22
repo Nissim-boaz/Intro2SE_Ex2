@@ -21,6 +21,7 @@ from .users import StudentImporter, UserService
 KINDS = {"exam": "מבחן", "quiz": "בוחן", "assignment": "מטלה"}
 GRADE_KEYS = ("grade", "score", "mark", "ציון", "ציון סופי")
 TOTAL_WEIGHT = 100
+PASS_GRADE = 60  # מתחת לזה הציון מוצג באדום
 
 
 def parse_grade(value) -> float | None:
@@ -47,6 +48,11 @@ def parse_weight(value) -> float:
 def fmt_grade(value: float | None) -> str:
     """87.0 -> '87', 87.5 -> '87.5', None -> '–'."""
     return "–" if value is None else f"{round(value, 2):g}"
+
+
+def tone(grade: float) -> str:
+    """הצבע של ציון: 'ok' (ירוק) מ-60 ומעלה, 'danger' (אדום) מתחת."""
+    return "ok" if grade >= PASS_GRADE else "danger"
 
 
 @dataclass(frozen=True)

@@ -227,7 +227,7 @@ def test_grade_routes_and_privacy(app, client):
 
     login(client, s1.id)
     page = client.get(f"/courses/{course.id}").get_data(as_text=True)
-    assert "מבחן אמצע" in page and "עוד לא פורסם" in page and ">91<" not in page
+    assert "מבחן אמצע" in page and "עוד לא פורסם" in page and "ציון 91" not in page
     for url in ("/exams/1", f"/courses/{course.id}/grades", f"/courses/{course.id}/grades.csv"):
         assert client.get(url).status_code == 302  # lecturer only
     client.post("/exams/1/publish", data={"published": "1"})
@@ -237,9 +237,9 @@ def test_grade_routes_and_privacy(app, client):
     client.post("/exams/1/publish", data={"published": "1"})
     login(client, s1.id)
     page = client.get(f"/courses/{course.id}").get_data(as_text=True)
-    assert ">91<" in page and "ציון משוקלל עד כה" in page and "מבוסס על 40% מהציון הסופי" in page
+    assert "ציון 91" in page and "ציון משוקלל עד כה" in page and "מבוסס על 40% מהציון הסופי" in page
     login(client, s2.id)
-    assert ">91<" not in client.get(f"/courses/{course.id}").get_data(as_text=True)
+    assert "ציון 91" not in client.get(f"/courses/{course.id}").get_data(as_text=True)
     client.post("/exam-grades/1/appeal", data={"text": "not mine"})
     login(client, s1.id)
     client.post("/exam-grades/1/appeal/resolve", data={"decision": "accept", "grade": "100"})
@@ -288,4 +288,22 @@ def test_filters_send_the_whole_list(app, client):
     assert 'data-current="open"' in inbox
     users = client.get("/admin/?role=lecturer").get_data(as_text=True)
     assert "סטודנטית" in users and 'data-filter-tags="lecturer"' in users and 'data-current="lecturer" data-explicit' in users
+    conn.close()
+
+
+def test_failing_grades_are_red_and_grades_share_the_assignments_tab(app, client):
+    from moodleplus.services.gradebook import tone
+
+    assert [tone(g) for g in (59.9, 60, 100, 0)] == ["danger", "ok", "ok", "danger"]
+    conn, lect, s1, s2, course = _setup(app)
+    login(client, lect.id)
+    client.post(f"/courses/{course.id}/exams", data={"title": "בוחן", "kind": "quiz", "weight": "10"})
+    client.post("/exams/1/grades", data={f"g_{s1.id}": "59", f"o_{s1.id}": "", f"g_{s2.id}": "60", f"o_{s2.id}": ""})
+    client.post("/exams/1/publish", data={"published": "1"})
+    for st, mark, kind in ((s1, 59, "danger"), (s2, 60, "ok")):
+        login(client, st.id)
+        page = client.get(f"/courses/{course.id}").get_data(as_text=True)
+        assert f'pill-{kind}">ציון {mark}<' in page and f"tone-{kind}" in page
+        assert 'data-tab="grades"' not in page and "מטלות וציונים" in page
+        assert page.count("data-tab=") + 1 == 5  # four sections and the chat
     conn.close()

@@ -85,7 +85,7 @@
     </div>
     {% if mine.grade_visible %}
     <div class="grade-card">
-      <div class="grade-num">
+      <div class="grade-num tone-{{ mine.grade|tone }}">
         {% if mine.appeal_status == 'accepted' and mine.original_grade is not none %}<s class="grade-old">{{ mine.original_grade }}</s>{% endif %}
         <strong>{{ mine.grade }}</strong><span>/100</span>
       </div>
@@ -118,8 +118,8 @@
     <p class="note-info">ההגשה בבדיקה. הציון יופיע כאן כשהמרצה יפרסם את הציונים.</p>
     {% endif %}
     {% elif my_zero %}
-    <div class="grade-card grade-card-zero">
-      <div class="grade-num"><strong>0</strong><span>/100</span></div>
+    <div class="grade-card">
+      <div class="grade-num tone-danger"><strong>0</strong><span>/100</span></div>
       <p class="grade-note">לא הגשת את המטלה.</p>
     </div>
     {% else %}
@@ -207,7 +207,7 @@
           {% if sub.appeal_status == 'accepted' %}<span class="pill" title="הציון לפני הערעור: {{ sub.original_grade }}">ערעור התקבל</span>
           {% elif sub.appeal_status == 'rejected' %}<span class="pill">ערעור נדחה</span>{% endif %}
           <details class="grade-box"{% if sub.appeal_status == 'pending' %} open{% endif %}>
-            <summary class="pill {{ 'pill-danger' if sub.appeal_status == 'pending' else 'pill-ok' if sub.graded else 'pill-brand' }}">
+            <summary class="pill {{ 'pill-warn' if sub.appeal_status == 'pending' else 'pill-' ~ (sub.grade|tone) if sub.graded else 'pill-brand' }}">
               {% if sub.appeal_status == 'pending' %}ערעור · ציון {{ sub.grade }}{% elif sub.graded %}ציון {{ sub.grade }}{% else %}לבדיקה{% endif %}
             </summary>
             {% if sub.appeal_status == 'pending' %}

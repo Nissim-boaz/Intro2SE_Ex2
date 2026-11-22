@@ -18,7 +18,7 @@ Students and lecturers can send a request to the admins from the account menu (f
 
 The home page and the admin lists (users, courses, course members) have a live search field that filters as you type.
 
-The course page has a floating tab bar at the bottom (content, assignments, grades, attendance, recordings, chat), with an unread count on the chat icon.
+The course page has a floating tab bar at the bottom (content, assignments and grades, attendance, recordings, chat), with an unread count on the chat icon.
 
 ### Assignments
 

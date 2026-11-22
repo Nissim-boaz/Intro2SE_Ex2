@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_search.html" import search_field %}
-{% set back_url = url_for('courses.show', course_id=course.id) ~ '#grades' %}{% set back_label = course.name %}
+{% set back_url = url_for('courses.show', course_id=course.id) ~ '#assignments' %}{% set back_label = course.name %}
 {% block title %}{{ exam.title }} · {{ course.name }}{% endblock %}
 {% block content %}
 {% set graded = roster|map(attribute=1)|select|list|length %}

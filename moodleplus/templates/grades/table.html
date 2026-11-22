@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_search.html" import search_field %}
-{% set back_url = url_for('courses.show', course_id=course.id) ~ '#grades' %}{% set back_label = course.name %}
+{% set back_url = url_for('courses.show', course_id=course.id) ~ '#assignments' %}{% set back_label = course.name %}
 {% block title %}ציונים · {{ course.name }}{% endblock %}
 {% block content %}
 <div class="stack">
@@ -50,8 +50,8 @@
           {% for row in rows %}
           <tr data-filter-item data-filter-text="{{ row.student.name }} {{ row.student.email }}">
             <td><strong style="font-weight:600">{{ row.student.name }}</strong></td>
-            {% for c in row.cells %}<td class="center{{ '' if c.component.published else ' muted' }}">{{ c.grade|grade }}</td>{% endfor %}
-            <td class="center"><strong>{{ row.weighted|grade }}</strong>{% if row.weighted is not none %}<span class="th-sub">מתוך {{ row.covered|grade }}%</span>{% endif %}</td>
+            {% for c in row.cells %}<td class="center{{ '' if c.component.published else ' muted' }}{{ ' tone-danger' if c.grade is not none and c.grade|tone == 'danger' else '' }}">{{ c.grade|grade }}</td>{% endfor %}
+            <td class="center"><strong{% if row.weighted is not none and row.weighted|tone == 'danger' %} class="tone-danger"{% endif %}>{{ row.weighted|grade }}</strong>{% if row.weighted is not none %}<span class="th-sub">מתוך {{ row.covered|grade }}%</span>{% endif %}</td>
           </tr>
           {% endfor %}
         </tbody>
