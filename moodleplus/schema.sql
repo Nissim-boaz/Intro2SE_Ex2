@@ -277,3 +277,23 @@ CREATE TABLE IF NOT EXISTS exam_grades (
     original_grade REAL,                       -- הציון לפני שערעור התקבל
     UNIQUE (exam_id, student_id)
 );
+
+-- הודעות שמשתמש סימן בכוכב. אישי לגמרי: אף אחד אחר לא רואה
+CREATE TABLE IF NOT EXISTS message_stars (
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    starred_at REAL NOT NULL,
+    PRIMARY KEY (user_id, message_id)
+);
+
+-- עיצוב אישי של הצ׳אט. course_id = 0 היא הבחירה לכל הצ׳אטים, וצ׳אט עם בחירה משלו גובר עליה.
+-- שדה ריק: אין בחירה כאן, וממשיכים לבחירה הכללית או לברירת המחדל
+CREATE TABLE IF NOT EXISTS chat_themes (
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    course_id  INTEGER NOT NULL DEFAULT 0,
+    wallpaper  TEXT NOT NULL DEFAULT '',
+    bubble     TEXT NOT NULL DEFAULT '',
+    image_path TEXT NOT NULL DEFAULT '',
+    version    INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, course_id)
+);

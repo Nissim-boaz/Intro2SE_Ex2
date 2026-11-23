@@ -121,7 +121,46 @@ class ChatService:
         ids = [r["id"] for r in rows]
         reactions = self._reactions_for(ids, viewer)
         replies = self._reply_previews([r["reply_to_id"] for r in rows if r["reply_to_id"]], viewer)
-        return [self._view(r, viewer, reactions.get(r["id"]), replies.get(r["reply_to_id"])) for r in rows]
+        marks = ",".join("?" * len(ids))
+        stars = {r[0] for r in self.db.execute(
+            f"SELECT message_id FROM message_stars WHERE user_id = ? AND message_id IN ({marks})", [viewer.id, *ids])}
+        views = [self._view(r, viewer, reactions.get(r["id"]), replies.get(r["reply_to_id"])) for r in rows]
+        for v in views:
+            v["starred"] = v["id"] in stars and not v["deleted"]
+        return views
+
+    # ---------- stars: personal bookmarks, like WhatsApp ----------
+    def set_star(self, message_id: int, user: User, starred: bool) -> None:
+        row = self.get_row(message_id)
+        if starred and row["deleted"]:
+            raise ValidationError("אי אפשר לסמן הודעה שנמחקה")
+        if starred:
+            self.db.execute("INSERT OR IGNORE INTO message_stars (user_id, message_id, starred_at) VALUES (?, ?, ?)",
+                            (user.id, message_id, time.time()))
+        else:
+            self.db.execute("DELETE FROM message_stars WHERE user_id = ? AND message_id = ?", (user.id, message_id))
+        self.db.commit()
+
+    def starred(self, course_id: int, viewer: User) -> list[dict]:
+        """ההודעות שהצופה סימן בכוכב בקורס, מהחדשה לישנה, עם אותה הסתרה של שולח אנונימי."""
+        rows = self.db.execute(
+            "SELECT m.id, m.body, m.created_at, m.sender_id, m.is_anonymous, u.name AS sender_name, p.question "
+            "FROM message_stars s JOIN messages m ON m.id = s.message_id JOIN users u ON u.id = m.sender_id "
+            "LEFT JOIN polls p ON p.id = m.poll_id "
+            "WHERE s.user_id = ? AND m.course_id = ? AND m.deleted = 0 ORDER BY m.id DESC",
+            (viewer.id, course_id),
+        ).fetchall()
+        return [
+            {
+                "id": r["id"],
+                "text": r["body"] or r["question"] or "",
+                "is_poll": bool(r["question"]) and not r["body"],
+                "created_at": r["created_at"],
+                "mine": r["sender_id"] == viewer.id,
+                "sender_name": SenderMask.name_for(viewer, r["sender_id"], r["sender_name"], bool(r["is_anonymous"])),
+            }
+            for r in rows
+        ]
 
     # ---------- pinned messages (course lecturer only; the route checks who) ----------
     MAX_PINS = 3

@@ -16,6 +16,15 @@
   <button type="button" class="chat-icon-btn" id="chat-search-open" aria-label="חיפוש הודעות" title="חיפוש הודעות">
     <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.1"/><path d="m15.5 15.5 5 5" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></svg>
   </button>
+  <div class="chat-more">
+    <button type="button" class="chat-icon-btn" id="chat-more-open" aria-haspopup="menu" aria-expanded="false" aria-label="עוד" title="עוד">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="5.5" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="18.5" r="1.8" fill="currentColor"/></svg>
+    </button>
+    <div class="chat-more-menu" id="chat-more-menu" role="menu" hidden>
+      <button type="button" role="menuitem" data-more="starred"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3.6l2.5 5.3 5.8.7-4.3 4 1.1 5.8L12 16.6l-5.1 2.8 1.1-5.8-4.3-4 5.8-.7Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>הודעות מסומנות בכוכב</button>
+      <button type="button" role="menuitem" data-more="theme"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3.5a8.5 8.5 0 0 0 0 17c1.2 0 1.9-.8 1.9-1.8 0-1.3-1-1.7-1-2.8 0-1 .8-1.8 1.9-1.8h2.2a3.5 3.5 0 0 0 3.5-3.5c0-4-3.8-7.1-8.5-7.1Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="7.6" cy="11" r="1.2" fill="currentColor"/><circle cx="10.4" cy="7.4" r="1.2" fill="currentColor"/><circle cx="14.8" cy="7.6" r="1.2" fill="currentColor"/></svg>רקע וצבע ההודעות</button>
+    </div>
+  </div>
   <form class="chat-search-bar" id="chat-search-bar" role="search" hidden>
     <input type="search" id="chat-search-input" placeholder="חיפוש בצ׳אט" aria-label="חיפוש בצ׳אט" autocomplete="off" dir="auto">
     <button type="button" class="chat-icon-btn" id="chat-search-close" aria-label="סגור חיפוש">✕</button>

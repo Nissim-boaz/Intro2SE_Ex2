@@ -1411,3 +1411,124 @@ input[type=number].grade-input { width: 92px; flex: none; text-align: center; pa
 /* no spinner arrows in the grade boxes: they push the number off centre, and a scroll could change a grade */
 .grade-input { appearance: textfield; -moz-appearance: textfield; }
 .grade-input::-webkit-inner-spin-button, .grade-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* ---------- chat look: wallpaper and the colour of my own messages, chosen by each user ---------- */
+[data-wall="doodles"] { --wall-color: #EFE7DD; --wall-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 210' fill='none' stroke='rgba%28110%2C92%2C70%2C.16%29' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 30c6-3 12-3 16 0v18c-4-3-10-3-16 0zM34 30c4-3 10-3 16 0v18c-6-3-12-3-16 0z'/%3E%3Cpath d='M118 46l22-22 6 6-22 22h-6zM136 28l6 6'/%3E%3Cpath d='M78 70a10 10 0 1 1 12 15v5h-10v-5a10 10 0 0 1-2-15zM80 94h8'/%3E%3Cpath d='M165 80l3 7 7 .6-5.4 4.6 1.7 7-6.3-3.8-6.3 3.8 1.7-7-5.4-4.6 7-.6z'/%3E%3Cpath d='M22 112h26a4 4 0 0 1 4 4v12a4 4 0 0 1-4 4h-16l-7 6v-6h-3a4 4 0 0 1-4-4v-12a4 4 0 0 1 4-4z'/%3E%3Cpath d='M100 132l18-8 18 8-18 8zM108 136v8c6 4 14 4 20 0v-8'/%3E%3Cpath d='M150 172l30-12-12 28-5-11zM163 177l17-17'/%3E%3Cpath d='M70 160c-6-4-10-7-10-11a5 5 0 0 1 10-2 5 5 0 0 1 10 2c0 4-4 7-10 11z'/%3E%3Cpath d='M112 192q5-6 10 0t10 0t10 0'/%3E%3Cpath d='M177 122a8 8 0 1 0 16 0a8 8 0 1 0-16 0M185 117v5l3 2'/%3E%3Cpath d='M58 196l8-14 8 14zM24 172h14M31 165v14'/%3E%3Cpath d='M150 16a3 3 0 1 0 6 0a3 3 0 1 0-6 0M92 28a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0M192 64a2 2 0 1 0 4 0a2 2 0 1 0-4 0'/%3E%3C/svg%3E"); --wall-size: 200px; }
+[data-wall="sand"] { --wall-color: #F2E6D3; --wall-image: none; }
+[data-wall="mint"] { --wall-color: #DCEFE4; --wall-image: none; }
+[data-wall="sky"] { --wall-color: #DCEAF6; --wall-image: none; }
+[data-wall="lavender"] { --wall-color: #E7E1F5; --wall-image: none; }
+[data-wall="rose"] { --wall-color: #F6E1E4; --wall-image: none; }
+[data-wall="slate"] { --wall-color: #D9DEE3; --wall-image: none; }
+[data-bubble="brand"] { --mine-bg: var(--brand); --mine-ink: #fff; --mine-meta: rgba(255,255,255,.72); --mine-read: #9BE7FF; --mine-quote: rgba(255,255,255,.16); --mine-line: #fff; }
+[data-bubble="green"] { --mine-bg: #D9FDD3; --mine-ink: #111B21; --mine-meta: #667781; --mine-read: #53BDEB; --mine-quote: rgba(0,0,0,.05); --mine-line: #1DAA61; }
+[data-bubble="teal"] { --mine-bg: #00897B; --mine-ink: #fff; --mine-meta: rgba(255,255,255,.72); --mine-read: #B2F5EA; --mine-quote: rgba(255,255,255,.16); --mine-line: #fff; }
+[data-bubble="purple"] { --mine-bg: #7C4DDB; --mine-ink: #fff; --mine-meta: rgba(255,255,255,.72); --mine-read: #C7F0FF; --mine-quote: rgba(255,255,255,.16); --mine-line: #fff; }
+[data-bubble="pink"] { --mine-bg: #D63A7A; --mine-ink: #fff; --mine-meta: rgba(255,255,255,.75); --mine-read: #C7F0FF; --mine-quote: rgba(255,255,255,.16); --mine-line: #fff; }
+[data-bubble="orange"] { --mine-bg: #E8590C; --mine-ink: #fff; --mine-meta: rgba(255,255,255,.78); --mine-read: #C7F0FF; --mine-quote: rgba(255,255,255,.18); --mine-line: #fff; }
+[data-bubble="graphite"] { --mine-bg: #3A3A3C; --mine-ink: #fff; --mine-meta: rgba(255,255,255,.65); --mine-read: #9BE7FF; --mine-quote: rgba(255,255,255,.12); --mine-line: #fff; }
+[data-wall="plain"] { --wall-color: var(--bg); --wall-image: none; }
+[data-wall="image"] { --wall-color: var(--bg); --wall-image: var(--wall-photo); --wall-size: cover; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    [data-wall="doodles"] { --wall-color: #0D1418; --wall-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 210' fill='none' stroke='rgba%28255%2C255%2C255%2C.055%29' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 30c6-3 12-3 16 0v18c-4-3-10-3-16 0zM34 30c4-3 10-3 16 0v18c-6-3-12-3-16 0z'/%3E%3Cpath d='M118 46l22-22 6 6-22 22h-6zM136 28l6 6'/%3E%3Cpath d='M78 70a10 10 0 1 1 12 15v5h-10v-5a10 10 0 0 1-2-15zM80 94h8'/%3E%3Cpath d='M165 80l3 7 7 .6-5.4 4.6 1.7 7-6.3-3.8-6.3 3.8 1.7-7-5.4-4.6 7-.6z'/%3E%3Cpath d='M22 112h26a4 4 0 0 1 4 4v12a4 4 0 0 1-4 4h-16l-7 6v-6h-3a4 4 0 0 1-4-4v-12a4 4 0 0 1 4-4z'/%3E%3Cpath d='M100 132l18-8 18 8-18 8zM108 136v8c6 4 14 4 20 0v-8'/%3E%3Cpath d='M150 172l30-12-12 28-5-11zM163 177l17-17'/%3E%3Cpath d='M70 160c-6-4-10-7-10-11a5 5 0 0 1 10-2 5 5 0 0 1 10 2c0 4-4 7-10 11z'/%3E%3Cpath d='M112 192q5-6 10 0t10 0t10 0'/%3E%3Cpath d='M177 122a8 8 0 1 0 16 0a8 8 0 1 0-16 0M185 117v5l3 2'/%3E%3Cpath d='M58 196l8-14 8 14zM24 172h14M31 165v14'/%3E%3Cpath d='M150 16a3 3 0 1 0 6 0a3 3 0 1 0-6 0M92 28a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0M192 64a2 2 0 1 0 4 0a2 2 0 1 0-4 0'/%3E%3C/svg%3E"); }
+    [data-wall="sand"] { --wall-color: #2A2520; }
+    [data-wall="mint"] { --wall-color: #17241D; }
+    [data-wall="sky"] { --wall-color: #15202A; }
+    [data-wall="lavender"] { --wall-color: #1F1B2B; }
+    [data-wall="rose"] { --wall-color: #2A1B1F; }
+    [data-wall="slate"] { --wall-color: #1B1F24; }
+    [data-bubble="green"] { --mine-bg: #005C4B; --mine-ink: #E9EDEF; --mine-meta: rgba(233,237,239,.62); --mine-read: #53BDEB; --mine-quote: rgba(0,0,0,.18); --mine-line: #06CF9C; }
+    [data-bubble="graphite"] { --mine-bg: #4A4A4E; --mine-ink: #fff; --mine-meta: rgba(255,255,255,.65); --mine-read: #9BE7FF; --mine-quote: rgba(255,255,255,.12); --mine-line: #fff; }
+  }
+}
+:root[data-theme="dark"] [data-wall="doodles"] { --wall-color: #0D1418; --wall-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 210' fill='none' stroke='rgba%28255%2C255%2C255%2C.055%29' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 30c6-3 12-3 16 0v18c-4-3-10-3-16 0zM34 30c4-3 10-3 16 0v18c-6-3-12-3-16 0z'/%3E%3Cpath d='M118 46l22-22 6 6-22 22h-6zM136 28l6 6'/%3E%3Cpath d='M78 70a10 10 0 1 1 12 15v5h-10v-5a10 10 0 0 1-2-15zM80 94h8'/%3E%3Cpath d='M165 80l3 7 7 .6-5.4 4.6 1.7 7-6.3-3.8-6.3 3.8 1.7-7-5.4-4.6 7-.6z'/%3E%3Cpath d='M22 112h26a4 4 0 0 1 4 4v12a4 4 0 0 1-4 4h-16l-7 6v-6h-3a4 4 0 0 1-4-4v-12a4 4 0 0 1 4-4z'/%3E%3Cpath d='M100 132l18-8 18 8-18 8zM108 136v8c6 4 14 4 20 0v-8'/%3E%3Cpath d='M150 172l30-12-12 28-5-11zM163 177l17-17'/%3E%3Cpath d='M70 160c-6-4-10-7-10-11a5 5 0 0 1 10-2 5 5 0 0 1 10 2c0 4-4 7-10 11z'/%3E%3Cpath d='M112 192q5-6 10 0t10 0t10 0'/%3E%3Cpath d='M177 122a8 8 0 1 0 16 0a8 8 0 1 0-16 0M185 117v5l3 2'/%3E%3Cpath d='M58 196l8-14 8 14zM24 172h14M31 165v14'/%3E%3Cpath d='M150 16a3 3 0 1 0 6 0a3 3 0 1 0-6 0M92 28a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0M192 64a2 2 0 1 0 4 0a2 2 0 1 0-4 0'/%3E%3C/svg%3E"); }
+:root[data-theme="dark"] [data-wall="sand"] { --wall-color: #2A2520; }
+:root[data-theme="dark"] [data-wall="mint"] { --wall-color: #17241D; }
+:root[data-theme="dark"] [data-wall="sky"] { --wall-color: #15202A; }
+:root[data-theme="dark"] [data-wall="lavender"] { --wall-color: #1F1B2B; }
+:root[data-theme="dark"] [data-wall="rose"] { --wall-color: #2A1B1F; }
+:root[data-theme="dark"] [data-wall="slate"] { --wall-color: #1B1F24; }
+:root[data-theme="dark"] [data-bubble="green"] { --mine-bg: #005C4B; --mine-ink: #E9EDEF; --mine-meta: rgba(233,237,239,.62); --mine-read: #53BDEB; --mine-quote: rgba(0,0,0,.18); --mine-line: #06CF9C; }
+:root[data-theme="dark"] [data-bubble="graphite"] { --mine-bg: #4A4A4E; --mine-ink: #fff; --mine-meta: rgba(255,255,255,.65); --mine-read: #9BE7FF; --mine-quote: rgba(255,255,255,.12); --mine-line: #fff; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) [data-wall="image"] { --wall-image: linear-gradient(rgba(0,0,0,.35), rgba(0,0,0,.35)), var(--wall-photo); }
+}
+:root[data-theme="dark"] [data-wall="image"] { --wall-image: linear-gradient(rgba(0,0,0,.35), rgba(0,0,0,.35)), var(--wall-photo); }
+.chat-scroll, .wall-surface {
+  background-color: var(--wall-color, var(--bg)); background-image: var(--wall-image, none);
+  background-size: var(--wall-size, auto); background-position: center;
+}
+.msg.mine .bubble { background: var(--mine-bg, var(--brand)); color: var(--mine-ink, #fff); }
+.msg.mine .time, .msg.mine .who-anon, .msg.mine .msg-pin, .msg.mine .msg-star { color: var(--mine-meta, rgba(255,255,255,.72)); }
+.msg.mine .ticks { color: var(--mine-meta, rgba(255,255,255,.8)); }
+.msg.mine .ticks.read-all { color: var(--mine-read, #9BE7FF); }
+.msg.mine .quote { background: var(--mine-quote, rgba(255,255,255,.16)); border-color: var(--mine-line, #fff); }
+.msg.mine .quote strong { color: var(--mine-line, #fff); }
+.msg.mine .quote span { color: var(--mine-ink, #fff); opacity: .85; }
+.msg.mine .poll-bar { background: var(--mine-quote, rgba(255,255,255,.25)); }
+.msg.mine .poll-bar span { background: var(--mine-line, #fff); }
+.msg.mine .poll-opt.chosen .poll-radio { box-shadow: inset 0 0 0 3px var(--mine-bg, var(--brand)); }
+.msg.mine.deleted .bubble { background: color-mix(in srgb, var(--mine-bg, var(--brand)) 14%, var(--surface)); color: var(--ink-2); }
+.msg-star { display: inline-flex; color: var(--ink-3); font-size: 11px; line-height: 1; }
+
+/* the round "back to the newest" button, like WhatsApp. It sits at the bottom of the scroll area */
+.jump-wrap { position: sticky; bottom: 4px; height: 0; z-index: 3; }
+.jump-latest {
+  position: absolute; bottom: 0; inset-inline-end: 0; width: 40px; height: 40px; border-radius: 50%; border: 0;
+  display: grid; place-items: center; cursor: pointer; color: var(--ink-2);
+  background: color-mix(in srgb, var(--surface) 88%, transparent); box-shadow: 0 2px 8px rgba(0,0,0,.18);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  transition: opacity .18s, transform .18s var(--ease);
+}
+.jump-latest[hidden] { display: grid !important; opacity: 0; transform: translateY(8px) scale(.9); pointer-events: none; }
+.jump-latest:hover { color: var(--ink); }
+.jump-count {
+  position: absolute; top: -6px; inset-inline-start: -4px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px;
+  background: var(--ok); color: #fff; font-size: 11px; font-weight: 700; line-height: 20px; text-align: center;
+}
+
+/* the "more" menu in the chat header */
+.chat-more { position: relative; flex: none; }
+.chat-more-menu {
+  position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; min-width: 220px; padding: 6px; border-radius: 18px;
+  background: color-mix(in srgb, var(--surface) 80%, transparent); border: 1px solid var(--glass-edge, var(--line));
+  -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: var(--shadow-pop); animation: pop .16s var(--ease);
+}
+.chat-more-menu button {
+  width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 0; border-radius: 12px;
+  background: transparent; color: var(--ink); font: inherit; font-size: var(--fs-sm); text-align: start; cursor: pointer;
+}
+.chat-more-menu button:hover, .chat-more-menu button:focus-visible { background: var(--fill-2); outline: none; }
+.chat-more-menu svg { flex: none; color: var(--ink-2); }
+.panel-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 4px 8px; font-weight: 700; }
+
+/* the look dialog */
+.theme-dialog { width: min(460px, calc(100vw - 24px)); }
+.theme-dialog .dialog-body { gap: 12px; }
+.theme-preview { border-radius: 16px; overflow: hidden; box-shadow: 0 0 0 1px var(--line); }
+.theme-preview .wall-surface { display: grid; gap: 6px; padding: 14px 12px; }
+.theme-preview .msg { max-width: 80%; }
+.theme-dialog h3 { font-size: var(--fs-sm); color: var(--ink-2); font-weight: 600; }
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 8px; }
+.swatch {
+  position: relative; display: grid; gap: 4px; justify-items: center; padding: 0; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: 11px; color: var(--ink-2);
+}
+.swatch-tile { width: 100%; aspect-ratio: 1; border-radius: 14px; box-shadow: 0 0 0 1px var(--line) inset; display: grid; place-items: center; overflow: hidden; }
+.swatch[aria-checked="true"] .swatch-tile { box-shadow: 0 0 0 2.5px var(--brand); }
+.swatch[aria-checked="true"] { color: var(--ink); font-weight: 600; }
+.swatch-dot { width: 30px; height: 30px; border-radius: 50%; background: var(--mine-bg); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+.swatch-photo { background: var(--fill); color: var(--ink-2); background-size: cover; background-position: center; }
+.scope-ask { display: grid; gap: 8px; padding: 14px; border-radius: var(--r-md); background: var(--fill); }
+.scope-ask .btn { width: 100%; }
+.theme-actions { display: flex; gap: 8px; align-items: center; }
+.theme-actions .grow { flex: 1; }
+
+/* colour swatches: just the round dot, with a ring when chosen */
+.swatches.bubble-row { grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); }
+.bubble-row .swatch-tile { aspect-ratio: auto; height: 44px; box-shadow: none; }
+.bubble-row .swatch[aria-checked="true"] .swatch-tile { box-shadow: none; }
+.bubble-row .swatch[aria-checked="true"] .swatch-dot { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--brand); }
+.theme-dialog .swatches:not(.bubble-row) { grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); }

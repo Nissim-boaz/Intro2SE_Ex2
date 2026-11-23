@@ -60,6 +60,9 @@ One chat per course, opened full screen, in a WhatsApp-like style:
 - Date separators between days, and message search (text and poll questions, never sender names, so search can't reveal who wrote an anonymous message).
 - The course lecturer can pin up to 3 messages. A fourth pin replaces the oldest one.
 - The lecturer or admin can mute students, so only they can send messages.
+- A round arrow takes you back to the newest messages when you scroll up, with a count of what arrived meanwhile.
+- Each user can star messages and find them again under "starred messages". Stars are private.
+- Each user picks their own wallpaper (the default study doodles, plain colours, or their own photo) and the colour of their own messages, for this chat only or for all their chats. Nobody else sees these choices.
 
 The lecturer creates a poll from the chat and chooses with a toggle whether voting is anonymous. In an anonymous poll (the default) everyone sees only the vote counts. In an open poll everyone can also see who voted for each option. Each student votes once and can change their choice. Updates arrive by polling every 2.5 seconds.
 
@@ -87,6 +90,7 @@ moodleplus/
     attendance.py    AttendanceService, AttendanceReport
     attendance_appeals.py AttendanceAppealService
     chat.py          ChatService, SenderMask, ReactionService, ReadReceiptService
+    chat_themes.py   ChatThemeService (wallpaper and message colour per user)
     polls.py         PollService
     requests.py      RequestService (requests to the admins)
     recordings.py    RecordingService, BackgroundJobRunner

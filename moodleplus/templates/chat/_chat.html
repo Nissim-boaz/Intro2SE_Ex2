@@ -9,7 +9,11 @@
        data-is-student="{{ 1 if role == 'student' else 0 }}"
        data-locked="{{ 1 if locked else 0 }}"
        data-search-url="{{ url_for('chat.search', course_id=course.id) }}"
-       data-can-pin="{{ 1 if can_pin else 0 }}">
+       data-can-pin="{{ 1 if can_pin else 0 }}"
+       data-starred-url="{{ url_for('chat.starred', course_id=course.id) }}"
+       data-theme-url="{{ url_for('chat.save_theme', course_id=course.id) }}"
+       {% if theme is defined %}data-wall="{{ theme.wallpaper }}" data-bubble="{{ theme.bubble }}" data-custom-here="{{ 1 if theme.custom_here else 0 }}"
+       {% if theme.image_path %}style="--wall-photo: url('{{ url_for('chat.wallpaper', course_id=course.id, v=theme.image_version) }}')"{% endif %}{% endif %}>
     {# pinned messages: tapping the bar jumps to the message, and with several it moves to the next one #}
     <button type="button" class="pinned-bar" id="pinned-bar" hidden aria-label="הודעה נעוצה, לחץ כדי לקפוץ אליה">
       <span class="pinned-icon" aria-hidden="true">
@@ -25,6 +29,12 @@
         <span>שאלה על החומר? כתוב אותה כאן, וכל הכיתה תראה.</span>
       </div>
       <div class="chat-list" id="chat-list"></div>
+      <div class="jump-wrap">
+        <button type="button" class="jump-latest" id="jump-latest" hidden aria-label="להודעות האחרונות" title="להודעות האחרונות">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="jump-count" id="jump-count" hidden></span>
+        </button>
+      </div>
     </div>
 
     <div class="msg-pop" id="msg-pop" hidden>
@@ -33,6 +43,7 @@
       </div>
       <div class="msg-menu" id="msg-menu" role="menu" aria-label="פעולות על ההודעה">
         <button type="button" role="menuitem" data-action="reply">השב</button>
+        <button type="button" role="menuitem" data-action="star">סמן בכוכב</button>
         <button type="button" role="menuitem" data-action="pin" hidden>נעץ הודעה</button>
         <button type="button" role="menuitem" data-action="info">פרטי ההודעה</button>
         <button type="button" role="menuitem" data-action="delete" class="danger">מחק</button>
@@ -93,6 +104,57 @@
       </div>
     </form>
   </div>
+
+{% if theme is defined %}
+<dialog id="theme-dialog" class="theme-dialog" data-light-dismiss>
+  <div class="dialog-body">
+    <h2>רקע וצבע ההודעות</h2>
+    <div class="theme-preview" id="theme-preview" data-wall="{{ theme.wallpaper }}" data-bubble="{{ theme.bubble }}">
+      <div class="wall-surface">
+        <div class="msg theirs"><div class="bubble"><div class="text">מישהו פתר את שאלה 3?</div><span class="meta"><span class="time">10:41</span></span></div></div>
+        <div class="msg mine"><div class="bubble"><div class="text">כן, צריך להשתמש ב-Observer</div><span class="meta"><span class="time">10:42</span><span class="ticks read-all"><svg viewBox="0 0 16 11" width="17" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.2 6.3 4.3 9.3 10.4 1.9"/><path d="M7.6 8.6 8.3 9.3 14.4 1.9"/></svg></span></span></div></div>
+      </div>
+    </div>
+
+    <h3>רקע</h3>
+    <div class="swatches" role="radiogroup" aria-label="רקע" id="wall-swatches">
+      {% for key, label in wallpapers.items() if key != 'image' %}
+      <button type="button" class="swatch" role="radio" aria-checked="false" data-wall-choice="{{ key }}">
+        <span class="swatch-tile wall-surface" data-wall="{{ key }}"></span>{{ label }}
+      </button>
+      {% endfor %}
+      <button type="button" class="swatch" role="radio" aria-checked="false" data-wall-choice="image">
+        <span class="swatch-tile swatch-photo" id="photo-tile">
+          <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="9" cy="10" r="1.6" fill="currentColor"/><path d="M5 17l4.5-4.5 3 3 2.5-2.5L19.5 17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        </span>תמונה משלך
+      </button>
+      <input type="file" id="wall-file" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+    </div>
+
+    <h3>צבע ההודעות שלי</h3>
+    <div class="swatches bubble-row" role="radiogroup" aria-label="צבע ההודעות שלי" id="bubble-swatches">
+      {% for key, label in bubbles.items() %}
+      <button type="button" class="swatch" role="radio" aria-checked="false" data-bubble-choice="{{ key }}">
+        <span class="swatch-tile" data-bubble="{{ key }}"><span class="swatch-dot"></span></span>{{ label }}
+      </button>
+      {% endfor %}
+    </div>
+
+    <div class="scope-ask" id="scope-ask" hidden>
+      <strong id="scope-question">איפה להחיל את השינוי?</strong>
+      <button type="button" class="btn" data-scope="here">רק בצ׳אט הזה</button>
+      <button type="button" class="btn btn-quiet" data-scope="all">בכל הצ׳אטים שלי</button>
+      <button type="button" class="btn btn-ghost" data-scope="back">חזרה</button>
+    </div>
+    <div class="theme-actions" id="theme-actions">
+      <button type="button" class="btn btn-ghost btn-sm" id="theme-reset">ברירת מחדל</button>
+      <span class="grow"></span>
+      <button type="button" class="btn btn-quiet" data-close-dialog>ביטול</button>
+      <button type="button" class="btn" id="theme-apply" disabled>החל</button>
+    </div>
+  </div>
+</dialog>
+{% endif %}
 
 <dialog id="info-dialog" class="dialog-compact" data-light-dismiss>
   <div class="dialog-body">

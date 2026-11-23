@@ -109,7 +109,8 @@
     input.addEventListener("change", sync);
     sync();
   }
-  document.querySelectorAll('input[type="file"]').forEach(enhanceFileInput);
+  // a hidden picker (like the chat's "your own photo") is opened by its own button, so it stays hidden
+  document.querySelectorAll('input[type="file"]:not([hidden])').forEach(enhanceFileInput);
 
   // ---------- <form data-live-submit>: the button wakes up only when something changed ----------
   // compares the form to how it looked when the page loaded, so undoing an edit greys it out again

@@ -98,7 +98,10 @@
     const pin = m.pinned
       ? `<span class="msg-pin" title="הודעה נעוצה" aria-label="נעוצה"><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M15.5 3.5 20.5 8.5l-2.2.8-3.4 3.4.4 4.6-1.8 1.8-3.9-3.9L5 20l-1-1 4.8-4.6-3.9-3.9 1.8-1.8 4.6.4 3.4-3.4Z" fill="currentColor"/></svg></span>`
       : "";
-    const meta = `<span class="meta">${pin}<span class="time">${fmtTime(m.created_at)}</span>${ticksHtml(m)}</span>`;
+    const star = m.starred
+      ? `<span class="msg-star" title="מסומנת בכוכב" aria-label="מסומנת בכוכב">★</span>`
+      : "";
+    const meta = `<span class="meta">${star}${pin}<span class="time">${fmtTime(m.created_at)}</span>${ticksHtml(m)}</span>`;
 
     if (m.deleted) {
       return `<div class="msg ${m.mine ? "mine" : "theirs"} deleted" id="msg-${m.id}" data-id="${m.id}">
@@ -227,6 +230,7 @@
       updateTicks();
       empty.hidden = messages.size > 0;
       if (added && stick) scrollToBottom(!first);
+      else if (added && !first) noteNew(d.messages.filter((m) => !m.mine).length);
       status.textContent = "";
       markRead();
     } catch (err) {
@@ -512,6 +516,7 @@
     const pinItem = menu.querySelector('[data-action="pin"]');
     pinItem.hidden = root.dataset.canPin !== "1";
     pinItem.textContent = m.pinned ? "בטל נעיצה" : "נעץ הודעה";
+    menu.querySelector('[data-action="star"]').textContent = m.starred ? "הסר כוכב" : "סמן בכוכב";
     menu.querySelector('[data-action="delete"]').hidden = !m.can_delete;
     pop.hidden = false;
     msgEl.classList.add("active");
@@ -586,6 +591,14 @@
       setReply(m);
     } else if (btn.dataset.action === "info") {
       showInfo(m);
+    } else if (btn.dataset.action === "star") {
+      try {
+        await Model.api(`/api/messages/${id}/star`, { json: { starred: !m.starred } });
+        m.starred = !m.starred;
+        upsert(m);
+        Model.toast(m.starred ? "ההודעה סומנה בכוכב" : "הכוכב הוסר");
+        if (starredOpen) showStarred();
+      } catch (err) { Model.toast(err.message, "error"); }
     } else if (btn.dataset.action === "pin") {
       try {
         const d = await Model.api(`/api/messages/${id}/pin`, { json: { pinned: !m.pinned } });
@@ -708,6 +721,7 @@
     searchInput.focus();
   }
   function closeSearch() {
+    starredOpen = false;
     if (!searchBar) return;
     searchBar.hidden = true;
     searchBar.closest(".chat-bar").classList.remove("searching");
@@ -907,4 +921,164 @@
   }
 
   refresh(true);
+
+  // ---------- back to the newest messages: a small round arrow while you read older ones ----------
+  const jumpBtn = document.getElementById("jump-latest");
+  const jumpCount = document.getElementById("jump-count");
+  let unseenNew = 0;
+  function noteNew(n) {
+    if (!n) return;
+    unseenNew += n;
+    jumpCount.textContent = unseenNew > 99 ? "99+" : String(unseenNew);
+    jumpCount.hidden = false;
+  }
+  function syncJump() {
+    const far = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight > 320;
+    jumpBtn.hidden = !far;
+    if (!far) { unseenNew = 0; jumpCount.hidden = true; }
+  }
+  scroller.addEventListener("scroll", syncJump, { passive: true });
+  jumpBtn.addEventListener("click", () => scrollToBottom(true));
+
+  // ---------- the header's "more" menu ----------
+  const moreBtn = document.getElementById("chat-more-open");
+  const moreMenu = document.getElementById("chat-more-menu");
+  const openMore = (on) => { moreMenu.hidden = !on; moreBtn.setAttribute("aria-expanded", String(on)); };
+  if (moreBtn) {
+    moreBtn.addEventListener("click", () => openMore(moreMenu.hidden));
+    document.addEventListener("click", (e) => { if (!moreMenu.hidden && !e.target.closest(".chat-more")) openMore(false); });
+    moreMenu.addEventListener("keydown", (e) => { if (e.key === "Escape") { openMore(false); moreBtn.focus(); } });
+    moreMenu.addEventListener("click", (e) => {
+      const item = e.target.closest("[data-more]");
+      if (!item) return;
+      openMore(false);
+      if (item.dataset.more === "starred") showStarred();
+      else openTheme();
+    });
+  }
+
+  // ---------- starred messages: your own bookmarks, in the same panel as search results ----------
+  let starredOpen = false;
+  async function showStarred() {
+    try {
+      const d = await Model.api(root.dataset.starredUrl);
+      closeSearch();
+      starredOpen = true;
+      searchResults.hidden = false;
+      searchResults.innerHTML = `<div class="panel-title"><span>★ הודעות מסומנות בכוכב</span>
+          <button type="button" class="chat-icon-btn" data-close-starred aria-label="סגור">✕</button></div>` +
+        (d.results.length
+          ? d.results.map((r) => `
+            <button type="button" class="search-hit" data-hit="${r.id}">
+              <span class="search-hit-top"><strong>${esc(r.mine ? "אתה" : r.sender_name)}</strong><span>${dayLabel(r.created_at)} ${fmtTime(r.created_at)}</span></span>
+              <span class="search-hit-text">${r.is_poll ? "סקר: " : ""}${esc(r.text.slice(0, 160))}</span>
+            </button>`).join("")
+          : `<p class="search-empty">עוד לא סימנת הודעות. פתח את התפריט של הודעה ובחר ״סמן בכוכב״, והיא תחכה לך כאן.</p>`);
+    } catch (err) { Model.toast(err.message, "error"); }
+  }
+  searchResults.addEventListener("click", (e) => {
+    if (e.target.closest("[data-close-starred]")) closeSearch();
+  });
+  if (!searchOpen) {  // search may be missing; starred results still need to jump
+    searchResults.addEventListener("click", (e) => {
+      const hit = e.target.closest("[data-hit]");
+      if (hit) jumpTo(Number(hit.dataset.hit));
+    });
+  }
+
+  // ---------- wallpaper and the colour of my messages: preview, then "only here" or "all my chats" ----------
+  const themeDialog = document.getElementById("theme-dialog");
+  const preview = document.getElementById("theme-preview");
+  const applyBtn = document.getElementById("theme-apply");
+  const scopeAsk = document.getElementById("scope-ask");
+  const themeActions = document.getElementById("theme-actions");
+  const wallFile = document.getElementById("wall-file");
+  const photoTile = document.getElementById("photo-tile");
+  let pick = null;  // { wall, bubble, file, photo, reset }
+
+  function markSwatches() {
+    document.querySelectorAll("[data-wall-choice]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.wallChoice === pick.wall)));
+    document.querySelectorAll("[data-bubble-choice]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.bubbleChoice === pick.bubble)));
+    preview.dataset.wall = pick.wall;
+    preview.dataset.bubble = pick.bubble;
+    preview.style.setProperty("--wall-photo", pick.photo || root.style.getPropertyValue("--wall-photo") || "none");
+    const changed = pick.wall !== root.dataset.wall || pick.bubble !== root.dataset.bubble || !!pick.file;
+    applyBtn.disabled = !changed;
+  }
+  function askScope(on, question) {
+    scopeAsk.hidden = !on;
+    themeActions.hidden = on;
+    if (on) {
+      document.getElementById("scope-question").textContent = question;
+      scopeAsk.querySelector('[data-scope="here"]').focus();
+    }
+  }
+  function openTheme() {
+    if (!themeDialog) return;
+    pick = { wall: root.dataset.wall, bubble: root.dataset.bubble, file: null, photo: "", reset: false };
+    const current = root.style.getPropertyValue("--wall-photo");
+    photoTile.style.backgroundImage = current || "";
+    askScope(false);
+    markSwatches();
+    themeDialog.showModal();
+  }
+  if (themeDialog) {
+    themeDialog.addEventListener("click", (e) => {
+      const w = e.target.closest("[data-wall-choice]");
+      if (w) {
+        if (w.dataset.wallChoice === "image" && !pick.file && !root.style.getPropertyValue("--wall-photo")) return wallFile.click();
+        if (w.dataset.wallChoice === "image" && pick.wall === "image") return wallFile.click(); // tap again: another photo
+        pick.wall = w.dataset.wallChoice;
+        return markSwatches();
+      }
+      const b = e.target.closest("[data-bubble-choice]");
+      if (b) { pick.bubble = b.dataset.bubbleChoice; markSwatches(); }
+    });
+    wallFile.addEventListener("change", () => {
+      const file = wallFile.files[0];
+      if (!file) return;
+      if (file.size > 8 * 1024 * 1024) { wallFile.value = ""; return Model.toast("התמונה גדולה מדי. אפשר עד 8MB", "error"); }
+      pick.file = file;
+      pick.wall = "image";
+      pick.photo = `url("${URL.createObjectURL(file)}")`;
+      photoTile.style.backgroundImage = pick.photo;
+      markSwatches();
+    });
+    applyBtn.addEventListener("click", () => { pick.reset = false; askScope(true, "איפה להחיל את השינוי?"); });
+    document.getElementById("theme-reset").addEventListener("click", () => {
+      pick.reset = true;
+      askScope(true, "לחזור לרקע ולצבע של ברירת המחדל איפה?");
+    });
+    scopeAsk.addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-scope]");
+      if (!b) return;
+      if (b.dataset.scope === "back") return askScope(false);
+      const scope = b.dataset.scope;
+      try {
+        let d;
+        if (pick.reset) {
+          d = await Model.api(root.dataset.themeUrl, { json: { scope, reset: true } });
+        } else if (pick.file && pick.wall === "image") {
+          const form = new FormData();
+          form.append("scope", scope);
+          form.append("wallpaper", "image");
+          if (pick.bubble !== root.dataset.bubble) form.append("bubble", pick.bubble);
+          form.append("image", pick.file);
+          d = await Model.api(root.dataset.themeUrl, { method: "POST", body: form });
+        } else {
+          const body = { scope };
+          if (pick.wall !== root.dataset.wall || scope === "all") body.wallpaper = pick.wall;
+          if (pick.bubble !== root.dataset.bubble || scope === "all") body.bubble = pick.bubble;
+          if (body.wallpaper === "image") delete body.wallpaper; // the photo you already have stays as it is
+          d = await Model.api(root.dataset.themeUrl, { json: body });
+        }
+        root.dataset.wall = d.wallpaper;
+        root.dataset.bubble = d.bubble;
+        if (d.image_url) root.style.setProperty("--wall-photo", `url("${d.image_url}")`);
+        else root.style.removeProperty("--wall-photo");
+        themeDialog.close();
+        Model.toast(pick.reset ? "חזרת לברירת המחדל" : scope === "all" ? "העיצוב נשמר לכל הצ׳אטים שלך" : "העיצוב נשמר לצ׳אט הזה");
+      } catch (err) { Model.toast(err.message, "error"); }
+    });
+  }
 })();
