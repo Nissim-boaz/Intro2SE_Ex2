@@ -12,6 +12,9 @@
   const readUrl = root.dataset.readUrl;
   const pollUrl = root.dataset.pollUrl;
   const POLL_MS = 2500;
+  // inside the course page (see chat_sheet.js): load once, then poll and mark as read only while it is open
+  const embedded = document.body.classList.contains("chat-embedded") && window.parent !== window;
+  let active = !embedded;
 
   const scroller = document.getElementById("chat-scroll");
   const list = document.getElementById("chat-list");
@@ -159,7 +162,7 @@
   // sticky day bars pile up at the top; only the last one that reached the top stays visible, like WhatsApp
   function syncStuckDays() {
     // stuck bars sit at the scroller top + its padding + the sticky offset (about 20px); 40px leaves room for that
-    const top = scroller.getBoundingClientRect().top + 40;
+    const top = scroller.getBoundingClientRect().top + (parseFloat(getComputedStyle(scroller).paddingTop) || 0) + 30;
     const bars = [...list.querySelectorAll(".day-divider")];
     let current = -1;
     bars.forEach((b, i) => { if (b.getBoundingClientRect().top <= top) current = i; });
@@ -204,7 +207,7 @@
   }, { threshold: 0.3 }).observe(scroller);
 
   async function markRead() {
-    if (!chatVisible || document.hidden || !messages.size) return;
+    if (!active || !chatVisible || document.hidden || !messages.size) return;
     const maxId = Math.max(...messages.keys());
     if (maxId <= lastMarked) return;
     lastMarked = maxId;
@@ -236,11 +239,11 @@
     } catch (err) {
       status.textContent = err.status === 401 ? "צריך להתחבר מחדש" : "אין חיבור. מנסה שוב";
     }
-    if (!document.hidden) timer = setTimeout(refresh, POLL_MS);
+    if (!document.hidden && active) timer = setTimeout(refresh, POLL_MS);
   }
 
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) refresh();
+    if (!document.hidden && active) refresh();
     else clearTimeout(timer);
   });
 
@@ -1080,5 +1083,49 @@
         Model.toast(pick.reset ? "חזרת לברירת המחדל" : scope === "all" ? "העיצוב נשמר לכל הצ׳אטים שלך" : "העיצוב נשמר לצ׳אט הזה");
       } catch (err) { Model.toast(err.message, "error"); }
     });
+  }
+
+  // ---------- glass header and input bar: the messages scroll underneath them, like WhatsApp ----------
+  const page = document.querySelector(".chat-page");
+  if (page) {
+    const header = page.querySelector(".chat-bar");
+    const h = (el) => (!el || el.hidden || getComputedStyle(el).display === "none" ? 0 : el.getBoundingClientRect().height);
+    const measure = () => {
+      const stick = nearBottom();
+      const bar = h(header), pin = h(pinnedBar), comp = h(composer), lock = h(lockedBar);
+      page.style.setProperty("--bar-h", bar + "px");
+      page.style.setProperty("--top-h", bar + pin + "px");
+      page.style.setProperty("--composer-h", comp + "px");
+      page.style.setProperty("--bottom-h", comp + lock + "px");
+      if (stick) scrollToBottom(false); // a taller input bar must not hide the newest message
+    };
+    const watch = new ResizeObserver(measure);
+    [header, pinnedBar, composer, lockedBar].forEach((el) => el && watch.observe(el));
+    measure();
+  }
+
+  // ---------- inside the course page ----------
+  if (embedded) {
+    const tell = (type, extra) => window.parent.postMessage({ type, ...extra }, location.origin);
+    window.addEventListener("message", (e) => {
+      if (e.origin !== location.origin || e.source !== window.parent) return;
+      if (e.data?.type === "chat:open") {
+        active = true;
+        refresh();
+      } else if (e.data?.type === "chat:hide") {
+        active = false;
+        clearTimeout(timer);
+        closePop();
+        closeSearch();
+      }
+    });
+    document.querySelector("[data-chat-back]")?.addEventListener("click", (e) => { e.preventDefault(); tell("chat:close"); });
+    // the side strip on a computer: its tabs belong to the course page underneath
+    document.querySelectorAll(".tabbar-rail a").forEach((a) => {
+      const url = new URL(a.href, location.href);
+      if (!url.hash) return;
+      a.addEventListener("click", (e) => { e.preventDefault(); tell("chat:tab", { hash: url.hash }); });
+    });
+    tell("chat:ready");
   }
 })();

@@ -125,3 +125,23 @@ def test_routes(app, client):
     assert client.get(f"/api/courses/{course.id}/chat/starred").get_json()["results"] == []
     login(client, outsider.id)
     assert client.post(f"/api/messages/{mid}/star", json={"starred": True}).status_code == 403
+
+
+def test_chat_opens_inside_the_course_page(app, client):
+    from moodleplus.db import connect
+    from moodleplus.services.users import UserService
+
+    conn = connect(app.config["DATABASE"])
+    users = UserService(conn)
+    s1 = users.create("a@test.ac.il", "סטודנטית", "student")
+    s2 = users.create("b@test.ac.il", "סטודנט", "student")
+    course = CourseService(conn).create("קורס")
+    EnrollmentService(conn).enroll_many(course.id, [s1, s2])
+    ChatService(conn).send(course.id, s2, "שלום")
+    conn.close()
+    login(client, s1.id)
+    page = client.get(f"/courses/{course.id}").get_data(as_text=True)
+    assert "data-chat-open" in page and "chat_sheet.js" in page
+    embedded = client.get(f"/courses/{course.id}/chat?embed=1").get_data(as_text=True)
+    assert "chat-embedded" in embedded and "chat-embedded" not in client.get(f"/courses/{course.id}/chat").get_data(as_text=True)
+    assert client.get(f"/api/courses/{course.id}/chat/unread").get_json()["unread"] == 1

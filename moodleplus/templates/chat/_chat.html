@@ -29,12 +29,13 @@
         <span>שאלה על החומר? כתוב אותה כאן, וכל הכיתה תראה.</span>
       </div>
       <div class="chat-list" id="chat-list"></div>
-      <div class="jump-wrap">
-        <button type="button" class="jump-latest" id="jump-latest" hidden aria-label="להודעות האחרונות" title="להודעות האחרונות">
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span class="jump-count" id="jump-count" hidden></span>
-        </button>
-      </div>
+    </div>
+    {# outside the scrolling area, so it floats above the input bar and does not move with the messages #}
+    <div class="jump-wrap">
+      <button type="button" class="jump-latest" id="jump-latest" hidden aria-label="להודעות האחרונות" title="להודעות האחרונות">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="jump-count" id="jump-count" hidden></span>
+      </button>
     </div>
 
     <div class="msg-pop" id="msg-pop" hidden>

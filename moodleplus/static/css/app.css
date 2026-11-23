@@ -1532,3 +1532,90 @@ input[type=number].grade-input { width: 92px; flex: none; text-align: center; pa
 .bubble-row .swatch[aria-checked="true"] .swatch-tile { box-shadow: none; }
 .bubble-row .swatch[aria-checked="true"] .swatch-dot { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--brand); }
 .theme-dialog .swatches:not(.bubble-row) { grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); }
+
+/* ---------- the chat slides in over the course page (chat_sheet.js) ---------- */
+.chat-sheet {
+  position: fixed; inset: 0; z-index: 70; background: var(--surface);
+  transform: translateX(-100%); visibility: hidden;
+  transition: transform .34s cubic-bezier(.2, .8, .2, 1), visibility 0s linear .34s;
+  box-shadow: 0 0 40px rgba(0, 0, 0, .25);
+}
+.chat-sheet.open { transform: none; visibility: visible; transition: transform .34s cubic-bezier(.2, .8, .2, 1), visibility 0s; }
+.chat-sheet iframe { display: block; width: 100%; height: 100%; border: 0; }
+html.chat-sheet-open, html.chat-sheet-open body { overflow: hidden; }
+@media (prefers-reduced-motion: reduce) {
+  .chat-sheet, .chat-sheet.open { transition: none; }
+}
+/* other pages: a soft cross-fade instead of a white flash, where the browser supports it */
+@view-transition { navigation: auto; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .18s; }
+@media (prefers-reduced-motion: reduce) { @view-transition { navigation: none; } }
+
+/* ---------- glass, like the bars in the WhatsApp app ---------- */
+:root {
+  --chrome-glass: rgba(248, 248, 250, .6);
+  --chrome-edge: rgba(0, 0, 0, .09);
+  --chrome-blur: blur(22px) saturate(185%);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --chrome-glass: rgba(26, 26, 30, .58); --chrome-edge: rgba(255, 255, 255, .08); }
+}
+:root[data-theme="dark"] { --chrome-glass: rgba(26, 26, 30, .58); --chrome-edge: rgba(255, 255, 255, .08); }
+
+/* the chat page: the scrolling area fills the screen, and the header and input bar float over it */
+.chat-page { position: relative; overflow: hidden; }
+.chat-page .chat-bar {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 8; border-bottom: .5px solid var(--chrome-edge);
+  background: var(--chrome-glass); -webkit-backdrop-filter: var(--chrome-blur); backdrop-filter: var(--chrome-blur);
+}
+.chat-page .chat { position: absolute; inset: 0; display: block; margin: 0; }
+.chat-page .chat-scroll {
+  position: absolute; inset: 0; height: auto;
+  padding-top: calc(var(--top-h, 60px) + 10px); padding-bottom: calc(var(--bottom-h, 72px) + 10px);
+}
+/* sticky counts from inside the scroll area's padding, so the date pill lands right under the glass header */
+.chat-page .day-divider { top: 6px; }
+.chat-page .pinned-bar {
+  position: absolute; top: var(--bar-h, 60px); left: 0; right: 0; z-index: 7; border-bottom: .5px solid var(--chrome-edge);
+  background: var(--chrome-glass); -webkit-backdrop-filter: var(--chrome-blur); backdrop-filter: var(--chrome-blur);
+}
+.chat-page .chat-search-results { top: var(--bar-h, 60px); z-index: 9; }
+.chat-page .composer {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 7; border-top: .5px solid var(--chrome-edge);
+  background: var(--chrome-glass); -webkit-backdrop-filter: var(--chrome-blur); backdrop-filter: var(--chrome-blur);
+}
+.chat-page .chat-locked-bar {
+  position: absolute; left: 0; right: 0; bottom: var(--composer-h, 0px); z-index: 7; border-top: 0;
+  background: color-mix(in srgb, var(--warn-soft) 82%, transparent);
+  -webkit-backdrop-filter: var(--chrome-blur); backdrop-filter: var(--chrome-blur);
+}
+.chat-page .jump-wrap { position: absolute; z-index: 6; height: auto; bottom: calc(var(--bottom-h, 72px) + 12px); inset-inline-end: 14px; }
+.chat-page .jump-latest { position: relative; }
+.chat-page .composer-field textarea { background: var(--surface); }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .chat-page .chat-bar, .chat-page .composer, .chat-page .pinned-bar { background: var(--surface); }
+}
+
+/* the course tab bar: lighter and clearer, with a bright rim on top, like iOS glass */
+:root {
+  --glass: linear-gradient(180deg, rgba(255, 255, 255, .58), rgba(255, 255, 255, .34));
+  --glass-edge: rgba(255, 255, 255, .7);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --glass: linear-gradient(180deg, rgba(70, 70, 78, .5), rgba(36, 36, 42, .42)); --glass-edge: rgba(255, 255, 255, .16); }
+}
+:root[data-theme="dark"] { --glass: linear-gradient(180deg, rgba(70, 70, 78, .5), rgba(36, 36, 42, .42)); --glass-edge: rgba(255, 255, 255, .16); }
+.tabbar {
+  -webkit-backdrop-filter: blur(16px) saturate(210%) brightness(1.04); backdrop-filter: blur(16px) saturate(210%) brightness(1.04);
+  border-width: .5px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .16), 0 2px 6px rgba(0, 0, 0, .06),
+              inset 0 1px 0 rgba(255, 255, 255, .55), inset 0 -1px 0 rgba(255, 255, 255, .12);
+}
+.tabbar::before {  /* the light catching the top edge */
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(120% 80% at 50% -30%, rgba(255, 255, 255, .45), transparent 60%);
+  mix-blend-mode: soft-light;
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tabbar { background: var(--surface); }
+}

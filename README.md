@@ -52,7 +52,7 @@ The report is a matrix of students by samples, with an attendance percentage per
 
 ### Chat and polls
 
-One chat per course, opened full screen, in a WhatsApp-like style:
+One chat per course, in a WhatsApp-like style. It loads in the background on the course page and slides in over it without a page load (the phone's back button slides it away). The header and the input bar are frosted glass, with the messages scrolling underneath:
 
 - Reply with a quote, delete your own messages, blue ticks once every member has read a message, and a message info view showing who read it.
 - Reactions: a row of the reactions you used most recently, plus a **+** button for any emoji (the phone's emoji keyboard, or a picker on a computer). One reaction per user per message.

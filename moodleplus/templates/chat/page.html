@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block title %}צ׳אט · {{ course.name }}{% endblock %}
-{% block body_class %}chat-fullscreen has-rail{% endblock %}
+{% block body_class %}chat-fullscreen has-rail{% if embed %} chat-embedded{% endif %}{% endblock %}
 {% block topbar %}{% endblock %}
 {% block main_class %}chat-page{% endblock %}
 {% block content %}
 <header class="chat-bar">
-  <a class="chat-back" href="{{ url_for('courses.show', course_id=course.id) }}" aria-label="חזרה לעמוד הקורס">
+  <a class="chat-back" href="{{ url_for('courses.show', course_id=course.id) }}" aria-label="חזרה לעמוד הקורס" data-chat-back>
     <svg viewBox="0 0 12 20" width="11" height="19" aria-hidden="true"><path d="M2 2l8 8-8 8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
     <span>חזרה</span>
   </a>

@@ -18,6 +18,7 @@
   {% call tab('recordings', 'הקלטות', base, rail) %}<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="3.5"/><path d="M10 9.2v5.6l4.6-2.8Z" class="fill"/></svg>{% endcall %}
   {% set unread = chat_unread if (chat_unread is defined and not rail) else 0 %}
   <a href="{{ url_for('chat_page.page', course_id=course.id) }}" title="צ׳אט"
+     {% if not rail %}data-chat-open data-unread-url="{{ url_for('chat.unread', course_id=course.id) }}"{% endif %}
      {% if rail %}class="on" aria-current="page"{% endif %}
      {% if unread %}aria-label="צ׳אט, {{ unread }} הודעות שלא נקראו"{% endif %}>
     {% if unread %}<b class="tab-badge" aria-hidden="true">{{ '99+' if unread > 99 else unread }}</b>{% endif %}

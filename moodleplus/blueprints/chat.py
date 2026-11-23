@@ -52,6 +52,7 @@ def page(course_id: int):
         locked=ChatService(db).is_locked(course_id),
         can_pin=role == "lecturer",  # רק המרצה של הקורס נועץ
         theme=_themes().get(current_user(), course_id),
+        embed=request.args.get("embed") == "1",  # טעון בתוך עמוד הקורס, שמחליק אותו פנימה
         wallpapers=WALLPAPERS,
         bubbles=BUBBLES,
     )
@@ -215,3 +216,11 @@ def wallpaper(course_id: int):
     response = send_file(path, max_age=60 * 60 * 24 * 30)
     response.headers["Cache-Control"] = "private, max-age=2592000"
     return response
+
+
+@bp.get("/courses/<int:course_id>/chat/unread")
+@login_required
+def unread(course_id: int):
+    """בשביל העיגול האדום על לשונית הצ׳אט, כשחוזרים מהצ׳אט בלי לטעון את עמוד הקורס מחדש."""
+    EnrollmentService(get_db()).require_member(course_id, current_user())
+    return jsonify(ok=True, unread=ReadReceiptService(get_db()).unread_count(course_id, current_user()))
