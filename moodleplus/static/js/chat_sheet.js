@@ -39,7 +39,8 @@
     sheet.setAttribute("aria-hidden", "true");
     post("chat:hide");
     refreshBadge();
-    link.focus({ preventScroll: true });
+    // no focus on the icon here: on a phone the focus ring stayed on it, and it looked lit up
+    if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
   }
   // leaving the chat: undo the address we pushed when there is one, so "back" and "חזרה" do the same thing
   function leave() {

@@ -135,8 +135,8 @@
     <h3>צבע ההודעות שלי</h3>
     <div class="swatches bubble-row" role="radiogroup" aria-label="צבע ההודעות שלי" id="bubble-swatches">
       {% for key, label in bubbles.items() %}
-      <button type="button" class="swatch" role="radio" aria-checked="false" data-bubble-choice="{{ key }}">
-        <span class="swatch-tile" data-bubble="{{ key }}"><span class="swatch-dot"></span></span>{{ label }}
+      <button type="button" class="swatch" role="radio" aria-checked="false" data-bubble-choice="{{ key }}" aria-label="{{ label }}" title="{{ label }}">
+        <span class="swatch-tile" data-bubble="{{ key }}"><span class="swatch-dot"></span></span>
       </button>
       {% endfor %}
     </div>

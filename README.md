@@ -61,6 +61,7 @@ One chat per course, in a WhatsApp-like style. It loads in the background on the
 - The course lecturer can pin up to 3 messages. A fourth pin replaces the oldest one.
 - The lecturer or admin can mute students, so only they can send messages.
 - A round arrow takes you back to the newest messages when you scroll up, with a count of what arrived meanwhile.
+- On a phone, swiping a message replies to it, and swiping your own message the other way opens its details.
 - Each user can star messages and find them again under "starred messages". Stars are private.
 - Each user picks their own wallpaper (the default study doodles, plain colours, or their own photo) and the colour of their own messages, for this chat only or for all their chats. Nobody else sees these choices.
 

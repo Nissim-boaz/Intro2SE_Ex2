@@ -1619,3 +1619,40 @@ html.chat-sheet-open, html.chat-sheet-open body { overflow: hidden; }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .tabbar { background: var(--surface); }
 }
+
+/* a tap leaves no hover or focus glow on the tab icons; the ring is only for keyboard users */
+.tabbar a:hover { color: var(--ink-2); }
+.tabbar a.on:hover { color: var(--brand); }
+@media (hover: hover) and (pointer: fine) { .tabbar a:hover { color: var(--ink); } .tabbar a.on:hover { color: var(--brand); } }
+.tabbar a:focus:not(:focus-visible) { outline: none; }
+
+/* swiping a message: the browser keeps vertical scrolling, the sideways move is ours */
+.msg { position: relative; touch-action: pan-y; }
+.swipe-hint {
+  position: absolute; top: 50%; z-index: 0; width: 32px; height: 32px; margin-top: -16px; border-radius: 50%;
+  display: grid; place-items: center; color: var(--ink-2); background: color-mix(in srgb, var(--surface) 85%, transparent);
+  box-shadow: 0 1px 3px rgba(0,0,0,.15); opacity: 0; transition: transform .15s var(--ease), color .15s;
+  pointer-events: none;
+}
+.swipe-hint.ready { transform: scale(1.12); color: var(--brand); }
+.msg .bubble { position: relative; z-index: 1; }
+
+/* more colours for my messages. White text only on colours dark enough to read it */
+[data-bubble="sky"] { --mine-bg: #0071E3; --mine-ink: #fff; --mine-meta: rgba(255,255,255,.74); --mine-read: #C7F0FF; --mine-quote: rgba(255,255,255,.16); --mine-line: #fff; }
+[data-bubble="navy"] { --mine-bg: #1F3A8A; --mine-ink: #fff; --mine-meta: rgba(255,255,255,.74); --mine-read: #C7F0FF; --mine-quote: rgba(255,255,255,.16); --mine-line: #fff; }
+[data-bubble="olive"] { --mine-bg: #4D7326; --mine-ink: #fff; --mine-meta: rgba(255,255,255,.74); --mine-read: #C7F0FF; --mine-quote: rgba(255,255,255,.16); --mine-line: #fff; }
+[data-bubble="red"] { --mine-bg: #C9302C; --mine-ink: #fff; --mine-meta: rgba(255,255,255,.74); --mine-read: #C7F0FF; --mine-quote: rgba(255,255,255,.16); --mine-line: #fff; }
+[data-bubble="brown"] { --mine-bg: #7A4E33; --mine-ink: #fff; --mine-meta: rgba(255,255,255,.74); --mine-read: #C7F0FF; --mine-quote: rgba(255,255,255,.16); --mine-line: #fff; }
+[data-bubble="teal"] { --mine-bg: #00796B; --mine-ink: #fff; --mine-meta: rgba(255,255,255,.74); --mine-read: #B2F5EA; --mine-quote: rgba(255,255,255,.16); --mine-line: #fff; }
+[data-bubble="pink"] { --mine-bg: #C2255C; --mine-ink: #fff; --mine-meta: rgba(255,255,255,.74); --mine-read: #C7F0FF; --mine-quote: rgba(255,255,255,.16); --mine-line: #fff; }
+[data-bubble="orange"] { --mine-bg: #C2410C; --mine-ink: #fff; --mine-meta: rgba(255,255,255,.74); --mine-read: #C7F0FF; --mine-quote: rgba(255,255,255,.16); --mine-line: #fff; }
+[data-bubble="lilac"] { --mine-bg: #EBDDFF; --mine-ink: #2A1A4A; --mine-meta: #6B5A8A; --mine-read: #2E9BD6; --mine-quote: rgba(0,0,0,.05); --mine-line: #7C4DDB; }
+[data-bubble="peach"] { --mine-bg: #FFE2CC; --mine-ink: #3D2412; --mine-meta: #8A6A52; --mine-read: #2E9BD6; --mine-quote: rgba(0,0,0,.05); --mine-line: #C2410C; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) [data-bubble="lilac"] { --mine-bg: #4B2E83; --mine-ink: #fff; --mine-meta: rgba(255,255,255,.74); --mine-read: #C7F0FF; --mine-quote: rgba(255,255,255,.16); --mine-line: #fff; }
+  :root:not([data-theme="light"]) [data-bubble="peach"] { --mine-bg: #7A3E12; --mine-ink: #fff; --mine-meta: rgba(255,255,255,.74); --mine-read: #C7F0FF; --mine-quote: rgba(255,255,255,.16); --mine-line: #fff; }
+}
+:root[data-theme="dark"] [data-bubble="lilac"] { --mine-bg: #4B2E83; --mine-ink: #fff; --mine-meta: rgba(255,255,255,.74); --mine-read: #C7F0FF; --mine-quote: rgba(255,255,255,.16); --mine-line: #fff; }
+:root[data-theme="dark"] [data-bubble="peach"] { --mine-bg: #7A3E12; --mine-ink: #fff; --mine-meta: rgba(255,255,255,.74); --mine-read: #C7F0FF; --mine-quote: rgba(255,255,255,.16); --mine-line: #fff; }
+.swatches.bubble-row { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; }
+.bubble-row .swatch-tile { height: 40px; }

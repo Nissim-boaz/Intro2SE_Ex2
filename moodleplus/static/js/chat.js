@@ -1056,6 +1056,9 @@
       const b = e.target.closest("[data-scope]");
       if (!b) return;
       if (b.dataset.scope === "back") return askScope(false);
+      if (scopeAsk.dataset.busy) return; // a second tap while saving must not save (and announce) twice
+      scopeAsk.dataset.busy = "1";
+      scopeAsk.querySelectorAll("button").forEach((x) => { x.disabled = true; });
       const scope = b.dataset.scope;
       try {
         let d;
@@ -1082,6 +1085,10 @@
         themeDialog.close();
         Model.toast(pick.reset ? "חזרת לברירת המחדל" : scope === "all" ? "העיצוב נשמר לכל הצ׳אטים שלך" : "העיצוב נשמר לצ׳אט הזה");
       } catch (err) { Model.toast(err.message, "error"); }
+      finally {
+        delete scopeAsk.dataset.busy;
+        scopeAsk.querySelectorAll("button").forEach((x) => { x.disabled = false; });
+      }
     });
   }
 
@@ -1128,4 +1135,59 @@
     });
     tell("chat:ready");
   }
+
+  // ---------- phone: swipe a message to reply; swipe your own message the other way for its details ----------
+  // in Hebrew (right to left) reply is a swipe to the left and details a swipe to the right, mirrored like WhatsApp
+  const replyDir = getComputedStyle(document.documentElement).direction === "rtl" ? -1 : 1;
+  const SWIPE_AT = 56, SWIPE_MAX = 76;
+  const REPLY_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M10 7 5 12l5 5M5.5 12H14a5 5 0 0 1 5 5v1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const INFO_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M12 11v5M12 8h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+  let swipe = null;
+  list.addEventListener("touchstart", (e) => {
+    const msgEl = e.target.closest(".msg");
+    swipe = null;
+    if (!msgEl || msgEl.classList.contains("deleted") || e.touches.length > 1 || e.target.closest("button, a, input")) return;
+    const t = e.touches[0];
+    swipe = { el: msgEl, bubble: msgEl.querySelector(".bubble"), x: t.clientX, y: t.clientY, dir: 0, mode: null, ready: false, hint: null };
+  }, { passive: true });
+  list.addEventListener("touchmove", (e) => {
+    if (!swipe) return;
+    const t = e.touches[0];
+    const dx = t.clientX - swipe.x, dy = t.clientY - swipe.y;
+    if (!swipe.mode) {
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      swipe.mode = Math.abs(dx) > Math.abs(dy) * 1.4 ? "h" : "v";
+      if (swipe.mode === "v") { swipe = null; return; }
+      const m = messages.get(Number(swipe.el.dataset.id));
+      swipe.dir = Math.sign(dx);
+      swipe.action = swipe.dir === replyDir ? "reply" : (m && m.mine ? "info" : null);
+      if (!swipe.action) { swipe = null; return; }
+      swipe.hint = document.createElement("span");
+      swipe.hint.className = "swipe-hint";
+      swipe.hint.innerHTML = swipe.action === "reply" ? REPLY_ICON : INFO_ICON;
+      swipe.hint.style[swipe.dir > 0 ? "left" : "right"] = "4px";
+      swipe.el.appendChild(swipe.hint);
+      swipe.bubble.style.transition = "none";
+    }
+    const pull = Math.min(SWIPE_MAX, Math.max(0, dx * swipe.dir) * 0.75);
+    swipe.bubble.style.transform = `translateX(${pull * swipe.dir}px)`;
+    swipe.hint.style.opacity = String(Math.min(1, pull / SWIPE_AT));
+    swipe.hint.classList.toggle("ready", pull >= SWIPE_AT);
+    if (pull >= SWIPE_AT && !swipe.ready) { swipe.ready = true; navigator.vibrate?.(8); }
+    if (pull < SWIPE_AT) swipe.ready = false;
+  }, { passive: true });
+  const endSwipe = () => {
+    if (!swipe || swipe.mode !== "h") { swipe = null; return; }
+    const { bubble, hint, ready, action, el } = swipe;
+    swipe = null;
+    bubble.style.transition = "transform .22s cubic-bezier(.2, .8, .2, 1)";
+    bubble.style.transform = "";
+    setTimeout(() => { hint.remove(); bubble.style.transition = ""; }, 240);
+    const m = messages.get(Number(el.dataset.id));
+    if (!ready || !m) return;
+    if (action === "reply") setReply(m);
+    else showInfo(m);
+  };
+  list.addEventListener("touchend", endSwipe, { passive: true });
+  list.addEventListener("touchcancel", endSwipe, { passive: true });
 })();

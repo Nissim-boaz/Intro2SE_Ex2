@@ -27,11 +27,18 @@ WALLPAPERS = {
 }
 BUBBLES = {
     "brand": "כחול",
-    "green": "ירוק",
+    "sky": "תכלת",
+    "navy": "כחול כהה",
+    "green": "ירוק בהיר",
+    "olive": "ירוק זית",
     "teal": "טורקיז",
     "purple": "סגול",
+    "lilac": "לילך",
     "pink": "ורוד",
+    "red": "אדום",
     "orange": "כתום",
+    "peach": "אפרסק",
+    "brown": "חום",
     "graphite": "גרפיט",
 }
 DEFAULT_WALLPAPER = "doodles"

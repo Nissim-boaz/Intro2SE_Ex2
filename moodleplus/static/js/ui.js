@@ -10,6 +10,8 @@
       box.setAttribute("role", "status");
       document.body.appendChild(box);
     }
+    // the same message twice in a row (a double tap, two quick saves) shows once
+    if ([...box.children].some((x) => x.textContent === text && !x.classList.contains("hide"))) return;
     const t = document.createElement("div");
     t.className = "toast" + (kind === "error" ? " toast-error" : "");
     t.textContent = text;
