@@ -50,7 +50,7 @@ def page(course_id: int):
         can_manage=role in ("admin", "lecturer"),
         members=len(enrollments.members(course_id)),
         locked=ChatService(db).is_locked(course_id),
-        can_pin=role == "lecturer",  # רק המרצה של הקורס נועץ
+        can_pin=role in ("lecturer", "admin"),  # מרצה הקורס ומנהלי המערכת נועצים
         theme=_themes().get(current_user(), course_id),
         embed=request.args.get("embed") == "1",  # טעון בתוך עמוד הקורס, שמחליק אותו פנימה
         wallpapers=WALLPAPERS,
@@ -80,10 +80,10 @@ def messages(course_id: int):
 @bp.post("/messages/<int:message_id>/pin")
 @login_required
 def pin(message_id: int):
-    """נעיצה: רק המרצה של הקורס (לא מנהל המערכת ולא סטודנטים)."""
+    """נעיצה: המרצה של הקורס ומנהלי המערכת. סטודנטים לא."""
     row = _require_member_of_message(message_id)
-    if EnrollmentService(get_db()).role_in(row["course_id"], current_user()) != "lecturer":
-        raise Forbidden("רק המרצה של הקורס יכול לנעוץ הודעות")
+    if EnrollmentService(get_db()).role_in(row["course_id"], current_user()) not in ("lecturer", "admin"):
+        raise Forbidden("רק המרצה של הקורס או מנהל המערכת יכולים לנעוץ הודעות")
     pinned = bool((request.get_json(silent=True) or {}).get("pinned"))
     replaced = _chat().set_pinned(message_id, pinned)
     return jsonify(ok=True, pinned=pinned, replaced=replaced)

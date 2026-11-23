@@ -1656,3 +1656,40 @@ html.chat-sheet-open, html.chat-sheet-open body { overflow: hidden; }
 :root[data-theme="dark"] [data-bubble="peach"] { --mine-bg: #7A3E12; --mine-ink: #fff; --mine-meta: rgba(255,255,255,.74); --mine-read: #C7F0FF; --mine-quote: rgba(255,255,255,.16); --mine-line: #fff; }
 .swatches.bubble-row { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; }
 .bubble-row .swatch-tile { height: 40px; }
+
+/* ---------- the tab bar, take three: calm glass like the iPhone's music app ----------
+   a thin hairline instead of a bright rim, a neutral pill behind the current tab, and in the dark no shine at all */
+:root {
+  --glass: rgba(250, 250, 252, .62);
+  --glass-edge: rgba(0, 0, 0, .06);
+  --glass-glow: rgba(0, 0, 0, .065);
+  --tab-rim: rgba(255, 255, 255, .7);
+  --tab-shadow: 0 8px 28px rgba(0, 0, 0, .14), 0 1px 3px rgba(0, 0, 0, .06);
+  --tab-sheen: 1;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --glass: rgba(38, 38, 42, .5);
+    --glass-edge: rgba(255, 255, 255, .08);
+    --glass-glow: rgba(255, 255, 255, .11);
+    --tab-rim: rgba(255, 255, 255, .06);
+    --tab-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+    --tab-sheen: 0;
+  }
+}
+:root[data-theme="dark"] {
+  --glass: rgba(38, 38, 42, .5);
+  --glass-edge: rgba(255, 255, 255, .08);
+  --glass-glow: rgba(255, 255, 255, .11);
+  --tab-rim: rgba(255, 255, 255, .06);
+  --tab-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  --tab-sheen: 0;
+}
+.tabbar {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(28px) saturate(180%); backdrop-filter: blur(28px) saturate(180%);
+  border: .5px solid var(--glass-edge);
+  box-shadow: var(--tab-shadow), inset 0 .5px 0 var(--tab-rim);
+}
+.tabbar::before { opacity: calc(.6 * var(--tab-sheen)); }
+.tabbar-glow { box-shadow: none; }

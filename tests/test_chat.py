@@ -447,7 +447,7 @@ def test_pinned_bar_keeps_anonymity(chat, people):
     assert chat.pinned(c, people["lecturer"])[0]["sender_name"] == ANONYMOUS_NAME
 
 
-def test_only_course_lecturer_can_pin(app, client):
+def test_lecturer_and_admin_pin_students_do_not(app, client):
     conn = connect(app.config["DATABASE"])
     users = UserService(conn)
     admin = users.find_by_email("admin@test.ac.il")
@@ -457,9 +457,13 @@ def test_only_course_lecturer_can_pin(app, client):
     EnrollmentService(conn).enroll_many(course.id, [lect, stud])
     mid = ChatService(conn).send(course.id, lect, "הודעה")
     conn.close()
-    for user in (stud, admin):
-        login(client, user.id)
-        assert client.post(f"/api/messages/{mid}/pin", json={"pinned": True}).status_code == 403
+    login(client, stud.id)
+    assert client.post(f"/api/messages/{mid}/pin", json={"pinned": True}).status_code == 403
+    assert 'data-can-pin="0"' in client.get(f"/courses/{course.id}/chat").get_data(as_text=True)
+    login(client, admin.id)
+    assert 'data-can-pin="1"' in client.get(f"/courses/{course.id}/chat").get_data(as_text=True)
+    assert client.post(f"/api/messages/{mid}/pin", json={"pinned": True}).get_json()["pinned"] is True
+    assert client.post(f"/api/messages/{mid}/pin", json={"pinned": False}).get_json()["pinned"] is False
     login(client, lect.id)
     assert client.post(f"/api/messages/{mid}/pin", json={"pinned": True}).get_json()["pinned"] is True
     login(client, stud.id)

@@ -58,7 +58,7 @@ One chat per course, in a WhatsApp-like style. It loads in the background on the
 - Reactions: a row of the reactions you used most recently, plus a **+** button for any emoji (the phone's emoji keyboard, or a picker on a computer). One reaction per user per message.
 - Anonymous messages: the name is hidden from everyone, including the lecturer. Only the admin can see who sent it, to handle harassment. The hiding is done on the server, so the JSON that reaches the browser doesn't contain the sender either.
 - Date separators between days, and message search (text and poll questions, never sender names, so search can't reveal who wrote an anonymous message).
-- The course lecturer can pin up to 3 messages. A fourth pin replaces the oldest one.
+- The course lecturer and the admins can pin up to 3 messages. A fourth pin replaces the oldest one.
 - The lecturer or admin can mute students, so only they can send messages.
 - A round arrow takes you back to the newest messages when you scroll up, with a count of what arrived meanwhile.
 - On a phone, swiping a message replies to it, and swiping your own message the other way opens its details.
