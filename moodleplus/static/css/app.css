@@ -1693,3 +1693,8 @@ html.chat-sheet-open, html.chat-sheet-open body { overflow: hidden; }
 }
 .tabbar::before { opacity: calc(.6 * var(--tab-sheen)); }
 .tabbar-glow { box-shadow: none; }
+
+.ai-deductions { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 4px; }
+.ai-deductions li { display: flex; gap: 8px; align-items: baseline; }
+.ai-deductions b { flex: none; color: var(--danger); font-variant-numeric: tabular-nums; }
+.grade-form textarea { line-height: 1.5; }

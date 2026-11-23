@@ -37,7 +37,10 @@ class FakeLLM(LLMProvider):
             raise LLMError("busy")
         grade = 90 if "דיאגרמה" in prompt.split("ההגשה של הסטודנט")[1] else 60
         return {"grade": grade, "reason": "נימוק", "feedback": "עבודה טובה, כדאי להרחיב", "summary": "תקציר",
-                "off_topic": "מתכון לעוגה" in prompt}
+                "off_topic": "מתכון לעוגה" in prompt,
+                "deductions": [] if grade == 90 else [{"points": 25, "reason": "לא צירפת דיאגרמה"},
+                                                       {"points": 15, "reason": "חסר ריבוי בקשרים"},
+                                                       {"points": 0, "reason": "ignored"}, "broken"]}
 
 
 def _file(name, text):
@@ -176,3 +179,33 @@ def test_routes_are_lecturer_only(app, client):
     client.post("/assignments/1/ai/run")
     status = client.get("/api/assignments/1/ai-status").get_json()
     assert status["status"] == "running" and status["total"] == 1
+
+
+def test_feedback_says_where_points_went_and_fills_the_form(app, client):
+    conn = connect(app.config["DATABASE"])
+    users = UserService(conn)
+    lect = users.create("lf@test.ac.il", "מרצה", "lecturer")
+    stud = users.create("sf@test.ac.il", "סטודנטית", "student")
+    course = CourseService(conn).create("קורס")
+    EnrollmentService(conn).enroll_many(course.id, [lect, stud])
+    files = FileStore(app.config["UPLOAD_DIR"])
+    ai = AIGradingService(conn, files)
+    a = ai.assignments.create(course.id, "מטלה", "", DUE)
+    sub = ai.assignments.submit(a.id, stud, "hw.txt", _file("hw.txt", "רק מחלקות"))
+    ai.run(a.id, ai.request(a.id), FakeLLM())
+    got = ai.assignments.get_submission(sub.id)
+    assert got.ai_deductions == ((25.0, "לא צירפת דיאגרמה"), (15.0, "חסר ריבוי בקשרים"))
+    text = got.ai_student_feedback
+    assert "עבודה טובה" in text and "על מה ירדו נקודות:" in text and "• 25 נקודות: לא צירפת דיאגרמה" in text
+    conn.close()
+
+    login(client, lect.id)
+    page = client.get(f"/assignments/{a.id}").get_data(as_text=True)
+    assert "אשר ושלח לסטודנט" in page and "• 25 נקודות: לא צירפת דיאגרמה" in page and 'value="60"' in page
+    client.post(f"/submissions/{sub.id}/grade", data={"grade": "62", "feedback": text + " (המרצה הוסיף)"})
+    page = client.get(f"/assignments/{a.id}").get_data(as_text=True)
+    assert "השתמש במשוב של ה-AI" in page and "אשר ושלח לסטודנט" not in page
+    client.post(f"/assignments/{a.id}/publish-grades", data={"published": "1"})
+    login(client, stud.id)
+    page = client.get(f"/assignments/{a.id}").get_data(as_text=True)
+    assert "לא צירפת דיאגרמה" in page and "(המרצה הוסיף)" in page and ">62<" in page

@@ -75,6 +75,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
         ("submissions", "ai_flag"): "TEXT NOT NULL DEFAULT ''",
         ("submissions", "ai_error"): "TEXT NOT NULL DEFAULT ''",
         ("submissions", "ai_at"): "REAL NOT NULL DEFAULT 0",
+        ("submissions", "ai_deductions"): "TEXT NOT NULL DEFAULT ''",
         ("assignments", "weight"): "REAL NOT NULL DEFAULT 0",
         ("assignments", "solution_path"): "TEXT NOT NULL DEFAULT ''",
         ("assignments", "solution_name"): "TEXT NOT NULL DEFAULT ''",

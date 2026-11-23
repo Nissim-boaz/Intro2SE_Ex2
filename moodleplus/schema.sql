@@ -213,6 +213,7 @@ CREATE TABLE IF NOT EXISTS submissions (
     ai_grade       INTEGER,
     ai_reason      TEXT NOT NULL DEFAULT '',  -- למרצה
     ai_feedback    TEXT NOT NULL DEFAULT '',  -- טיוטת משוב בונה לסטודנט
+    ai_deductions  TEXT NOT NULL DEFAULT '',  -- JSON: על מה ירדו נקודות, [{"points": 10, "reason": "..."}]
     ai_class_note  TEXT NOT NULL DEFAULT '',  -- ההגשה ביחס לכיתה, בלי שמות
     ai_summary     TEXT NOT NULL DEFAULT '',
     ai_off_topic   INTEGER NOT NULL DEFAULT 0,

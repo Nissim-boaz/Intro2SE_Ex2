@@ -110,6 +110,18 @@ class Submission:
     ai_flag: str = ""
     ai_error: str = ""
     ai_at: float = 0.0
+    ai_deductions: tuple = ()   # ((10, "לא צירפת דיאגרמת רצף"), ...)
+
+    @property
+    def ai_student_feedback(self) -> str:
+        """המשוב שה-AI מציע לשלוח לסטודנט: משוב בונה, על מה ירדו נקודות, והערה ביחס לכיתה."""
+        parts = [self.ai_feedback.strip()]
+        if self.ai_deductions:
+            lines = "\n".join(f"• {points:g} נקודות: {reason}" for points, reason in self.ai_deductions)
+            parts.append("על מה ירדו נקודות:\n" + lines)
+        if self.ai_class_note.strip():
+            parts.append("ביחס לכיתה: " + self.ai_class_note.strip())
+        return "\n\n".join(p for p in parts if p)
 
     @property
     def ai_ready(self) -> bool:
@@ -135,7 +147,16 @@ class Submission:
                    r["submitted_at"], r["grade"], r["feedback"], bool(r["late"]), bool(r["published"]),
                    r["appeal_status"], r["appeal_text"], r["appeal_reply"], r["original_grade"],
                    r["ai_grade"], r["ai_reason"], r["ai_feedback"], r["ai_class_note"], r["ai_flag"], r["ai_error"],
-                   r["ai_at"])
+                   r["ai_at"], _deductions(r["ai_deductions"]))
+
+
+def _deductions(raw: str) -> tuple:
+    import json
+
+    try:
+        return tuple((float(d["points"]), str(d["reason"])) for d in json.loads(raw or "[]"))
+    except (ValueError, TypeError, KeyError):
+        return ()
 
 
 # late מחושב מול מועד ההגשה הנוכחי, כך שהארכה שהמרצה נותן מתקנת גם הגשות שכבר נשלחו

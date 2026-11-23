@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import json
 import logging
 import queue
 import sqlite3
@@ -34,6 +35,7 @@ class Review:
     feedback: str    # לסטודנט: משוב בונה
     summary: str     # תקציר קצר של מה שהוגש, בשביל ההשוואה לכיתה
     off_topic: bool
+    deductions: tuple = ()  # ((נקודות, סיבה), ...): על מה ירדו נקודות, בשביל הסטודנט
 
 
 class SubmissionReviewer:
@@ -58,9 +60,12 @@ class SubmissionReviewer:
 {{"grade": מספר שלם 0 עד 100,
   "reason": "2 עד 4 משפטים למרצה: מה טוב, מה חסר, ולמה הציון הזה",
   "feedback": "משוב בונה לסטודנט, בגוף שני, 3 עד 6 משפטים: מה עשה טוב ומה כדאי לשפר בפעם הבאה. מכבד ולא מתנשא, בלי לציין את הציון",
+  "deductions": [{{"points": מספר הנקודות שירדו, "reason": "משפט קצר בגוף שני: על מה ירדו, למשל 'לא צירפת דיאגרמת רצף'"}}],
   "summary": "שני משפטים שמתארים מה הסטודנט הגיש ואיזו גישה בחר",
   "off_topic": true אם ההגשה לא קשורה בכלל למטלה, אחרת false}}
 
+ב-deductions פרט כל הורדה בנפרד, כך שסכום הנקודות יהיה 100 פחות הציון. בציון 100 החזר רשימה ריקה.
+אם המרצה נתן דגשים עם ניקוד, הורד לפיהם.
 אל תמציא דברים שלא מופיעים בהגשה. אם ההגשה ריקה או לא קריאה, תן ציון 0 והסבר."""
 
     def __init__(self, provider: LLMProvider):
@@ -83,8 +88,16 @@ class SubmissionReviewer:
             grade = max(0, min(100, int(round(float(data.get("grade", 0))))))
         except (TypeError, ValueError):
             raise LLMError("ה-AI לא החזיר ציון תקין")
+        deductions = []
+        for d in data.get("deductions") or []:
+            try:
+                points, reason = abs(float(d.get("points", 0))), str(d.get("reason", "")).strip()
+            except (AttributeError, TypeError, ValueError):
+                continue
+            if points and reason:
+                deductions.append((round(points, 1), reason[:300]))
         return Review(grade, str(data.get("reason", "")).strip(), str(data.get("feedback", "")).strip(),
-                      str(data.get("summary", "")).strip(), bool(data.get("off_topic")))
+                      str(data.get("summary", "")).strip(), bool(data.get("off_topic")), tuple(deductions[:10]))
 
 
 class ClassComparer:
@@ -193,8 +206,10 @@ class AIGradingService:
                 r = reviewer.review(a, a.ai_guidelines, solution, doc)
                 self.db.execute(
                     "UPDATE submissions SET ai_grade = ?, ai_reason = ?, ai_feedback = ?, ai_summary = ?, "
-                    "ai_off_topic = ?, ai_error = '', ai_at = ? WHERE id = ?",
-                    (r.grade, r.reason, r.feedback, r.summary, int(r.off_topic), self.clock(), sid))
+                    "ai_off_topic = ?, ai_deductions = ?, ai_error = '', ai_at = ? WHERE id = ?",
+                    (r.grade, r.reason, r.feedback, r.summary, int(r.off_topic),
+                     json.dumps([{"points": p, "reason": t} for p, t in r.deductions], ensure_ascii=False),
+                     self.clock(), sid))
             except LLMError as err:
                 failures += 1
                 self.db.execute("UPDATE submissions SET ai_grade = NULL, ai_error = ?, ai_at = ? WHERE id = ?",
@@ -259,11 +274,8 @@ class AIGradingService:
     # ----- approving -----
     @staticmethod
     def student_feedback(sub) -> str:
-        """המשוב שעובר לסטודנט כשהמרצה מאשר: המשוב הבונה, ואחריו ההערה ביחס לכיתה אם יש."""
-        parts = [sub.ai_feedback.strip()]
-        if sub.ai_class_note.strip():
-            parts.append("ביחס לכיתה: " + sub.ai_class_note.strip())
-        return "\n\n".join(p for p in parts if p)
+        """המשוב שעובר לסטודנט כשהמרצה מאשר (ראה Submission.ai_student_feedback)."""
+        return sub.ai_student_feedback
 
     def approve(self, submission_id: int) -> None:
         sub = self.assignments.get_submission(submission_id)

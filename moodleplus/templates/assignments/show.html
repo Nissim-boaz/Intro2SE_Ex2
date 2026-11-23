@@ -226,24 +226,31 @@
             <div class="ai-suggest">
               <div class="ai-suggest-head">
                 <span class="pill pill-ai">הצעת AI: {{ sub.ai_grade }}</span>
-                {% if not sub.graded %}
-                <form method="post" action="{{ url_for('assignments.ai_approve', submission_id=sub.id) }}">
-                  <button class="btn btn-sm">אשר הצעה</button>
-                </form>
+                {% if sub.graded %}
+                <button type="button" class="btn btn-quiet btn-sm" data-fill-feedback="{{ sub.ai_student_feedback }}" data-fill-grade="{{ sub.ai_grade }}">השתמש במשוב של ה-AI</button>
                 {% endif %}
               </div>
-              {% if sub.ai_reason %}<p dir="auto"><strong>נימוק:</strong> {{ sub.ai_reason }}</p>{% endif %}
-              {% if sub.ai_feedback %}<p dir="auto"><strong>משוב לסטודנט:</strong> {{ sub.ai_feedback }}</p>{% endif %}
-              {% if sub.ai_class_note %}<p dir="auto"><strong>ביחס לכיתה:</strong> {{ sub.ai_class_note }}</p>{% endif %}
-              <p class="xsmall muted">אישור שומר את הציון ואת המשוב (אם עוד לא כתבת הערה). הסטודנט יראה אותם רק אחרי שתפרסם.</p>
+              {% if sub.ai_reason %}<p dir="auto"><strong>נימוק (רק לך):</strong> {{ sub.ai_reason }}</p>{% endif %}
+              {% if sub.ai_deductions %}
+              <ul class="ai-deductions">
+                {% for points, reason in sub.ai_deductions %}<li><b dir="ltr">−{{ points|grade }}</b> <span dir="auto">{{ reason }}</span></li>{% endfor %}
+              </ul>
+              {% endif %}
             </div>
             {% elif sub.ai_error and sub.ai_at >= sub.submitted_at %}
             <p class="ai-flag-text">ה-AI לא בדק את ההגשה: {{ sub.ai_error }}</p>
             {% endif %}
-            <form method="post" action="{{ url_for('assignments.grade', submission_id=sub.id) }}" class="grade-form" data-live-submit>
-              <label>ציון<input type="number" name="grade" min="0" max="100" inputmode="numeric" value="{{ sub.grade if sub.graded else '' }}" placeholder="{{ 'הצעת AI: ' ~ sub.ai_grade if sub.ai_ready else '0–100' }}"></label>
-              <label>הערה לסטודנט<textarea name="feedback" rows="3" placeholder="רק הסטודנט רואה את ההערה">{{ sub.feedback }}</textarea></label>
-              <button class="btn btn-sm">שמור</button>
+            {# not graded yet: the form starts from the AI's grade and feedback, ready to edit and approve #}
+            {% set from_ai = sub.ai_ready and not sub.graded %}
+            <form method="post" action="{{ url_for('assignments.grade', submission_id=sub.id) }}" class="grade-form"{% if not from_ai %} data-live-submit{% endif %}>
+              <label>ציון<input type="number" name="grade" min="0" max="100" inputmode="numeric" value="{{ sub.ai_grade if from_ai else (sub.grade if sub.graded else '') }}" placeholder="0–100"></label>
+              <label>{{ 'משוב לסטודנט, כפי שה-AI כתב. אפשר לערוך' if from_ai else 'הערה לסטודנט' }}
+                <textarea name="feedback" rows="{{ 8 if from_ai else 3 }}" placeholder="רק הסטודנט רואה את ההערה">{{ sub.ai_student_feedback if from_ai else sub.feedback }}</textarea>
+              </label>
+              <div class="save-row">
+                <button class="btn btn-sm">{{ 'אשר ושלח לסטודנט' if from_ai else 'שמור' }}</button>
+                <span class="xsmall muted">{{ 'הסטודנט יראה את הציון והמשוב מיד.' if a.grades_published else 'הסטודנט יראה את הציון והמשוב כשתפרסם את הציונים.' }}</span>
+              </div>
             </form>
             {% endif %}
           </details>
