@@ -52,6 +52,11 @@
       </form>
     {% endif %}
   </div>
+  <nav class="login-legal xsmall" aria-label="מסמכים">
+    <a href="{{ url_for('pages.privacy') }}">מדיניות פרטיות</a>
+    <span aria-hidden="true">·</span>
+    <a href="{{ url_for('pages.terms') }}">תנאי שימוש</a>
+  </nav>
 </div>
 {% endblock %}
 {% block scripts %}

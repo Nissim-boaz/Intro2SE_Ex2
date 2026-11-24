@@ -1,0 +1,18 @@
+{# Shared frame for the English legal pages: left to right, a narrow column of short paragraphs. #}
+{% extends "base.html" %}
+{% block lang %}en{% endblock %}
+{% block dir %}ltr{% endblock %}
+{% block content %}
+<article class="legal panel">
+  <h1>{% block heading %}{% endblock %}</h1>
+  <p class="muted small">Last updated: November 2026</p>
+  {% block body %}{% endblock %}
+  <p class="legal-contact">Questions? Write to <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
+  <nav class="legal-links small">
+    <a href="{{ url_for('courses.index') if user else url_for('auth.login') }}">{{ '← Back to Moodle+' if user else '← Back to sign in' }}</a>
+    <span aria-hidden="true">·</span>
+    {% if request.endpoint == 'pages.privacy' %}<a href="{{ url_for('pages.terms') }}">Terms of Service</a>
+    {% else %}<a href="{{ url_for('pages.privacy') }}">Privacy Policy</a>{% endif %}
+  </nav>
+</article>
+{% endblock %}

@@ -1698,3 +1698,13 @@ html.chat-sheet-open, html.chat-sheet-open body { overflow: hidden; }
 .ai-deductions li { display: flex; gap: 8px; align-items: baseline; }
 .ai-deductions b { flex: none; color: var(--danger); font-variant-numeric: tabular-nums; }
 .grade-form textarea { line-height: 1.5; }
+
+/* ---------- privacy policy and terms (English, left to right) ---------- */
+.legal { max-width: 680px; margin: 8px auto 40px; display: grid; gap: 10px; line-height: 1.65; }
+.legal h1 { font-size: clamp(26px, 6vw, 34px); letter-spacing: -.02em; }
+.legal h2 { font-size: var(--fs-md); margin-top: 12px; }
+.legal p { color: var(--ink); }
+.legal-contact { margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--line); }
+.legal-links { display: flex; gap: 8px; flex-wrap: wrap; color: var(--ink-3); }
+.login-legal { display: flex; justify-content: center; gap: 8px; margin-top: 18px; color: var(--ink-3); }
+.login-legal a { color: var(--ink-2); }
