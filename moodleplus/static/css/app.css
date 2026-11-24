@@ -1720,3 +1720,18 @@ body.dev-mode .chat-sheet { top: 26px; }
 /* Google's sign-in button sits in a frame drawn in light colours. On our dark pages the browser painted a white
    box behind that frame, because the two colour schemes differed; matching it to light leaves only the round button */
 .g_id_signin, .g_id_signin iframe { color-scheme: light; }
+
+/* ---------- tab bar: dragging along it, and switching tabs ---------- */
+.tabbar { touch-action: none; -webkit-user-select: none; user-select: none; }
+.tabbar.dragging .tabbar-glow { transition: transform .08s linear; background: color-mix(in srgb, var(--glass-glow) 100%, rgba(255,255,255,.08)); }
+.tabbar a.under-finger { color: var(--brand); }
+.tabbar.dragging a.on:not(.under-finger) { color: var(--ink-2); }
+body.tabbed .tab-on { animation: tab-fade .18s var(--ease); }
+body.tabbed .tab-on.from-left { animation: tab-from-left .22s cubic-bezier(.2, .8, .2, 1); }
+body.tabbed .tab-on.from-right { animation: tab-from-right .22s cubic-bezier(.2, .8, .2, 1); }
+@keyframes tab-fade { from { opacity: 0; } }
+@keyframes tab-from-left { from { opacity: 0; transform: translateX(-28px); } }
+@keyframes tab-from-right { from { opacity: 0; transform: translateX(28px); } }
+@media (prefers-reduced-motion: reduce) {
+  body.tabbed .tab-on, body.tabbed .tab-on.from-left, body.tabbed .tab-on.from-right { animation: none; }
+}

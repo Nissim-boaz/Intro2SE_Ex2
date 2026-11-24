@@ -12,10 +12,11 @@
       <span class="rec-thumb">
         {% if rec.is_video %}
         {# #t=2: the browser shows the frame at 2 seconds as the thumbnail #}
-        <video preload="metadata" muted playsinline tabindex="-1" aria-hidden="true" data-thumb
-               src="{{ url_for('recordings.media', recording_id=rec.id) }}#t=2"></video>
+        {# data-src: the video starts loading only when the card is on screen (the tab may be hidden) #}
+        <video preload="none" muted playsinline tabindex="-1" aria-hidden="true" data-thumb
+               data-src="{{ url_for('recordings.media', recording_id=rec.id) }}#t=2"></video>
         {% else %}
-        <audio preload="metadata" data-thumb src="{{ url_for('recordings.media', recording_id=rec.id) }}"></audio>
+        <audio preload="none" data-thumb data-src="{{ url_for('recordings.media', recording_id=rec.id) }}"></audio>
         <span class="rec-thumb-audio" aria-hidden="true">♪</span>
         {% endif %}
         <span class="rec-play" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" fill="currentColor"/></svg></span>

@@ -295,9 +295,20 @@
     // the last tab per course, for this browser tab: "back" from the chat lands where you were, not on "content"
     const lastTabKey = "moodleplus.tab." + location.pathname;
     const lastTab = () => { try { return sessionStorage.getItem(lastTabKey) || ""; } catch (_) { return ""; } };
+    let currentIndex = -1;
     const show = (id) => {
       if (!ids.includes(id)) id = ids[0];
-      ids.forEach((x) => document.getElementById(x).classList.toggle("tab-on", x === id));
+      // the new tab slides in from the side it sits on in the bar (in Hebrew the next tab is to the left)
+      const index = all.indexOf(tabs.find((t) => t.dataset.tab === id));
+      const rtl = getComputedStyle(document.documentElement).direction === "rtl";
+      const from = currentIndex < 0 || index === currentIndex ? "" : (index > currentIndex) === rtl ? "from-left" : "from-right";
+      currentIndex = index;
+      ids.forEach((x) => {
+        const el = document.getElementById(x);
+        el.classList.toggle("tab-on", x === id);
+        el.classList.remove("from-left", "from-right");
+        if (x === id && from) { void el.offsetWidth; el.classList.add(from); }
+      });
       tabs.forEach((t) => {
         const on = t.dataset.tab === id;
         t.classList.toggle("on", on);
@@ -325,6 +336,61 @@
       if (e.persisted && tabbar.querySelector(".tab-badge")) location.reload();
     });
     requestAnimationFrame(() => tabbar.classList.add("ready")); // the glow slides only after the first paint
+
+    // touch: drag a finger along the bar and the glass pill follows it, like WhatsApp; lifting opens that tab
+    const glow = tabbar.querySelector(".tabbar-glow");
+    let drag = null, swallowClick = false;
+    const slotAt = (x) => {
+      const r = tabbar.getBoundingClientRect();
+      const slot = (r.width - 10) / all.length;
+      const fromRight = Math.min(Math.max(r.right - 5 - x, 0), r.width - 10.01);
+      return { i: Math.floor(fromRight / slot), offset: Math.min(Math.max(fromRight - slot / 2, 0), slot * (all.length - 1)) };
+    };
+    tabbar.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse") return; // a computer keeps plain clicks
+      drag = { id: e.pointerId, x: e.clientX, moved: false };
+    });
+    tabbar.addEventListener("pointermove", (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      if (!drag.moved) {
+        if (Math.abs(e.clientX - drag.x) < 8) return;
+        drag.moved = true;
+        try { tabbar.setPointerCapture(e.pointerId); } catch (_) {}
+        tabbar.classList.add("dragging");
+      }
+      const { i, offset } = slotAt(e.clientX);
+      glow.style.transform = `translateX(${-offset}px) scale(1.08)`;
+      all.forEach((a, j) => a.classList.toggle("under-finger", j === i));
+      if (i !== drag.last) { drag.last = i; navigator.vibrate?.(4); }
+    });
+    const endDrag = (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const moved = drag.moved;
+      drag = null;
+      tabbar.classList.remove("dragging");
+      glow.style.transform = "";
+      all.forEach((a) => a.classList.remove("under-finger"));
+      if (!moved || e.type === "pointercancel") return;
+      swallowClick = true; // the browser still fires a click on the first icon; the drag decides instead
+      setTimeout(() => { swallowClick = false; }, 400);
+      const target = all[slotAt(e.clientX).i];
+      if (!target) return;
+      if (target.dataset.tab) {
+        if (!target.classList.contains("on")) {
+          history.replaceState(null, "", "#" + target.dataset.tab);
+          show(target.dataset.tab);
+          window.scrollTo(0, 0);
+        }
+      } else {
+        target.click(); // the chat: chat_sheet.js slides it in
+      }
+    };
+    tabbar.addEventListener("pointerup", endDrag);
+    tabbar.addEventListener("pointercancel", endDrag);
+    tabbar.addEventListener("click", (e) => {
+      // only the browser's own click after a drag; our target.click() for the chat is not trusted and goes through
+      if (swallowClick && e.isTrusted) { e.preventDefault(); e.stopPropagation(); swallowClick = false; }
+    }, true);
   }
 
   // ---------- theme: auto (follow the device) / light / dark, remembered per browser ----------

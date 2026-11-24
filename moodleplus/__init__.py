@@ -45,6 +45,9 @@ def create_app(config_object=None, **overrides) -> Flask:
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     db.init_app(app)
+    from . import web_speed
+
+    web_speed.init_app(app)
     _ensure_admin(app)
     _register_blueprints(app)
     _register_handlers(app)

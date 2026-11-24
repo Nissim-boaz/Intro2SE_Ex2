@@ -50,7 +50,7 @@
 
   document.addEventListener("click", (e) => {
     const a = e.target.closest("a[data-chat-open]");
-    if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // a new tab still works as usual
+    if (!a || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // a new tab still works as usual
     e.preventDefault();
     show(true);
   });

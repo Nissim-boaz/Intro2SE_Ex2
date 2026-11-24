@@ -31,6 +31,17 @@
     if (media.readyState >= 1) show();
     else media.addEventListener("loadedmetadata", show, { once: true });
   });
+  // thumbnails on the course page: load a video's first frame only when its card comes into view
+  const lazy = [...document.querySelectorAll("[data-thumb][data-src]")];
+  const load = (media) => { media.preload = "metadata"; media.src = media.dataset.src; delete media.dataset.src; };
+  if ("IntersectionObserver" in window) {
+    const seen = new IntersectionObserver((entries) => entries.forEach((e) => {
+      if (e.isIntersecting) { seen.unobserve(e.target); load(e.target); }
+    }), { rootMargin: "200px" });
+    lazy.forEach((m) => seen.observe(m));
+  } else {
+    lazy.forEach(load);
+  }
 
   // ---------- edit mode (lecturer) ----------
   const editForm = document.getElementById("rec-edit");
