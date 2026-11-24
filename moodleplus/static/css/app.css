@@ -1716,3 +1716,7 @@ html.chat-sheet-open, html.chat-sheet-open body { overflow: hidden; }
 }
 body.dev-mode .chat-page { height: calc(100vh - 26px); height: calc(100dvh - 26px); }
 body.dev-mode .chat-sheet { top: 26px; }
+
+/* Google's sign-in button sits in a frame drawn in light colours. On our dark pages the browser painted a white
+   box behind that frame, because the two colour schemes differed; matching it to light leaves only the round button */
+.g_id_signin, .g_id_signin iframe { color-scheme: light; }
