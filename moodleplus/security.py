@@ -1,7 +1,7 @@
 """המשתמש המחובר והרשאות לפי תפקיד."""
 from functools import wraps
 
-from flask import abort, g, redirect, request, session, url_for
+from flask import abort, current_app, g, redirect, request, session, url_for
 
 from .db import get_db
 from .errors import NotFound
@@ -12,6 +12,10 @@ from .services.users import UserService
 def load_current_user() -> None:
     g.user = None
     user_id = session.get("user_id")
+    # מי שנכנס בלי אימות (MOCK_AUTH) לא נשאר מחובר אחרי שמכבים את המצב: אחרת היה עוקף את Google
+    if user_id and session.get("via") != "google" and not current_app.config.get("MOCK_AUTH"):
+        session.clear()
+        return
     if user_id:
         try:
             g.user = UserService(get_db()).get(user_id)
@@ -23,12 +27,11 @@ def current_user() -> User | None:
     return g.get("user")
 
 
-def login_user(user: User) -> None:
-    pending_checkin = session.get("checkin")  # סטודנט שסרק QR לפני שהתחבר
+def login_user(user: User, via: str) -> None:
+    """via: google (ID token שנבדק) או mock (מצב פיתוח, בלי אימות)."""
     session.clear()
     session["user_id"] = user.id
-    if pending_checkin:
-        session["checkin"] = pending_checkin
+    session["via"] = via
     session.permanent = True
 
 

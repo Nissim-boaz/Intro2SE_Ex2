@@ -45,7 +45,7 @@ def google():
     if user is None:
         return _fail(f"החשבון {info['email']} לא רשום במערכת. פנה למנהל המערכת")
     target = _safe_next(session.get("next"))
-    login_user(user)
+    login_user(user, via="google")
     if request.is_json:
         return jsonify(ok=True, next=target)
     return redirect(target)
@@ -68,7 +68,7 @@ def mock():
 
 def _finish(user):
     target = session.get("next")
-    login_user(user)
+    login_user(user, via="mock")
     return redirect(_safe_next(target))
 
 

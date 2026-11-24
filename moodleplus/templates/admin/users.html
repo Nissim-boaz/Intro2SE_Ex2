@@ -73,6 +73,12 @@
         </select>
       </form>
       {% endif %}
+      <button type="button" class="icon-btn" data-edit-user="{{ url_for('admin.update_user', user_id=u.id) }}"
+              data-name="{{ u.name }}" data-email="{{ u.email }}" data-role="{{ u.role }}"
+              {% if u.email == main_admin %}data-email-locked{% endif %}
+              aria-label="ערוך את {{ u.name }}" title="עריכה">
+        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M4 20l1-4.2L15.9 4.9a2 2 0 0 1 2.8 0l.4.4a2 2 0 0 1 0 2.8L8.2 19Z M13.8 7l3.2 3.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></svg>
+      </button>
       {% if u.id != user.id %}
       <form method="post" action="{{ url_for('admin.delete_user', user_id=u.id) }}" data-confirm="למחוק את {{ u.name }}? הפעולה תמחק גם את הנוכחות וההודעות שלו.">
         <button class="icon-btn" aria-label="מחק את {{ u.name }}" title="מחק">✕</button>
@@ -86,4 +92,46 @@
   <div class="empty"><strong>אין משתמשים כאן</strong>הוסף משתמש או ייבא קובץ סטודנטים.</div>
   {% endif %}
 </section>
+
+<dialog id="edit-user" class="dialog-compact" data-light-dismiss>
+  <form method="post" class="dialog-body" id="edit-user-form" data-once>
+    <h2>עריכת משתמש</h2>
+    <label>שם מלא<input type="text" name="name" required maxlength="120"></label>
+    <label>מייל<input type="email" name="email" required dir="ltr"></label>
+    <input type="hidden" name="role">
+    <div class="dialog-actions">
+      <button class="btn btn-quiet" type="button" data-close-dialog>ביטול</button>
+      <button class="btn">שמור</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}
+{% block scripts %}
+<script>
+  // one dialog for every row: the pencil fills it. The list keeps its place after the save reloads the page
+  (function () {
+    const dialog = document.getElementById("edit-user");
+    const form = document.getElementById("edit-user-form");
+    const list = document.getElementById("users-list");
+    document.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-edit-user]");
+      if (!b) return;
+      form.action = b.dataset.editUser;
+      form.elements.name.value = b.dataset.name;
+      form.elements.email.value = b.dataset.email;
+      form.elements.email.readOnly = "emailLocked" in b.dataset;
+      form.elements.role.value = b.dataset.role;
+      delete form.dataset.sent;
+      form.querySelectorAll("button").forEach((x) => { x.disabled = false; });
+      dialog.showModal();
+      form.elements.name.focus();
+    });
+    form.addEventListener("submit", () => {
+      try {
+        sessionStorage.setItem("moodleplus.scroll." + location.pathname + "#users-list",
+                               JSON.stringify({ page: window.scrollY, list: list.scrollTop }));
+      } catch (_) {}
+    });
+  })();
+</script>
 {% endblock %}

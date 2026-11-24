@@ -48,7 +48,8 @@ class UserService:
         self.db.commit()
         return self.get(cur.lastrowid)
 
-    def update(self, user_id: int, name: str, role: str) -> User:
+    def update(self, user_id: int, name: str, role: str, email: str | None = None) -> User:
+        """email=None משאיר את המייל. שינוי מייל שומר על אותו חשבון, כך שהקורסים, הציונים והנוכחות נשארים."""
         if role not in ROLES:
             raise ValidationError("תפקיד לא מוכר")
         if not name.strip():
@@ -56,6 +57,16 @@ class UserService:
         user = self.get(user_id)
         if user.is_admin and role != "admin":
             self._keep_one_admin()
+        if email is not None:
+            email = email.strip().lower()
+            if email != user.email:
+                if not EMAIL_RE.match(email):
+                    raise ValidationError("כתובת המייל לא תקינה")
+                if user.email == self.main_admin_email():
+                    raise ValidationError("את המייל של מנהל המערכת הראשי משנים בקובץ ההגדרות")
+                if self.find_by_email(email):
+                    raise ValidationError("המייל הזה כבר שייך למשתמש אחר")
+                self.db.execute("UPDATE users SET email = ? WHERE id = ?", (email, user_id))
         self.db.execute("UPDATE users SET name = ?, role = ? WHERE id = ?", (name.strip(), role, user_id))
         # התפקיד בקורסים נגזר מהתפקיד של המשתמש: מי שהפך למרצה הוא מרצה בכל הקורסים שלו, וכן להפך.
         # מנהל מערכת רואה הכל בכל מקרה, אז השיוכים שלו נשארים כמו שהם (ויחזרו לפעול אם יורד מהתפקיד)
@@ -80,15 +91,58 @@ class UserService:
         """מחזיר משתמש קיים או יוצר חדש. משמש ל-seed."""
         return self.find_by_email(email) or self.create(email, name, role)
 
+    # המייל של מנהל המערכת לפני שהתחלנו לזכור אותו ב-app_settings (ברירת המחדל של ההגדרות)
+    LEGACY_ADMIN_EMAIL = "admin@example.com"
+
     def ensure_admin(self, email: str, name: str = "מנהל המערכת") -> User:
-        """המייל שבהגדרות תמיד מנהל מערכת, גם אם מישהו שינה לו את התפקיד בטעות."""
+        """המייל שבהגדרות תמיד מנהל מערכת, גם אם מישהו שינה לו את התפקיד בטעות.
+
+        כש-ADMIN_EMAIL משתנה, מנהל המערכת הקודם עובר לכתובת החדשה ולא נוצר מנהל נוסף:
+        אם הכתובת החדשה עוד לא קיימת, פשוט משנים לו את המייל (אותו חשבון, אותם נתונים).
+        אם היא כבר שייכת למשתמש אחר, הנתונים של המנהל הקודם עוברים אליו, והחשבון הקודם נמחק.
+        """
+        email = email.strip().lower()
+        previous = self._setting("admin_email") or self.LEGACY_ADMIN_EMAIL
+        if previous != email:
+            old, new = self.find_by_email(previous), self.find_by_email(email)
+            if old and old.is_admin:
+                if new is None:
+                    self.db.execute("UPDATE users SET email = ? WHERE id = ?", (email, old.id))
+                else:
+                    self.merge(old.id, new.id)
         user = self.find_by_email(email)
         if user is None:
-            return self.create(email, name, "admin")
-        if not user.is_admin:
+            user = self.create(email, name, "admin")
+        elif not user.is_admin:
             self.db.execute("UPDATE users SET role = 'admin' WHERE id = ?", (user.id,))
-            self.db.commit()
+        self._set_setting("admin_email", email)
+        self.db.commit()
         return self.get(user.id)
+
+    def merge(self, from_id: int, into_id: int) -> None:
+        """מעביר את כל מה ששייך למשתמש from_id אל into_id, ומוחק את from_id.
+
+        כל עמודה בכל טבלה שמצביעה על users מתעדכנת. כשאותה שורה כבר קיימת אצל into_id
+        (למשל שניהם הגיבו לאותה הודעה), נשארת השורה של into_id."""
+        tables = [r[0] for r in self.db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")]
+        for table in tables:
+            for fk in self.db.execute(f"PRAGMA foreign_key_list({table})").fetchall():
+                if fk[2] != "users":
+                    continue
+                col = fk[3]
+                self.db.execute(f"UPDATE OR IGNORE {table} SET {col} = ? WHERE {col} = ?", (into_id, from_id))
+        self.db.execute("DELETE FROM users WHERE id = ?", (from_id,))  # מה שלא עבר (כפילויות) נמחק ב-CASCADE
+
+    def main_admin_email(self) -> str:
+        return self._setting("admin_email") or ""
+
+    def _setting(self, key: str) -> str | None:
+        row = self.db.execute("SELECT value FROM app_settings WHERE key = ?", (key,)).fetchone()
+        return row[0] if row else None
+
+    def _set_setting(self, key: str, value: str) -> None:
+        self.db.execute("INSERT INTO app_settings (key, value) VALUES (?, ?) "
+                        "ON CONFLICT (key) DO UPDATE SET value = excluded.value", (key, value))
 
 
 @dataclass(frozen=True)

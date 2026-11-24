@@ -33,6 +33,7 @@ def users():
     return render_template(
         "admin/users.html",
         users=UserService(get_db()).list(),  # הסינון לפי תפקיד קורה בדפדפן, בלי לטעון את העמוד מחדש
+        main_admin=UserService(get_db()).main_admin_email(),
         role_filter=role,
         role_labels=ROLE_LABELS,
     )
@@ -53,7 +54,8 @@ def update_user(user_id: int):
     role = request.form.get("role", "")
     if user_id == current_user().id and role != current_user().role:
         raise ValidationError("אי אפשר לשנות את התפקיד של עצמך")
-    UserService(get_db()).update(user_id, request.form.get("name", ""), role)
+    email = request.form.get("email")  # רק טופס העריכה שולח מייל. בחירת תפקיד ברשימה לא נוגעת בו
+    UserService(get_db()).update(user_id, request.form.get("name", ""), role, email=email)
     flash("השינויים נשמרו", "success")
     return redirect(url_for("admin.users"))
 

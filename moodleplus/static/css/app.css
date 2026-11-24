@@ -1708,3 +1708,11 @@ html.chat-sheet-open, html.chat-sheet-open body { overflow: hidden; }
 .legal-links { display: flex; gap: 8px; flex-wrap: wrap; color: var(--ink-3); }
 .login-legal { display: flex; justify-content: center; gap: 8px; margin-top: 18px; color: var(--ink-3); }
 .login-legal a { color: var(--ink-2); }
+
+/* ---------- MOCK_AUTH=1: a strip on every page, so it is never left on by accident ---------- */
+.dev-banner {
+  position: relative; z-index: 90; height: 26px; display: grid; place-items: center; padding: 0 12px;
+  background: #E8590C; color: #fff; font-size: 12.5px; font-weight: 700; letter-spacing: .01em;
+}
+body.dev-mode .chat-page { height: calc(100vh - 26px); height: calc(100dvh - 26px); }
+body.dev-mode .chat-sheet { top: 26px; }

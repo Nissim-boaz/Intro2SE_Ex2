@@ -12,7 +12,7 @@ There are three roles:
 
 A user's role applies in every course they are assigned to: a lecturer is a lecturer in all of their courses. Changing a user's role updates the courses they are already in.
 
-Sign-in is with a Google account, and the server verifies the ID token. Anyone not listed in the users table can't get in. For development and demos there is a `MOCK_AUTH` mode with a role and user picker.
+Sign-in is with a Google account, and the server verifies the ID token: its signature against Google's keys, that its audience is our Client ID, that it hasn't expired, and that Google verified the email address. Anyone not listed in the users table can't get in. For development there is a `MOCK_AUTH` mode with a role and user picker and no authentication; every page then shows an orange strip so it is never left on by accident.
 
 Students and lecturers can send a request to the admins from the account menu (for example, a missing course or an attendance mistake). Each request is a conversation: the admins reply and set its status (new, in progress, resolved or rejected), and the requester gets a red dot in the menu when there is an update. A resolved or rejected request is deleted 7 days after it was closed.
 
@@ -120,15 +120,17 @@ python seed.py --reset           # demo data: a lecturer, 105 students, a course
 python run.py
 ```
 
-The site runs at `http://localhost:5001` (the exact address is printed on start). Port 5000 is skipped because macOS uses it for AirPlay Receiver; if 5001 is taken, the next free port is used. Set `PORT` to force a specific port. With `MOCK_AUTH=1`, the sign-in page lets you pick a role and a user. The admin's email comes from `ADMIN_EMAIL`, and the admin is created automatically on the first run.
+The site runs at `http://localhost:5001` (the exact address is printed on start). Port 5000 is skipped because macOS uses it for AirPlay Receiver; if 5001 is taken, the next free port is used. Set `PORT` to force a specific port. With `MOCK_AUTH=1`, the sign-in page lets you pick a role and a user. The main admin's email comes from `ADMIN_EMAIL`, and that admin is created automatically on the first run. Changing `ADMIN_EMAIL` later moves the existing admin to the new address: the same account and data if the address is new, or the old admin's data merged into the account that already has it. No second admin is created.
 
 Important settings in `.env`:
 
 | Variable | What it does |
 | --- | --- |
 | `SECRET_KEY` | The secret the tokens and the session are derived from. For the demo it must be long and random |
-| `MOCK_AUTH` | `1` shows the role picker, `0` leaves only Google |
-| `GOOGLE_CLIENT_ID` | From Google Cloud Console |
+| `MOCK_AUTH` | `1` shows the role picker with no authentication (development), `0` leaves only Google |
+| `GOOGLE_CLIENT_ID` | The OAuth Client ID from Google Cloud Console. With `MOCK_AUTH=0` the server refuses to start without it |
+| `ADMIN_EMAIL` | The main admin's Google address. Its email can only be changed here, not in the users screen |
+| `PUBLIC_URL` | The permanent address from outside, for example `https://my-pc.tailnet-name.ts.net`. Printed on start |
 | `GEMINI_API_KEY` | A free key from [Google AI Studio](https://aistudio.google.com/apikey) |
 | `GEMINI_MODEL` | The default is `gemini-3.8-flash` |
 | `WHISPER_MODEL` | The default is `small`. Use `base` for faster transcription |
@@ -137,22 +139,46 @@ On the first upload, faster-whisper downloads the model (about 460 MB), and it i
 
 Note: on the Gemini free tier, Google may use the content to improve its models, so don't upload recordings with sensitive information.
 
-## Running with a tunnel (for phones)
+## A permanent HTTPS address (Tailscale Funnel)
 
-On a phone, the microphone works only over HTTPS. The simplest way is a Cloudflare Quick Tunnel, which is free and needs no account:
+On a phone the microphone works only over HTTPS, and Google sign-in needs an address that doesn't change. Tailscale Funnel gives the computer a permanent `https://<machine>.<tailnet>.ts.net` address, free:
+
+1. Install Tailscale for Windows from [tailscale.com/download](https://tailscale.com/download) (or `winget install --id tailscale.tailscale`) and sign in.
+2. In the [admin console](https://login.tailscale.com/admin/dns), under DNS, turn on MagicDNS and HTTPS Certificates.
+3. Allow Funnel for your machine: in the admin console under Access controls, add the `funnel` attribute to the policy (Tailscale shows a link to do this the first time you run the command below).
+4. Start the site, then the Funnel in a second terminal:
 
 ```bash
-winget install --id Cloudflare.cloudflared     # on Mac: brew install cloudflared
-python run.py                                  # in one window
-cloudflared tunnel --url http://localhost:5001 # in a second window (use the port printed on start)
+python run.py               # first terminal
+tailscale funnel 5001       # second terminal; use the port printed on start
 ```
 
-cloudflared prints an address like `https://something.trycloudflare.com`, which is what you open on the phones. The address changes on every run. For Google sign-in to work behind the tunnel, add the address in Google Cloud Console under Authorized JavaScript origins.
+Tailscale prints the address. Put it in `.env` as `PUBLIC_URL`. Funnel stays up while that terminal is open; `Ctrl+C` stops it. Behind the Funnel the server gets plain HTTP with an `X-Forwarded-Proto: https` header, which `ProxyFix` reads (`TRUST_PROXY=1`, the default), so Flask knows the visit is secure and marks the session cookie `Secure`.
+
+Warning: with `MOCK_AUTH=1` and the Funnel open, anyone who has the address can sign in as anyone, admin included. The server prints this warning on start.
+
+## Google sign-in
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), create a project.
+2. Under APIs & Services, OAuth consent screen: choose External, fill in the app name and your email, and add the privacy policy and terms links (`<PUBLIC_URL>/privacy` and `<PUBLIC_URL>/terms`). Only the basic `email` and `profile` scopes are used, so no review is needed. Publish it (not Testing), or add every user as a test user.
+3. Under Credentials, Create credentials, OAuth client ID, type Web application. Under Authorized JavaScript origins add:
+   - `http://localhost:5001` (on the computer, open the site through `localhost`, not `127.0.0.1`)
+   - your `PUBLIC_URL`, for example `https://my-pc.tailnet-name.ts.net`
+   No redirect URIs are needed: the sign-in button sends the ID token straight to the page.
+4. Copy the Client ID into `.env` as `GOOGLE_CLIENT_ID`, set `MOCK_AUTH=0`, and set `ADMIN_EMAIL` to your own Google address. Restart the server.
+
+Changes to the origins can take a few minutes to apply on Google's side.
+
+### Development mode and demo mode
+
+- Real sign-in: `MOCK_AUTH=0`. Sign in with Google as the admin (`ADMIN_EMAIL`).
+- Quick switching between users (for showing features): set `MOCK_AUTH=1` and restart the server. The orange strip shows on every page, and the terminal prints a warning.
+- Back to real sign-in: `MOCK_AUTH=0` and restart. Anyone who signed in through mock mode is signed out automatically, so nobody keeps an unauthenticated session; people who signed in with Google stay signed in.
 
 ## Testing in the lecture hall before the demo
 
 1. On the classroom computer, open `/debug/audio`, click "השמע אות בדיקה" (play test signal) and turn the volume up.
-2. On a phone, open the same page through the tunnel and tap "התחל להקשיב" (start listening).
+2. On a phone, open the same page through the `PUBLIC_URL` address and tap "התחל להקשיב" (start listening).
 3. From the back row, check that the level bars rise and that the decoded code matches the one on the computer. Below 14 dB above the noise, decoding won't work; move a speaker closer or turn it up.
 
 If a phone can't pick up the signal, the lecturer can still mark that student as present by hand in the lesson report.

@@ -298,3 +298,9 @@ CREATE TABLE IF NOT EXISTS chat_themes (
     version    INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (user_id, course_id)
 );
+
+-- הגדרות שהאתר זוכר בין הפעלות. למשל admin_email: מי מנהל המערכת הראשי, כדי לדעת מתי ADMIN_EMAIL השתנה
+CREATE TABLE IF NOT EXISTS app_settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);

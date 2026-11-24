@@ -20,8 +20,12 @@ class Config:
     MOCK_AUTH = _flag("MOCK_AUTH", "1")
     GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
     ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@example.com")
+    # הכתובת הקבועה שדרכה נכנסים מבחוץ (Tailscale Funnel). מודפסת כשהשרת עולה
+    PUBLIC_URL = os.environ.get("PUBLIC_URL", "").strip().rstrip("/")
 
-    TRUST_PROXY = _flag("TRUST_PROXY", "1")  # מאחורי cloudflared
+    # מאחורי Tailscale Funnel: הבקשה מגיעה ב-HTTPS ל-Funnel, והוא מעביר אותה לשרת ב-HTTP עם
+    # X-Forwarded-Proto. ProxyFix קורא את הכותרת, כך ש-Flask יודע שהגלישה מאובטחת
+    TRUST_PROXY = _flag("TRUST_PROXY", "1")
 
     # הקוד הקולי מתחלף כל 4 שניות ומתקבל עד סוף החלון שאחריו (8 שניות לכל היותר)
     TOKEN_WINDOW_SECONDS = 4

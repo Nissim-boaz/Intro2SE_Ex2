@@ -3,11 +3,32 @@ from datetime import timedelta
 
 from dotenv import load_dotenv
 from flask import Flask, flash, jsonify, redirect, render_template, request
+from flask.sessions import SecureCookieSessionInterface
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from . import db
 from .errors import ServiceError
 from .security import current_user, load_current_user
+
+
+class ConfigError(RuntimeError):
+    """הגדרה חסרה שבלעדיה השרת לא צריך לעלות. ההודעה מסבירה מה לתקן."""
+
+
+class _SessionInterface(SecureCookieSessionInterface):
+    """עוגיית ההתחברות מסומנת Secure כשהבקשה הגיעה ב-HTTPS (דרך ה-Funnel), וב-localhost נשארת רגילה."""
+
+    def get_cookie_secure(self, app) -> bool:
+        return bool(app.config.get("SESSION_COOKIE_SECURE")) or request.is_secure
+
+
+def check_config(config) -> None:
+    if not config.get("MOCK_AUTH") and not config.get("GOOGLE_CLIENT_ID"):
+        raise ConfigError(
+            "MOCK_AUTH=0 but GOOGLE_CLIENT_ID is not set, so nobody could sign in.\n"
+            "Put the OAuth Client ID from Google Cloud Console in .env (GOOGLE_CLIENT_ID=...),\n"
+            "or set MOCK_AUTH=1 for development."
+        )
 
 
 def create_app(config_object=None, **overrides) -> Flask:
@@ -17,6 +38,8 @@ def create_app(config_object=None, **overrides) -> Flask:
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(config_object or Config)
     app.config.update(overrides)
+    check_config(app.config)
+    app.session_interface = _SessionInterface()
     app.permanent_session_lifetime = timedelta(days=30)
     if app.config.get("TRUST_PROXY"):
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)

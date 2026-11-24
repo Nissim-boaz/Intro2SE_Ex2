@@ -91,7 +91,7 @@ _LEGACY_RECORDS = "attendance_records_legacy"
 
 
 def _set_aside_legacy_attendance(conn: sqlite3.Connection) -> bool:
-    """רשומות נוכחות מתקופת ה-QR (עם status ו-reasons) עוברות לטבלה הזמנית, והסכמה יוצרת את הטבלה החדשה.
+    """רשומות נוכחות מהגרסה הקודמת (עם status ו-reasons) עוברות לטבלה זמנית, והסכמה יוצרת את הטבלה החדשה.
 
     ה-CHECK על method השתנה, ו-SQLite לא יודע לשנות CHECK בטבלה קיימת, אז בונים אותה מחדש.
     """

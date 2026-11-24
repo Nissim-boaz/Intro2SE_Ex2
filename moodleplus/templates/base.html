@@ -19,7 +19,8 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
   {% block head %}{% endblock %}
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body class="{% block body_class %}{% endblock %}{% if mock_auth %} dev-mode{% endif %}">
+  {% if mock_auth %}<div class="dev-banner" role="status">מצב פיתוח: התחברות ללא אימות</div>{% endif %}
   {% block topbar %}
   <header class="topbar">
     <div class="topbar-inner">
