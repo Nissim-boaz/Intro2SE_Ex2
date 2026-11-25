@@ -1,5 +1,5 @@
 <nav class="course-nav" aria-label="ניהול" style="position:static;margin-top:0">
-  <a href="{{ url_for('admin.users') }}" {% if active == 'users' %}class="chip-on"{% endif %}>משתמשים</a>
+  <a href="{{ url_for('admin.users') }}" {% if active == 'users' %}class="chip-on"{% endif %}>משתמשים{% if signups_badge %} <b class="nav-badge" aria-label="{{ signups_badge }} בקשות הרשמה">{{ signups_badge }}</b>{% endif %}</a>
   <a href="{{ url_for('admin.courses') }}" {% if active == 'courses' %}class="chip-on"{% endif %}>קורסים</a>
   <a href="{{ url_for('requests.inbox') }}" {% if active == 'requests' %}class="chip-on"{% endif %}>פניות{% if requests_badge %} <b class="nav-badge">{{ requests_badge }}</b>{% endif %}</a>
 </nav>

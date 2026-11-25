@@ -10,6 +10,38 @@
 </div>
 {% set active = 'users' %}{% include "admin/_nav.html" %}
 
+{% if signups %}
+<section class="panel signups" id="signups">
+  <h2>בקשות הרשמה <span class="muted" style="font-weight:500">{{ signups|length }}</span></h2>
+  <p class="muted small">אחרי אישור, המשתמש נכנס עם Google במייל שכתב. את השיוך לקורסים עושים בעמוד הקורס.</p>
+  <ul class="list list-scroll">
+    {% for s in signups %}
+    <li>
+      <span class="avatar" aria-hidden="true">{{ s.name[:1] }}</span>
+      <div class="grow">
+        <div class="title">{{ s.name }}</div>
+        <div class="xsmall muted" dir="ltr" style="text-align:right">{{ s.email }}</div>
+      </div>
+      <div class="signup-actions">
+      <form method="post" action="{{ url_for('admin.approve_signup', request_id=s.id) }}" class="row signup-approve">
+        <select name="role" aria-label="תפקיד של {{ s.name }}" style="width:auto;padding:6px 10px;font-size:14px">
+          {% for key, label in role_labels.items() %}
+          <option value="{{ key }}" {% if key == s.role %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn btn-sm">אשר</button>
+      </form>
+      <form method="post" action="{{ url_for('admin.reject_signup', request_id=s.id) }}"
+            data-confirm="לדחות את הבקשה של {{ s.name }}?" data-confirm-ok="דחה">
+        <button class="btn btn-sm btn-danger">דחה</button>
+      </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 <div class="grid-2" style="margin-bottom:16px">
   <section class="panel">
     <h2 style="margin-bottom:14px">משתמש חדש</h2>

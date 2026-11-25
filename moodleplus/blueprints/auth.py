@@ -4,7 +4,9 @@ from flask import Blueprint, current_app, flash, jsonify, redirect, render_templ
 from ..db import get_db
 from ..errors import Forbidden
 from ..security import current_user, login_user
+from ..errors import ValidationError
 from ..services.google_auth import GoogleTokenVerifier
+from ..services.signups import SignupService
 from ..services.users import UserService
 
 bp = Blueprint("auth", __name__)
@@ -43,7 +45,7 @@ def google():
         return _fail(err.message)
     user = UserService(get_db()).find_by_email(info["email"])
     if user is None:
-        return _fail(f"החשבון {info['email']} לא רשום במערכת. פנה למנהל המערכת")
+        return _fail(f"החשבון {info['email']} לא רשום במערכת. אפשר לשלוח בקשת הרשמה, ומנהל המערכת יאשר אותה")
     target = _safe_next(session.get("next"))
     login_user(user, via="google")
     if request.is_json:
@@ -76,3 +78,21 @@ def _finish(user):
 def logout():
     session.clear()
     return redirect(url_for("auth.login"))
+
+
+@bp.route("/signup", methods=["GET", "POST"])
+def signup():
+    """פתוח לכולם: מי שעוד לא במערכת מבקש גישה. אחרי שמנהל מאשר, נכנסים עם Google."""
+    if current_user():
+        return redirect(url_for("courses.index"))
+    form = request.form
+    if request.method == "POST":
+        if form.get("website"):  # השדה הנסתר מולא: כנראה בוט. עונים כרגיל ולא שומרים כלום
+            return render_template("auth/signup.html", sent=form.get("email", ""), form={})
+        try:
+            req = SignupService(get_db()).submit(form.get("name", ""), form.get("email", ""), form.get("role", ""))
+        except ValidationError as err:
+            flash(err.message, "error")
+            return render_template("auth/signup.html", sent=None, form=form)
+        return render_template("auth/signup.html", sent=req.email, form={})
+    return render_template("auth/signup.html", sent=None, form={})

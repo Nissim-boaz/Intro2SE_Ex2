@@ -6,6 +6,7 @@ from ..errors import ValidationError
 from ..models import ROLE_LABELS
 from ..security import current_user, role_required
 from ..services.courses import CourseService, EnrollmentService
+from ..services.signups import SignupService
 from ..services.users import StudentImporter, UserService
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -34,6 +35,7 @@ def users():
         "admin/users.html",
         users=UserService(get_db()).list(),  # הסינון לפי תפקיד קורה בדפדפן, בלי לטעון את העמוד מחדש
         main_admin=UserService(get_db()).main_admin_email(),
+        signups=SignupService(get_db()).pending(),
         role_filter=role,
         role_labels=ROLE_LABELS,
     )
@@ -167,3 +169,20 @@ def import_to_course(course_id: int):
     EnrollmentService(db).enroll_many(course_id, result.users)
     _report(result)
     return redirect(url_for("admin.course", course_id=course_id))
+
+
+# ---------- sign-up requests ----------
+@bp.post("/signups/<int:request_id>/approve")
+@role_required("admin")
+def approve_signup(request_id: int):
+    user = SignupService(get_db()).approve(request_id, request.form.get("role") or None)
+    flash(f"{user.name} נוסף כ{user.role_label}. עכשיו הוא יכול להתחבר עם Google", "success")
+    return redirect(url_for("admin.users") + "#signups")
+
+
+@bp.post("/signups/<int:request_id>/reject")
+@role_required("admin")
+def reject_signup(request_id: int):
+    SignupService(get_db()).reject(request_id)
+    flash("הבקשה נדחתה", "success")
+    return redirect(url_for("admin.users") + "#signups")

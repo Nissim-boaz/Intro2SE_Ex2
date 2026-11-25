@@ -12,13 +12,13 @@ There are three roles:
 
 A user's role applies in every course they are assigned to: a lecturer is a lecturer in all of their courses. Changing a user's role updates the courses they are already in.
 
-Sign-in is with a Google account, and the server verifies the ID token: its signature against Google's keys, that its audience is our Client ID, that it hasn't expired, and that Google verified the email address. Anyone not listed in the users table can't get in. For development there is a `MOCK_AUTH` mode with a role and user picker and no authentication; every page then shows an orange strip so it is never left on by accident.
+Sign-in is with a Google account, and the server verifies the ID token: its signature against Google's keys, that its audience is our Client ID, that it hasn't expired, and that Google verified the email address. Anyone not listed in the users table can't get in. Someone who isn't listed yet can send a sign-up request (name, Google email, student or lecturer) from `/signup`; an admin approves it in the users screen, possibly changing the role, and from then on they sign in with Google like everyone else. For development there is a `MOCK_AUTH` mode with a role and user picker and no authentication; every page then shows an orange strip so it is never left on by accident.
 
 Students and lecturers can send a request to the admins from the account menu (for example, a missing course or an attendance mistake). Each request is a conversation: the admins reply and set its status (new, in progress, resolved or rejected), and the requester gets a red dot in the menu when there is an update. A resolved or rejected request is deleted 7 days after it was closed.
 
 The home page and the admin lists (users, courses, course members) have a live search field that filters as you type.
 
-The course page has a floating tab bar at the bottom (content, assignments and grades, attendance, recordings, chat), with an unread count on the chat icon.
+The course page has a floating tab bar at the bottom (content, assignments and grades, attendance, recordings, chat) with a short label under each icon and an unread count on the chat icon.
 
 ### Assignments
 
@@ -94,6 +94,7 @@ moodleplus/
     chat_themes.py   ChatThemeService (wallpaper and message colour per user)
     polls.py         PollService
     requests.py      RequestService (requests to the admins)
+    signups.py       SignupService (sign-up requests an admin approves)
     recordings.py    RecordingService, BackgroundJobRunner
     transcription.py Transcriber, WhisperTranscriber, AudioExtractor
     llm.py           LLMProvider, GeminiProvider, LessonSummarizer, LessonFeedbackWriter

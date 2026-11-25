@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}בקשת הרשמה · Moodle+{% endblock %}
+{% block topbar %}{% endblock %}
+{% block main_class %}login{% endblock %}
+{% block content %}
+<div class="login-card">
+  <div>
+    <div class="login-mark" dir="ltr">Moodle<span>+</span></div>
+    <p class="muted" style="margin-top:12px">בקשת הרשמה</p>
+  </div>
+
+  <div class="panel stack">
+    {% if sent %}
+    <div class="signup-sent">
+      <span class="check-badge" aria-hidden="true">✓</span>
+      <strong>הבקשה נשלחה</strong>
+      <p class="muted small">אחרי שמנהל המערכת יאשר אותה, תוכל להתחבר עם חשבון ה-Google של <span dir="ltr">{{ sent }}</span>.</p>
+      <a class="btn btn-quiet btn-block" href="{{ url_for('auth.login') }}">לעמוד ההתחברות</a>
+    </div>
+    {% else %}
+    <form method="post" action="{{ url_for('auth.signup') }}" class="form-grid" data-once>
+      <label>שם מלא<input type="text" name="name" required maxlength="120" autocomplete="name" value="{{ form.name or '' }}"></label>
+      <label>מייל של חשבון ה-Google שלך
+        <input type="email" name="email" required dir="ltr" autocomplete="email" value="{{ form.email or '' }}">
+      </label>
+      <label>תפקיד
+        <select name="role">
+          <option value="student" {% if form.role != 'lecturer' %}selected{% endif %}>סטודנט</option>
+          <option value="lecturer" {% if form.role == 'lecturer' %}selected{% endif %}>מרצה</option>
+        </select>
+      </label>
+      {# a field people don't see: a bot that fills every field gets caught here #}
+      <label class="signup-trap" aria-hidden="true">אל תמלא<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+      <button class="btn btn-lg btn-block">שלח בקשה</button>
+      <p class="xsmall muted" style="text-align:center">מנהל המערכת יאשר את הבקשה, ואז תיכנס עם Google במייל הזה.</p>
+    </form>
+    {% endif %}
+  </div>
+  <nav class="login-legal xsmall">
+    <a href="{{ url_for('auth.login') }}">כבר יש לך גישה? התחברות</a>
+  </nav>
+</div>
+{% endblock %}

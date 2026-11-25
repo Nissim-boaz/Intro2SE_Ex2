@@ -20,7 +20,12 @@ def request_badge():
     user = current_user()
     if not user:
         return {}
-    return {"requests_badge": _service().badge_for(user)}
+    badges = {"requests_badge": _service().badge_for(user)}
+    if user.is_admin:
+        from ..services.signups import SignupService
+
+        badges["signups_badge"] = SignupService(get_db()).count()
+    return badges
 
 
 @bp.get("/requests")

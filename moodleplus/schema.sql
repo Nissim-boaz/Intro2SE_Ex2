@@ -304,3 +304,12 @@ CREATE TABLE IF NOT EXISTS app_settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+
+-- בקשות הרשמה שמחכות למנהל מערכת. אישור יוצר משתמש ומוחק את הבקשה, וכך גם דחייה
+CREATE TABLE IF NOT EXISTS signup_requests (
+    id         INTEGER PRIMARY KEY,
+    name       TEXT NOT NULL,
+    email      TEXT NOT NULL UNIQUE,
+    role       TEXT NOT NULL CHECK (role IN ('student', 'lecturer')),
+    created_at REAL NOT NULL
+);
