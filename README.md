@@ -2,6 +2,38 @@
 
 A course website built for assignment 2 of Introduction to Software Engineering. Every course has a page with content, assignments, in-class attendance sampling, lesson recordings with an AI summary and chapters, and a group chat with polls. The interface is in Hebrew (right to left) and designed for phones first.
 
+## Problem and scope
+
+**Problem.** Today's online teaching tools don't work well in a real classroom. Taking attendance is slow, student comments get lost, polls need a separate tool, nobody summarizes the recordings, and homework review is all manual.
+
+**Goal.** One simple, phone-first web app for a class. It is built around the most important feature: students mark attendance from their phones with no roll call, and the lecturer exports it as a spreadsheet.
+
+**In scope.** Everything described below: attendance with a sound code, with a live list, a report, a CSV export, manual marks and appeals; a course chat with anonymous messages; quick polls; recordings with transcription, an AI summary and chapters; homework submission and grading with AI suggestions and a copy check; roles, Google sign-in, course pages and weighted grades.
+
+**Out of scope.**
+- Integration with Moodle, Zoom or university systems. Student lists are imported from CSV or XLSX instead.
+- A native phone app. Everything runs in the browser.
+- Live sockets. Pages update by polling.
+- Hosting on a production server with backups.
+- Grading with no lecturer involved. AI output is only a suggestion until the lecturer approves it.
+
+## Demo video
+
+[Demo video (Google Drive)](PASTE-DRIVE-LINK-HERE)
+
+## Project documents
+
+All documents are in [`docs/`](docs/):
+
+1. [Tools report](docs/01_tools_report.md)
+2. [Statement of Work](docs/02_SoW.md)
+3. [Requirements (SRS)](docs/03_SRS.md)
+4. [Use cases](docs/04_use_cases.md)
+5. [Main components](docs/05_components.md)
+6. [Class and sequence diagrams](docs/06_diagrams.md)
+7. [Testing strategy](docs/07_testing_strategy.md)
+8. [Conclusion](docs/08_conclusion.md)
+
 ## What's in the system
 
 There are three roles:
@@ -22,7 +54,7 @@ The course page has a floating tab bar at the bottom (content, assignments and g
 
 ### Assignments
 
-The lecturer publishes an assignment with instructions, a due date and an optional attached file. Each student submits one file and can replace it until the lecturer grades it. Submitting after the due date is allowed and marked as late; moving the due date updates the late mark on work already sent. The lecturer sees who submitted and who didn't, downloads each submission, and gives a grade (0 to 100) and a note that only that student sees. Grades stay hidden while the lecturer is grading, and one click publishes them to all students at once. After that, a student can appeal a grade once, and the lecturer accepts it with a new grade or rejects it (a reason is optional).
+The lecturer publishes an assignment with instructions, a due date and an optional attached file. Each student submits one file and can replace it until the grades are published. Submitting after the due date is allowed and marked as late; moving the due date updates the late mark on work already sent. The lecturer sees who submitted and who didn't, downloads each submission, and gives a grade (0 to 100) and a note that only that student sees. Grades stay hidden while the lecturer is grading, and one click publishes them to all students at once. After that, a student can appeal a grade once, and the lecturer accepts it with a new grade or rejects it (a reason is optional).
 
 The lecturer can also have the AI check the submissions. Optionally, they add grading notes and a reference solution so the check is more accurate. In the background, Gemini reads each submission (text, code, Word, PowerPoint, zip, PDF, or an image of a diagram) and suggests a grade, a reason for the lecturer, and constructive feedback for the student. One more pass over the whole class adds a note relative to the class, with no names ("unlike most of the class, you didn't include a sequence diagram"), and a local text comparison flags for the lecturer only submissions that look copied from each other. The feedback lists where points were deducted, and the grade form starts from the AI's grade and feedback so the lecturer can edit and approve it without copying anything. These are only suggestions: the lecturer approves each one, or all at once, and students see nothing until the grades are published. Before publishing, students can't tell whether their work was checked, and they can still resubmit.
 
@@ -44,9 +76,9 @@ The sample screen is meant to be projected. It shows the time left and the names
 
 On the student's course page, a "בצע נוכחות" (check in) button appears as soon as the sample opens, without refreshing. Tapping it asks for microphone permission (only the first time, since the browser remembers the answer), then the phone listens for up to 10 seconds, decodes the signal and sends the code to the server. Nothing is recorded or uploaded except the decoded number.
 
-The server accepts the current code and the one before it, so a code is valid for at most 8 seconds after it starts playing. That covers decoding on the phone (about 2 seconds) and a slow network, and is too short to record the sound, send it on WhatsApp and play it back. Phone calls and voice messages also cut frequencies this high, so the signal doesn't survive them. A check-in that arrives a few seconds after the sample closes still counts if its code is valid.
+The server accepts the current code and the one before it, so a code is valid for at most 8 seconds after it starts playing. That leaves time for decoding on the phone and a slow network, and is too short to record the sound, send it on WhatsApp and play it back. A check-in that arrives a few seconds after the sample closes still counts if its code is valid.
 
-There is no check-in without a valid code. A wrong or old code is rejected with a message, and the student can try again while the sample is open. After 5 wrong codes in a sample the student is blocked from it, so the 12-bit code can't be guessed. In the lesson report the lecturer can mark a student as present by hand (for example, a phone that didn't pick up the sound) and can cancel any attendance. Manual marks are labeled in the report and in the CSV. On the course page each student sees their own attendance per lesson, and can appeal a sample they were marked absent in once it closes. The lecturer sees open appeals at the top of the lesson report and accepts them (which marks the student present) or rejects them with a reason.
+There is no check-in without a valid code. A wrong or old code is rejected with a message, and the student can try again while the sample is open. After 5 wrong codes in a sample the student is blocked from it, so the 12-bit code can't be guessed. In the lesson report the lecturer can mark a student as present by hand (for example, a phone that didn't pick up the sound) and can cancel any attendance. Manual marks are labeled in the report and in the CSV. On the course page each student sees their own attendance per lesson, and can appeal a sample they were marked absent in once it closes. The lecturer sees open appeals at the top of the lesson report and accepts them (which marks the student present) or rejects them (a reply is optional).
 
 The report is a matrix of students by samples, with an attendance percentage per student, and a CSV export that opens correctly in Excel.
 
@@ -65,7 +97,7 @@ One chat per course, in a WhatsApp-like style. It loads in the background on the
 - Each user can star messages and find them again under "starred messages". Stars are private.
 - Each user picks their own wallpaper (the default study doodles, plain colours, or their own photo) and the colour of their own messages, for this chat only or for all their chats. Nobody else sees these choices.
 
-The lecturer creates a poll from the chat and chooses with a toggle whether voting is anonymous. In an anonymous poll (the default) everyone sees only the vote counts. In an open poll everyone can also see who voted for each option. Each student votes once and can change their choice. Updates arrive by polling every 2.5 seconds.
+The lecturer creates a poll from the chat and chooses with a toggle whether voting is anonymous. In an anonymous poll (the default) everyone sees only the vote counts. In an open poll everyone can also see who voted for each option. Everyone in the course except the poll's creator votes once and can change their choice. Updates arrive by polling every 2.5 seconds.
 
 ### Recordings
 
@@ -117,17 +149,19 @@ python -m venv venv
 venv\Scripts\activate            # on Mac or Linux: source venv/bin/activate
 pip install -r requirements.txt
 copy .env.example .env           # on Mac or Linux: cp
-python seed.py --reset           # demo data: a lecturer, 105 students, a course with content, assignments, chat and a poll
+python seed.py --reset           # sample data: a lecturer, the students in data/students.csv, a course with content, assignments, chat and a poll
 python run.py
 ```
 
 The site runs at `http://localhost:5001` (the exact address is printed on start). Port 5000 is skipped because macOS uses it for AirPlay Receiver; if 5001 is taken, the next free port is used. Set `PORT` to force a specific port. With `MOCK_AUTH=1`, the sign-in page lets you pick a role and a user. The main admin's email comes from `ADMIN_EMAIL`, and that admin is created automatically on the first run. Changing `ADMIN_EMAIL` later moves the existing admin to the new address: the same account and data if the address is new, or the old admin's data merged into the account that already has it. No second admin is created.
 
+`data/students.csv` and the Moodle export next to it hold 10 fictional students, so the repository has no real personal data. To use a real class list, import it from the admin screen.
+
 Important settings in `.env`:
 
 | Variable | What it does |
 | --- | --- |
-| `SECRET_KEY` | The secret the tokens and the session are derived from. For the demo it must be long and random |
+| `SECRET_KEY` | The secret the tokens and the session are derived from. It must be long and random |
 | `MOCK_AUTH` | `1` shows the role picker with no authentication (development), `0` leaves only Google |
 | `GOOGLE_CLIENT_ID` | The OAuth Client ID from Google Cloud Console. With `MOCK_AUTH=0` the server refuses to start without it |
 | `ADMIN_EMAIL` | The main admin's Google address. Its email can only be changed here, not in the users screen |
@@ -136,7 +170,7 @@ Important settings in `.env`:
 | `GEMINI_MODEL` | The default is `gemini-3.8-flash` |
 | `WHISPER_MODEL` | The default is `small`. Use `base` for faster transcription |
 
-On the first upload, faster-whisper downloads the model (about 460 MB), and it is cached after that. On a laptop, transcribing a 90-minute lesson takes roughly 20 to 40 minutes.
+On the first upload, faster-whisper downloads the model (about 460 MB), and it is cached after that.
 
 Note: on the Gemini free tier, Google may use the content to improve its models, so don't upload recordings with sensitive information.
 
@@ -170,17 +204,17 @@ Warning: with `MOCK_AUTH=1` and the Funnel open, anyone who has the address can 
 
 Changes to the origins can take a few minutes to apply on Google's side.
 
-### Development mode and demo mode
+### Development mode
 
 - Real sign-in: `MOCK_AUTH=0`. Sign in with Google as the admin (`ADMIN_EMAIL`).
 - Quick switching between users (for showing features): set `MOCK_AUTH=1` and restart the server. The orange strip shows on every page, and the terminal prints a warning.
 - Back to real sign-in: `MOCK_AUTH=0` and restart. Anyone who signed in through mock mode is signed out automatically, so nobody keeps an unauthenticated session; people who signed in with Google stay signed in.
 
-## Testing in the lecture hall before the demo
+## Checking the sound in a room
 
 1. On the classroom computer, open `/debug/audio`, click "השמע אות בדיקה" (play test signal) and turn the volume up.
 2. On a phone, open the same page through the `PUBLIC_URL` address and tap "התחל להקשיב" (start listening).
-3. From the back row, check that the level bars rise and that the decoded code matches the one on the computer. Below 14 dB above the noise, decoding won't work; move a speaker closer or turn it up.
+3. From the far end of the room, check that the level bars rise and that the decoded code matches the one on the computer. Below 14 dB above the noise, decoding won't work; move a speaker closer or turn it up.
 
 If a phone can't pick up the signal, the lecturer can still mark that student as present by hand in the lesson report.
 
@@ -190,4 +224,4 @@ If a phone can't pick up the signal, the lecturer can still mark that student as
 pytest -q
 ```
 
-The tests need no network and no models. They use a fake clock and fake transcription and LLM implementations, and cover, among other things, the 5-sample limit, audio code expiry and replay, the wrong-code lockout, manual marking, the migration of old attendance records, unique votes, one reaction per user, anonymity by role, feedback privacy, late and graded submissions, publishing grades, weighted grades, appeals, and permissions.
+There are 224 tests, and they need no network and no models. They use a fake clock and fake transcription and LLM implementations, and cover, among other things, the 5-sample limit, audio code expiry and replay, the wrong-code lockout, manual marking, the migration of old attendance records, unique votes, one reaction per user, anonymity by role, feedback privacy, late and graded submissions, publishing grades, weighted grades, appeals, and permissions.
