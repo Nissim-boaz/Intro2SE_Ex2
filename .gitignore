@@ -9,3 +9,5 @@ instance/
 *.db-wal
 *.db-shm
 .DS_Store
+# real student lists stay on this computer only; the repo has fictional samples
+data/*.real.*

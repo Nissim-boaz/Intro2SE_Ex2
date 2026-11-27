@@ -33,19 +33,22 @@ def test_invalid_role_and_email(db):
 def test_import_csv_sample_file(db):
     data = (DATA / "students.csv").read_bytes()
     result = StudentImporter(UserService(db)).import_file("students.csv", data)
-    assert result.created == 104
+    # קובץ דוגמה עם 10 סטודנטים בדויים (הרשימה האמיתית לא נמצאת בריפו)
+    assert result.created == 10
     assert all(u.role == "student" for u in result.users)
+    assert UserService(db).find_by_email("yael.barak@example.com").name == "יעל ברק"
     # ייבוא חוזר לא יוצר כפילויות
     again = StudentImporter(UserService(db)).import_file("students.csv", data)
-    assert again.created == 0 and again.existing == 104
+    assert again.created == 0 and again.existing == 10
 
 
 def test_import_moodle_xlsx(db):
+    # ייצוא משתתפים מ-Moodle (שם פרטי, שם משפחה, מייל), עם אותם 10 סטודנטים בדויים
     data = (DATA / "courseid_130158_participants (1).xlsx").read_bytes()
     result = StudentImporter(UserService(db)).import_file("participants.xlsx", data)
-    assert result.created == 104
-    first = UserService(db).find_by_email("guygg197@gmail.com")
-    assert first.name == "גיא אביב"
+    assert result.created == 10
+    first = UserService(db).find_by_email("yael.barak@example.com")
+    assert first.name == "יעל ברק"
 
 
 def test_import_skips_rows_without_email(db):

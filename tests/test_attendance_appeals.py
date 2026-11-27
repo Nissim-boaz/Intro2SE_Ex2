@@ -33,7 +33,7 @@ def test_appeal_only_after_the_sample_closes_and_only_once(setup, people):
         appeals.appeal(sample.id, people["s2"], "already present")
 
 
-def test_accept_marks_present_and_reject_needs_a_reason(setup, people):
+def test_accept_marks_present_and_reject_without_a_reason(setup, people):
     attendance, appeals, sample, clock = setup
     clock.advance(120)
     a1 = appeals.appeal(sample.id, people["s1"], "הייתי")

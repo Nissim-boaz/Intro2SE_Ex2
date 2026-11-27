@@ -160,9 +160,9 @@ def _seed_chat(db, course_id, lecturer, students) -> None:
     reactions.toggle(r1, lecturer, "👍")
     chat.send(course_id, c, "אפשר לקבל הארכה למטלה 2?", anonymous=True)
     ann = chat.send(course_id, lecturer, "תזכורת: ביום ראשון יש דגימת נוכחות בתחילת השיעור. תביאו טלפון 📱")
-    for st in students[4:12]:
+    for st in students[4:-1]:
         reactions.toggle(ann, st, "👍")
-    reactions.toggle(ann, students[12], "😂")
+    reactions.toggle(ann, students[-1], "😂")
 
     polls = PollService(db)
     message_id = polls.create(course_id, lecturer, "על מה לחזור בשיעור הבא?",
