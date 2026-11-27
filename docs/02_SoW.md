@@ -34,6 +34,7 @@ A working, phone-first web app for a class. It makes attendance simple and adds 
 
 ## Assumptions and constraints
 - One classroom computer with speakers. Students use phones with a modern browser.
+- Students don't share their Google accounts, so a check-in from a student's phone means that student is in the room.
 - The server runs on our own computer and is reached over HTTPS through Tailscale Funnel.
 - Free tiers only (Gemini, Tailscale).
 - No integration with Moodle, Zoom or university systems.
