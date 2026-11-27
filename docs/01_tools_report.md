@@ -16,6 +16,7 @@ What we chose for each part of the system, why, and how we tried it.
 | File reading | openpyxl (XLSX), pypdf (PDF) | Import student lists and grades; read submissions | pandas | A real Moodle participants export was imported; tests cover CSV, XLSX and PDF |
 | Testing | pytest | Simple, with fakes there is no network and no model | unittest | `pytest -q`: 224 tests in 18 files, all pass |
 | Front end | Jinja templates, plain JavaScript, CSS | No build step; Hebrew, right to left, phone first | React, Vue | Used on phones and on a computer |
+| Writing the code | Claude Code | We described each feature and reviewed what it wrote. For the hard parts we used existing libraries (faster-whisper, google-auth, openpyxl, pypdf) instead of writing our own | Writing everything by hand | The whole app was built this way, and the 224 tests in `tests/` check the code it wrote |
 
 ## Notes
 - The phone ignores a tone that is less than 14 dB above the room noise. This is a setting in `audio_listener.js`. If a phone can't decode the signal, the lecturer marks the student by hand.
